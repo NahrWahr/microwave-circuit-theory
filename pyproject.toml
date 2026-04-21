@@ -1,0 +1,13 @@
+[project]
+name = "microwave-circuit-theory"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.14"
+dependencies = [
+    "manim>=0.20.1",
+    "marimo>=0.23.0",
+    "mcp>=1.27.0",
+    "numpy>=2.4.4",
+    "plotly>=6.6.0",
+    "scipy>=1.15.0",
+]
