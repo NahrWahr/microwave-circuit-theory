@@ -10,4 +10,6 @@ dependencies = [
     "numpy>=2.4.4",
     "plotly>=6.6.0",
     "scipy>=1.15.0",
+    "matplotlib>=3.10.8",
+    "pyqt5>=5.15.11",
 ]

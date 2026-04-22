@@ -467,8 +467,8 @@ def _(mo):
     mo.md(r"""
     ## 8. Frequency Sweep — Parameter Magnitudes
 
-    The plot below sweeps frequency from 100 MHz to 100 GHz and shows $|Z_{ij}|$,
-    $|Y_{ij}|$, $|A|$, $|D|$ for the selected topology and element values.
+    The plot below sweeps frequency from 100 MHz to 100 GHz and shows the Z-parameter
+    magnitudes and phases for the selected topology and element values.
     """)
     return
 
@@ -482,9 +482,6 @@ def _(C_abcd, C_val, L_val, R_val, go, make_subplots, mo, np, t):
     Z12_f = np.zeros(len(ws), dtype=complex)
     Z21_f = np.zeros(len(ws), dtype=complex)
     Z22_f = np.zeros(len(ws), dtype=complex)
-    A_f   = np.zeros(len(ws), dtype=complex)
-    B_f   = np.zeros(len(ws), dtype=complex)
-    D_f   = np.zeros(len(ws), dtype=complex)
 
     for _i, _w in enumerate(ws):
         if t == "series":
@@ -527,13 +524,6 @@ def _(C_abcd, C_val, L_val, R_val, go, make_subplots, mo, np, t):
         Z12_f[_i] = _Z[0,1]
         Z21_f[_i] = _Z[1,0]
         Z22_f[_i] = _Z[1,1]
-        _dZ = _Z[0,0]*_Z[1,1] - _Z[0,1]*_Z[1,0]
-        if abs(_Z[1,0]) > 1e-30:
-            A_f[_i] = _Z[0,0] / _Z[1,0]
-            B_f[_i] = _dZ    / _Z[1,0]
-            D_f[_i] = _Z[1,1]/ _Z[1,0]
-        else:
-            A_f[_i] = np.nan; B_f[_i] = np.nan; D_f[_i] = np.nan
 
     fGHz = freqs / 1e9
 
@@ -544,12 +534,10 @@ def _(C_abcd, C_val, L_val, R_val, go, make_subplots, mo, np, t):
         return db
 
     fig_sweep = make_subplots(
-        rows=2, cols=2,
+        rows=1, cols=2,
         subplot_titles=[
-            "|Z-parameters| (dB·Ω)", "∠Z-parameters (°)",
-            "|ABCD| magnitudes (dB)", "∠ABCD entries (°)",
+            "|Z-parameters| (dB·Ω)", "∠Z-parameters (°)"
         ],
-        vertical_spacing=0.14,
         horizontal_spacing=0.10,
     )
 
@@ -566,32 +554,17 @@ def _(C_abcd, C_val, L_val, R_val, go, make_subplots, mo, np, t):
                        line=dict(color=_col, dash="dot"), legendgroup=_lbl, showlegend=False),
             row=1, col=2)
 
-    _abcd_labels = ["|A|", "|B|", "|D|"]
-    _abcd_arrs   = [A_f, B_f, D_f]
-    _abcd_colors = ["#FFA15A", "#19D3F3", "#FF6692"]
-    for _lbl, _arr, _col in zip(_abcd_labels, _abcd_arrs, _abcd_colors):
-        fig_sweep.add_trace(
-            go.Scatter(x=fGHz, y=_safe_db(_arr), name=_lbl,
-                       line=dict(color=_col), legendgroup=_lbl),
-            row=2, col=1)
-        fig_sweep.add_trace(
-            go.Scatter(x=fGHz, y=np.degrees(np.angle(_arr)), name=_lbl+" ∠",
-                       line=dict(color=_col, dash="dot"), legendgroup=_lbl, showlegend=False),
-            row=2, col=2)
-
     fig_sweep.update_xaxes(type="log", title_text="Frequency (GHz)")
     fig_sweep.update_yaxes(title_text="Magnitude (dB)", row=1, col=1)
     fig_sweep.update_yaxes(title_text="Phase (°)", row=1, col=2)
-    fig_sweep.update_yaxes(title_text="Magnitude (dB)", row=2, col=1)
-    fig_sweep.update_yaxes(title_text="Phase (°)", row=2, col=2)
     fig_sweep.update_layout(
         template="plotly_dark",
-        height=600,
+        height=400,
         title="Two-Port Parameters vs Frequency",
-        legend=dict(orientation="h", y=-0.12),
+        legend=dict(orientation="h", y=-0.2),
     )
     mo.ui.plotly(fig_sweep)
-    return A_f, B_f, D_f, Z11_f, Z12_f, Z21_f, Z22_f, fGHz, fig_sweep, freqs, ws
+    return Z11_f, Z12_f, Z21_f, Z22_f, fGHz, fig_sweep, freqs, ws
 
 
 @app.cell
