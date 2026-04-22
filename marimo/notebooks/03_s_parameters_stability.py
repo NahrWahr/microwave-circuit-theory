@@ -3,7 +3,6 @@ import marimo
 __generated_with = "0.23.0"
 app = marimo.App(width="full")
 
-
 @app.cell
 def _():
     import marimo as mo
@@ -17,217 +16,18 @@ def _():
 # ---------------------------------------------------------------------------
 # Section 1 — Three gain definitions in Y-parameters
 # ---------------------------------------------------------------------------
+
+
 @app.cell
 def _(mo):
     mo.md(r"""
-    # Power Gains and Stability
+    # S-Parameters and Stability Analysis
 
-    Notebook 02 established the vocabulary of power waves, the S-matrix, and signal flow
-    graphs. With $\Gamma_{\text{in}}$, $\Gamma_{\text{out}}$, and the SFG determinant
-    $\Delta_{\text{SFG}} = (1-S_{11}\Gamma_S)(1-S_{22}\Gamma_L)-S_{12}S_{21}\Gamma_S\Gamma_L$
-    in hand, we can now define the three canonical two-port power gains, investigate when a
-    two-port is stable, and find the maximum gain achievable from a stable device.
-
-    ## 1. Three Power Gain Definitions — Y-Parameter Derivations
-
-    We begin in Y-parameters because the algebra is lighter; the S-parameter forms follow
-    in §2. Consider a two-port with Y-parameters driven by a source $(V_s, Z_s)$ terminated
-    by load $Z_L$. Define port voltages $V_1$, $V_2$ and port currents $I_1$, $I_2$
-    (sign convention: $I_1$ into port 1, $I_2$ out of port 2 into $Z_L$).
-
-    ### 1.1 Operating Power Gain $G$
-
-    **Definition:** ratio of power delivered to the load to power entering port 1.
-    We adopt the standard convention where $I_1$ and $I_2$ both enter the ports. The power delivered to the load $Y_L$ (where $I_{L} = -I_2$) is:
-
-    $$P_L = \frac{1}{2}\operatorname{Re}(-V_2 I_2^*) = \frac{1}{2} G_L |V_2|^2, \qquad P_{\text{in}} = \frac{1}{2}\operatorname{Re}(V_1 I_1^*) = \frac{1}{2} \operatorname{Re}(Y_{\text{in}}) |V_1|^2$$
-
-    Using the Y-parameter equation at port 2, $I_2 = Y_{21}V_1 + Y_{22}V_2$. Since $I_2 = -V_2 Y_L$, we can find the voltage transfer ratio:
-
-    $$-V_2 Y_L = Y_{21}V_1 + Y_{22}V_2 \implies V_2 = \frac{-Y_{21}}{Y_{22} + Y_L} V_1$$
-
-    Substituting this into the $P_L$ expression and dividing by $P_{\text{in}}$, the $|V_1|^2$ term cancels out:
-
-    $$\boxed{G = \frac{|Y_{21}|^2 G_L}{|Y_{22}+Y_L|^2 \operatorname{Re}(Y_{\text{in}})}}$$
-
-    where $Y_{\text{in}} = Y_{11} - \frac{Y_{12}Y_{21}}{Y_{22}+Y_L}$ is the input admittance.
-
-    **Key property:** $G$ depends on $Z_L$ but **not** on $Z_s$.
-
-    ---
-
-    ### 1.2 Available Power Gain $G_A$
-
-    **Definition:** ratio of power available at port 2 to power available from the source.
-
-    $$G_A \equiv \frac{P_{\text{avn}}}{P_{\text{avs}}}$$
-
-    The power available from the source is $P_{\text{avs}} = \frac{|I_s|^2}{8 G_S}$, where $I_s$ is the Norton equivalent source current and $G_S = \operatorname{Re}(Y_S)$.
-    At port 2, the available power is obtained by conjugate-matching the output, giving $P_{\text{avn}} = \frac{|I_{\text{sc,2}}|^2}{8 G_{\text{out}}}$.
-    The short-circuit current at port 2 (when $V_2 = 0$) is $I_{\text{sc,2}} = Y_{21} V_1$.
-    With port 2 shorted, $V_1 = \frac{I_s}{Y_{11} + Y_S}$, so the short-circuit current is $I_{\text{sc,2}} = \frac{Y_{21} I_s}{Y_{11} + Y_S}$.
-
-    Therefore, the available power at the output is:
-
-    $$P_{\text{avn}} = \frac{1}{8 G_{\text{out}}} \left| \frac{Y_{21} I_s}{Y_{11} + Y_S} \right|^2$$
-
-    Taking the ratio $P_{\text{avn}} / P_{\text{avs}}$ causes the Norton source term $|I_s|^2 / 8$ to cancel perfectly:
-
-    $$\boxed{G_A = \frac{|Y_{21}|^2 G_S}{|Y_{11}+Y_S|^2 \operatorname{Re}(Y_{\text{out}})}}$$
-
-    where $Y_{\text{out}} = Y_{22} - \frac{Y_{12}Y_{21}}{Y_{11}+Y_S}$.
-
-    **Key property:** $G_A$ depends on $Z_s$ but **not** on $Z_L$.
-    This makes it the right figure of merit for noise analysis (Friis formula).
-
-    ---
-
-    ### 1.3 Transducer Power Gain $G_T$
-
-    **Definition:** ratio of power delivered to the load to power available from the source.
-
-    $$G_T \equiv \frac{P_L}{P_{\text{avs}}}$$
-
-    This is the gain a vector network analyser (VNA) reports: it includes all mismatch
-    losses at both ports. From the earlier derivations, we know:
-
-    $$P_L = \frac{1}{2} G_L |V_2|^2 \qquad \text{and} \qquad P_{\text{avs}} = \frac{|I_s|^2}{8 G_S}$$
-
-    To find $V_2$ in terms of the Norton source $I_s$, we solve the linear system $(Y + \text{\textbf{Y}}_{terminations})\mathbf{V} = \mathbf{I}$:
-
-    $$
-    \begin{bmatrix} Y_{11} + Y_S & Y_{12} \\ Y_{21} & Y_{22} + Y_L \end{bmatrix}
-    \begin{bmatrix} V_1 \\ V_2 \end{bmatrix} =
-    \begin{bmatrix} I_s \\ 0 \end{bmatrix}
-    $$
-
-    Using Cramer's rule, $V_2 = \frac{-Y_{21} I_s}{(Y_{11}+Y_S)(Y_{22}+Y_L) - Y_{12}Y_{21}}$. Substituting this into $P_L$:
-
-    $$P_L = \frac{1}{2} G_L \frac{|Y_{21}|^2 |I_s|^2}{|(Y_{11}+Y_S)(Y_{22}+Y_L) - Y_{12}Y_{21}|^2}$$
-
-    Dividing by $P_{\text{avs}}$ eliminates the $|I_s|^2$, yielding the **exact bilateral** formula valid for any terminations:
-
-    $$\boxed{G_T = \frac{4 G_S G_L\, |Y_{21}|^2}{|(Y_{11}+Y_S)(Y_{22}+Y_L) - Y_{12}Y_{21}|^2}}$$
-
-    *(Note: The equivalent formula in Z-parameters uses $4 R_s R_L |Z_{21}|^2$, but when using Y-parameters one must strictly use $G_S$ and $G_L$.)*
-
-    ---
-
-    ### 1.4 Inequalities and When Equality Holds
-
-    From the definitions it follows that:
-
-    $$G_T \leq G_A \quad \text{and} \quad G_T \leq G$$
-
-    with equality:
-
-    | Condition | Equality |
-    |---|---|
-    | $Z_s = Z_{\text{in}}^*$ (input conjugate-matched) | $G_T = G_A$ |
-    | $Z_L = Z_{\text{out}}^*$ (output conjugate-matched) | $G_T = G$ |
-    | Both simultaneously | $G_T = G_A = G = \text{MAG}$ |
-
-    The chain of inequalities has a physical interpretation:
-    $G_T$ is the actual gain; $G_A$ is the potential gain if the output were optimally loaded;
-    $G$ is the gain given the actual input power (independent of source mismatch).
+    With all power definitions and Mason's Gain established in Notebook 02, we now focus entirely on **stability**. This notebook covers the criteria for oscillation, derives Rollett's $K$ factor and the $\mu$-test, plots stability and gain circles, and computes Maximum Available Gain (MAG).
     """)
     return
 
 
-# ---------------------------------------------------------------------------
-# Section 2 — Three gain definitions in S-parameters
-# ---------------------------------------------------------------------------
-@app.cell
-def _(mo):
-    mo.md(r"""
-    ## 2. Three Power Gain Definitions — S-Parameter Formulation
-
-    With $\Gamma_{\text{in}}$, $\Gamma_{\text{out}}$ already derived from Mason's rule in
-    notebook 02 §8, the S-parameter forms of the three gains fall out directly from the
-    wave-power identity $P = \tfrac{1}{2}(|a|^2 - |b|^2)$.
-
-    ### 2.1 Operating Power Gain $G$
-
-    The operating gain involves only the power entering the network and the power delivered to the load.
-
-    $$G \equiv \frac{P_L}{P_{\text{in}}} = \frac{\frac{1}{2}|b_2|^2 (1 - |\Gamma_L|^2)}{\frac{1}{2}|a_1|^2 (1 - |\Gamma_{\text{in}}|^2)}$$
-
-    Substitute the transmission ratio $b_2 / a_1 = S_{21} / (1 - S_{22} \Gamma_L)$ (notebook 02):
-
-    $$\boxed{G = \frac{1 - |\Gamma_L|^2}{1 - |\Gamma_{\text{in}}|^2} \left| \frac{S_{21}}{1 - S_{22} \Gamma_L} \right|^2 = \frac{|S_{21}|^2 (1 - |\Gamma_L|^2)}{(1 - |\Gamma_{\text{in}}|^2) |1 - S_{22} \Gamma_L|^2}}$$
-
-    This establishes $G$ as independent of the source termination $\Gamma_S$.
-
-    ### 2.2 Available Power Gain $G_A$
-
-    Available gain leverages the power available from the source and the maximum power *available* from the network at port 2.
-    It can be found by evaluating the total power transfer under a conjugate match at the load ($\Gamma_L = \Gamma_{\text{out}}^*$), or by symmetric derivation from port 1:
-
-    $$\boxed{G_A = \frac{1 - |\Gamma_S|^2}{1 - |\Gamma_{\text{out}}|^2} \left| \frac{S_{21}}{1 - S_{11} \Gamma_S} \right|^2 = \frac{|S_{21}|^2 (1 - |\Gamma_S|^2)}{(1 - |\Gamma_{\text{out}}|^2) |1 - S_{11} \Gamma_S|^2}}$$
-
-    This establishes $G_A$ as independent of the load termination $\Gamma_L$.
-
-    ### 2.3 Transducer Power Gain $G_T$
-
-    Transducer gain is the actual physical power flow in the overall system. Based on the mismatch factor formula (notebook 02 §2.4), the power entering the network perfectly correlates to the available power via:
-
-    $$P_{\text{in}} = P_{\text{avs}} \frac{(1 - |\Gamma_S|^2)(1 - |\Gamma_{\text{in}}|^2)}{|1 - \Gamma_S \Gamma_{\text{in}}|^2}$$
-
-    Using $P_L / P_{\text{in}} = G$, we easily find $G_T = P_L / P_{\text{avs}}$ by substituting $P_{\text{in}} / P_{\text{avs}}$ and $G$:
-
-    $$G_T = \frac{P_{\text{in}}}{P_{\text{avs}}} G = \frac{(1 - |\Gamma_S|^2)(1 - |\Gamma_{\text{in}}|^2)}{|1 - \Gamma_S \Gamma_{\text{in}}|^2} \frac{|S_{21}|^2 (1 - |\Gamma_L|^2)}{(1 - |\Gamma_{\text{in}}|^2) |1 - S_{22} \Gamma_L|^2}$$
-
-    Notice that $(1 - |\Gamma_{\text{in}}|^2)$ perfectly cancels. Grouping the denominator terms:
-
-    $$|1 - \Gamma_S \Gamma_{\text{in}}|^2 |1 - S_{22}\Gamma_L|^2 = \left| (1 - \Gamma_S (S_{11} + \frac{S_{12}S_{21}\Gamma_L}{1-S_{22}\Gamma_L}))(1-S_{22}\Gamma_L) \right|^2 = |(1-S_{11}\Gamma_S)(1-S_{22}\Gamma_L) - S_{12}S_{21}\Gamma_S\Gamma_L|^2$$
-
-    This is exactly the SFG determinant $\Delta_{\text{SFG}}$ derived via Mason's rule in
-    notebook 02 §7 — cross-checking the two routes to the same denominator. The result is
-    the elegant **exact bilateral transducer gain**:
-
-    $$\boxed{G_T = \frac{P_L}{P_{\text{avs}}} = \frac{(1-|\Gamma_S|^2)\,|S_{21}|^2\,(1-|\Gamma_L|^2)}{|(1-S_{11}\Gamma_S)(1-S_{22}\Gamma_L) - S_{12}S_{21}\Gamma_S\Gamma_L|^2}}$$
-    """)
-    return
-
-
-# ---------------------------------------------------------------------------
-# Section 3 — Unilateral factorisation
-# ---------------------------------------------------------------------------
-@app.cell
-def _(mo):
-    mo.md(r"""
-    ## 3. Unilateral Factorisation and Its Error Bound
-
-    If we isolate the amplifier such that reverse transmission is negligible ($S_{12} = 0$),
-    the complex denominator $\Delta_{\text{SFG}}$ decouples. The transducer gain separates
-    into three independent multiplicative blocks:
-
-    $$G_{TU} = \underbrace{\frac{1-|\Gamma_S|^2}{|1-S_{11}\Gamma_S|^2}}_{G_S} \cdot \underbrace{|S_{21}|^2}_{G_0} \cdot \underbrace{\frac{1-|\Gamma_L|^2}{|1-S_{22}\Gamma_L|^2}}_{G_L}$$
-
-    - $G_S$: Input mismatch gain. Maximised when $\Gamma_S = S_{11}^*$.
-    - $G_0$: Intrinsic forward device gain ($|S_{21}|^2$) between matched $Z_0$ ports.
-    - $G_L$: Output mismatch gain. Maximised when $\Gamma_L = S_{22}^*$.
-
-    The **unilateral figure of merit** mathematically confines the fraction of error introduced by dropping $S_{12}$:
-
-    $$U_m = \frac{|S_{11} S_{12} S_{21} S_{22}|}{(1-|S_{11}|^2)(1-|S_{22}|^2)}$$
-
-    > **Notation note.** The letter $U$ is used in two distinct senses in this series. Here
-    > $U_m$ is the **unilateral figure of merit** — a dimensionless bound on the error
-    > incurred by the unilateral approximation. In notebook 04 we encounter **Mason's
-    > unilateral power gain $U$**, which is an embedding-invariant gain metric. They are
-    > unrelated quantities despite sharing the same letter in older literature; we use
-    > $U_m$ (for *merit*) here to avoid collision.
-
-    The true bilateral $G_T$ is strictly bounded within the interval
-    $\frac{1}{(1+U_m)^2} \leq \frac{G_T}{G_{TU}} \leq \frac{1}{(1-U_m)^2}$.
-    """)
-    return
-
-
-# ---------------------------------------------------------------------------
-# Section 4 — Stability setup
-# ---------------------------------------------------------------------------
 @app.cell
 def _(mo):
     mo.md(r"""
@@ -253,6 +53,8 @@ def _(mo):
 # ---------------------------------------------------------------------------
 # Section 5 — Rollett K derivation
 # ---------------------------------------------------------------------------
+
+
 @app.cell
 def _(mo):
     mo.md(r"""
@@ -323,6 +125,8 @@ def _(mo):
 # ---------------------------------------------------------------------------
 # Section 6 — μ-test
 # ---------------------------------------------------------------------------
+
+
 @app.cell
 def _(mo):
     mo.md(r"""
@@ -370,6 +174,8 @@ def _(mo):
 # ---------------------------------------------------------------------------
 # Section 7 — Stability circles full derivation
 # ---------------------------------------------------------------------------
+
+
 @app.cell
 def _(mo):
     mo.md(r"""
@@ -460,6 +266,8 @@ def _(mo):
 # ---------------------------------------------------------------------------
 # Section 8 — MAG / MSG (requires K from §5)
 # ---------------------------------------------------------------------------
+
+
 @app.cell
 def _(mo):
     mo.md(r"""
@@ -547,6 +355,8 @@ def _(mo):
 # ---------------------------------------------------------------------------
 # Section 9 — Interactive: Gain + Stability Explorer
 # ---------------------------------------------------------------------------
+
+
 @app.cell
 def _(mo):
     mo.md(r"""
@@ -702,6 +512,8 @@ $\\Gamma_{{\\text{{out}}}}$ = {abs(Gout):.4f} ∠ {np.degrees(np.angle(Gout)):.1
 # ---------------------------------------------------------------------------
 # Section 9 (cont'd) — Power flow bar chart
 # ---------------------------------------------------------------------------
+
+
 @app.cell
 def _(G0_factor, GA, GL_factor, GS_factor, GT, GT_uni, MAG, db, go, mo, np):
     _labels = ["Pavs (source)", "×GS (input match)", "×G0 (device)", "×GL (output match)", "GT (delivered)"]
@@ -743,6 +555,8 @@ def _(G0_factor, GA, GL_factor, GS_factor, GT, GT_uni, MAG, db, go, mo, np):
 # ---------------------------------------------------------------------------
 # Section 10 — Gain circles derivation and visualisation
 # ---------------------------------------------------------------------------
+
+
 @app.cell
 def _(mo):
     mo.md(r"""
@@ -885,6 +699,8 @@ def _(S11, S22, gL_param, gS_param, go, mo, np, show_src):
 # ---------------------------------------------------------------------------
 # Section 11 — Stability circles (second interactive, drives load-pull too)
 # ---------------------------------------------------------------------------
+
+
 @app.cell
 def _(mo):
     mo.md(r"""
@@ -1119,6 +935,8 @@ def _(Delta_c, S11_c, S12_c, S21_c, S22_c, go, mo, np):
 # ---------------------------------------------------------------------------
 # Section 12 — Load-pull analysis
 # ---------------------------------------------------------------------------
+
+
 @app.cell
 def _(mo):
     mo.md(r"""
@@ -1253,6 +1071,8 @@ def _(S21_c, S22_c, go, mo, np, s11m, s11p, s21m, s21p, s12m, s12p, s22m, s22p):
 # ---------------------------------------------------------------------------
 # Section 13 — Unilateral error sweep
 # ---------------------------------------------------------------------------
+
+
 @app.cell
 def _(mo):
     mo.md(r"""
@@ -1326,6 +1146,8 @@ def _(GS, GL, S11, S21, S22, go, mo, np):
 # ---------------------------------------------------------------------------
 # Section 14 — Design strategies
 # ---------------------------------------------------------------------------
+
+
 @app.cell
 def _(mo):
     mo.md(r"""
@@ -1377,64 +1199,17 @@ def _(mo):
 # ---------------------------------------------------------------------------
 # Section 15 — Summary
 # ---------------------------------------------------------------------------
+
+
 @app.cell
 def _(mo):
     mo.md(r"""
-    ## 15. Summary
-
-    ### 15.1 Gain hierarchy
-
-    | Gain | Measures | Depends on | Maximised by |
-    |---|---|---|---|
-    | $G$ | Power efficiency of the device given actual input | $Z_L$, network | $Z_L = Z_{\text{out}}^*$ |
-    | $G_A$ | Best possible output power given source | $Z_s$, network | $Z_L = Z_{\text{out}}^*$ always |
-    | $G_T$ | Full system gain (source → load) | $Z_s$, $Z_L$, network | Simultaneous conjugate match |
-    | MAG | Maximum $G_T$ for stable device | Network only | Simultaneous conjugate match, $K>1$ |
-    | MSG | Gain at stability boundary $K=1$ | Network only | Reference for conditionally stable devices |
-
-    ### 15.2 Stability conditions
-
-    | Condition | Meaning |
-    |---|---|
-    | $K > 1$ and $|\Delta| < 1$ | Unconditionally stable — no passive termination causes oscillation |
-    | $K < 1$ | Conditionally stable — stability circles define safe termination regions |
-    | $\mu > 1$ | Equivalent **single-parameter** test for unconditional stability |
-    | Stability circle entirely outside unit disk | Entire Smith chart is stable |
-    | Stability circle intersects unit disk | Part of the Smith chart is unstable; test $\Gamma = 0$ to identify safe side |
-
-    ### 15.3 Key formulas
-
-    | Formula | Reference |
-    |---|---|
-    | $\Gamma_{\text{in}} = S_{11} + \frac{S_{12}S_{21}\Gamma_L}{1-S_{22}\Gamma_L}$ | NB02 §8 |
-    | $\Gamma_{\text{out}} = S_{22} + \frac{S_{12}S_{21}\Gamma_S}{1-S_{11}\Gamma_S}$ | NB02 §8 |
-    | $G_T = \frac{(1-\|\Gamma_S\|^2)\|S_{21}\|^2(1-\|\Gamma_L\|^2)}{\|\Delta_{\text{SFG}}\|^2}$ | §2.3 |
-    | $G_{TU} = G_S\cdot G_0 \cdot G_L$ (when $S_{12}=0$) | §3 |
-    | $K = \frac{1-\|S_{11}\|^2-\|S_{22}\|^2+\|\Delta\|^2}{2\|S_{12}S_{21}\|}$ | §5 |
-    | $\mu = \frac{1-\|S_{11}\|^2}{\|S_{22}-\Delta S_{11}^*\|+\|S_{12}S_{21}\|}$ | §6 |
-    | $C_L, R_L$ (output stability circle) | §7 |
-    | MAG $= \|S_{21}/S_{12}\|(K-\sqrt{K^2-1})$ | §8 |
-    | MSG $= \|S_{21}/S_{12}\|$ | §8 |
-
-    ### 15.4 Physical insight on MAG
-
-    The factor $(K - \sqrt{K^2-1})$ in the MAG formula approaches 1 as $K \to \infty$
-    (perfectly unilateral device), in which case MAG → MSG.  As the device becomes
-    more bilateral ($|S_{12}|$ grows, $K$ decreases toward 1), the required de-tuning
-    to maintain stability reduces the achievable gain — hence MAG < MSG.
-
-    In notebook 04 we go one step further and ask whether there is a gain metric that is
-    **invariant under any lossless, reciprocal embedding** — the answer is Mason's
-    unilateral power gain $U$, and the frequency at which it falls to 1 defines $f_{\max}$.
-
     ---
 
-    **Previous:** [02 — Power, Waves, and Network Representations](02_power_gain_definitions.py)
+    **Previous:** [02 — Power Gains, Signal Flow Graphs, and Mason's Gain](02_power_gain_definitions.py)
 
-    **Next:** [04 — Mason's Unilateral Power Gain U](04_unilateral_power_gain.py)
+    **Next:** [04 — (Deleted/Merged)](04_unilateral_power_gain.py)
     """)
     return
 
 
-if __name__ == "__main__":
-    app.run()
