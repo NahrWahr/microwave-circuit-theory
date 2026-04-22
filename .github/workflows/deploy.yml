@@ -1,0 +1,94 @@
+name: Deploy Marimo to GitHub Pages
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Build WASM Notebooks
+        run: |
+          mkdir -p public
+          touch public/.nojekyll
+          
+          # Create an index page
+          cat << 'EOF' > public/index.html
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Microwave Circuit Theory</title>
+              <style>
+                  body { font-family: system-ui, -apple-system, sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; background: #111; color: #eee; line-height: 1.6; }
+                  h1 { color: #fff; font-weight: 600; margin-bottom: 0.5rem; }
+                  p { color: #aaa; margin-bottom: 2rem; }
+                  .notebook-list { display: flex; flex-direction: column; gap: 1rem; }
+                  a { color: #60a5fa; text-decoration: none; display: block; padding: 1.5rem; background: #222; border: 1px solid #333; border-radius: 8px; transition: all 0.2s; }
+                  a:hover { background: #2a2a2a; border-color: #60a5fa; transform: translateY(-2px); }
+                  a strong { display: block; font-size: 1.1rem; margin-bottom: 0.25rem; color: #fff; }
+                  a span { font-size: 0.9rem; color: #888; }
+              </style>
+          </head>
+          <body>
+              <h1>Microwave Circuit Theory</h1>
+              <p>Interactive notebooks running in WebAssembly (WASM).</p>
+              <div class="notebook-list">
+          EOF
+
+          for notebook in marimo/notebooks/*.py; do
+            [ -f "$notebook" ] || continue
+            
+            basename=$(basename "$notebook" .py)
+            echo "Building $basename..."
+            uv run marimo export html-wasm "$notebook" --mode run -o "public/$basename"
+            
+            title=$(echo "$basename" | sed -e 's/_/ /g' | awk '{for(i=1;i<=NF;i++)sub(/./,toupper(substr($i,1,1)),$i)}1')
+            echo "        <a href=\"$basename/index.html\"><strong>$title</strong><span>Interactive marimo notebook</span></a>" >> public/index.html
+          done
+          
+          echo "    </div></body></html>" >> public/index.html
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './public'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
