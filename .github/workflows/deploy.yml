@@ -36,7 +36,7 @@ jobs:
           python-version-file: ".python-version"
 
       - name: Install dependencies
-        run: uv sync --all-extras --dev
+        run: python -m pip install marimo
 
       - name: Build WASM Notebooks
         run: |
@@ -73,7 +73,7 @@ jobs:
             
             basename=$(basename "$notebook" .py)
             echo "Building $basename..."
-            uv run marimo export html-wasm "$notebook" --mode run -o "public/$basename"
+            python -m marimo export html-wasm "$notebook" --mode run -o "public/$basename"
             
             title=$(echo "$basename" | sed -e 's/_/ /g' | awk '{for(i=1;i<=NF;i++)sub(/./,toupper(substr($i,1,1)),$i)}1')
             echo "        <a href=\"$basename/index.html\"><strong>$title</strong><span>Interactive marimo notebook</span></a>" >> public/index.html
