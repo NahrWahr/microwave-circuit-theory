@@ -26,6 +26,201 @@ def _():
 
 
 @app.cell
+def _(math, np):
+    # ── _lib_noise (inlined) ─────────────────────────────────────────────
+
+    def generate_white(n, variance=1.0, rng=None):
+        rng = rng if rng is not None else np.random.default_rng()
+        return rng.normal(0.0, np.sqrt(variance), size=n)
+
+    def generate_flicker(n, variance=1.0, rng=None):
+        rng = rng if rng is not None else np.random.default_rng()
+        white = rng.normal(0.0, 1.0, size=n)
+        spec = np.fft.rfft(white)
+        freqs = np.fft.rfftfreq(n, d=1.0)
+        freqs[0] = freqs[1]
+        spec = spec / np.sqrt(freqs)
+        shaped = np.fft.irfft(spec, n=n)
+        shaped = shaped - shaped.mean()
+        return shaped * np.sqrt(variance / shaped.var())
+
+    def generate_band_limited(n, f_s, f_hi, variance=1.0, rng=None):
+        rng = rng if rng is not None else np.random.default_rng()
+        white = rng.normal(0.0, 1.0, size=n)
+        spec = np.fft.rfft(white)
+        freqs = np.fft.rfftfreq(n, d=1.0 / f_s)
+        spec[freqs > f_hi] = 0.0
+        shaped = np.fft.irfft(spec, n=n)
+        shaped = shaped - shaped.mean()
+        return shaped * np.sqrt(variance / shaped.var())
+
+    def generate_shot(n, rate, rng=None):
+        rng = rng if rng is not None else np.random.default_rng()
+        counts = rng.poisson(rate, size=n).astype(float)
+        return counts - rate
+
+    def estimate_autocorr(x, max_lag):
+        n = x.size
+        x = x - x.mean()
+        full = np.correlate(x, x, mode="full") / n
+        mid = full.size // 2
+        return full[mid : mid + max_lag]
+
+    def estimate_psd(x, f_s):
+        n = x.size
+        seg = min(1024, n)
+        hop = seg // 2
+        window = np.hanning(seg)
+        segments = []
+        for start in range(0, n - seg + 1, hop):
+            chunk = x[start : start + seg] * window
+            segments.append(np.abs(np.fft.rfft(chunk)) ** 2)
+        if not segments:
+            segments = [np.abs(np.fft.rfft(x * np.hanning(n))) ** 2]
+        psd = np.mean(segments, axis=0) / (f_s * (window ** 2).sum())
+        freqs = np.fft.rfftfreq(seg, d=1.0 / f_s)
+        return freqs, psd
+
+    def friis_cascade(F, G_A):
+        assert len(F) == len(G_A)
+        assert all(g > 0 for g in G_A)
+        f_tot = F[0]
+        cum_gain = 1.0
+        for i in range(1, len(F)):
+            cum_gain *= G_A[i - 1]
+            f_tot += (F[i] - 1.0) / cum_gain
+        return f_tot
+
+    def noise_figure_from_Gamma(Gamma_s, F_min, R_n_norm, Gamma_opt):
+        denom = (1.0 - abs(Gamma_s) ** 2) * abs(1.0 + Gamma_opt) ** 2
+        return F_min + 4.0 * R_n_norm * abs(Gamma_s - Gamma_opt) ** 2 / denom
+
+    # ── _lib_circles (inlined) ───────────────────────────────────────────
+
+    def noise_circle(F_target, F_min, R_n_norm, Gamma_opt):
+        assert F_target >= F_min
+        N = (F_target - F_min) / (4.0 * R_n_norm) * abs(1.0 + Gamma_opt) ** 2
+        center = Gamma_opt / (1.0 + N)
+        radius = np.sqrt(N ** 2 + N * (1.0 - abs(Gamma_opt) ** 2)) / (1.0 + N)
+        return center, float(radius)
+
+    def available_gain_circle(G_target_dB, S11, S12, S21, S22):
+        g_a = 10 ** (G_target_dB / 10) / (abs(S21) ** 2)
+        Delta = S11 * S22 - S12 * S21
+        K = (1.0 - abs(S11) ** 2 - abs(S22) ** 2 + abs(Delta) ** 2) / (2.0 * abs(S12 * S21))
+        C1 = S11 - Delta * np.conj(S22)
+        denom_factor = 1.0 + g_a * (abs(S11) ** 2 - abs(Delta) ** 2)
+        center = g_a * np.conj(C1) / denom_factor
+        discrim = 1.0 - 2.0 * K * abs(S12 * S21) * g_a + (abs(S12 * S21) * g_a) ** 2
+        radius = np.sqrt(max(discrim, 0.0)) / abs(denom_factor)
+        return center, float(radius)
+
+    def source_stability_circle(S11, S12, S21, S22):
+        Delta = S11 * S22 - S12 * S21
+        denom = abs(S11) ** 2 - abs(Delta) ** 2
+        assert abs(denom) > 1e-20
+        center = np.conj(S11 - Delta * np.conj(S22)) / denom
+        radius = abs(S12 * S21) / abs(denom)
+        return center, float(radius)
+
+    def load_stability_circle(S11, S12, S21, S22):
+        Delta = S11 * S22 - S12 * S21
+        denom = abs(S22) ** 2 - abs(Delta) ** 2
+        assert abs(denom) > 1e-20
+        center = np.conj(S22 - Delta * np.conj(S11)) / denom
+        radius = abs(S12 * S21) / abs(denom)
+        return center, float(radius)
+
+    def rollett_K(S11, S12, S21, S22):
+        Delta = S11 * S22 - S12 * S21
+        K = (1.0 - abs(S11) ** 2 - abs(S22) ** 2 + abs(Delta) ** 2) / (2.0 * abs(S12 * S21))
+        return float(K), Delta
+
+    def MAG_dB(S11, S12, S21, S22):
+        K, _ = rollett_K(S11, S12, S21, S22)
+        if K > 1.0:
+            return 10.0 * np.log10(abs(S21) / abs(S12) * (K - np.sqrt(K ** 2 - 1.0)))
+        return 10.0 * np.log10(abs(S21) / abs(S12))
+
+    # ── _lib_lna (inlined) ───────────────────────────────────────────────
+
+    from dataclasses import dataclass as _dataclass
+
+    K_BOLTZMANN = 1.380649e-23
+    T0 = 290.0
+    Q_ELEC = 1.602176634e-19
+
+    @_dataclass(frozen=True)
+    class DeviceParams:
+        gm_per_id: float = 12.0
+        cox_per_area: float = 1.7e-2
+        cgs_per_W: float = 1.5e-15
+        gamma: float = 1.4
+        delta: float = 2.0 * 1.4
+        c_corr: complex = 0.395j
+        alpha_nq: float = 0.8
+
+    def compute_operating_point(W_um, J_A_per_um, params=DeviceParams()):
+        I_D = W_um * J_A_per_um
+        g_m = params.gm_per_id * I_D
+        C_gs = params.cgs_per_W * W_um
+        omega_T = g_m / C_gs
+        return {"I_D": I_D, "g_m": g_m, "C_gs": C_gs, "omega_T": omega_T}
+
+    def input_impedance(omega, L_s, L_g, op):
+        return (1j * omega * (L_s + L_g)
+                + 1.0 / (1j * omega * op["C_gs"])
+                + op["omega_T"] * L_s)
+
+    def F_min_shaeffer_lee(omega, op, params=DeviceParams()):
+        ratio = omega / op["omega_T"]
+        return 1.0 + (2.4 * params.gamma / params.alpha_nq) * ratio
+
+    def gamma_opt_degenerated_cs(omega, L_s, L_g, op, params=DeviceParams()):
+        Zin = input_impedance(omega, L_s, L_g, op)
+        Z0 = 50.0
+        return np.conj((Zin - Z0) / (Zin + Z0))
+
+    def sparameters_at_freq(omega, W_um, J_A_per_um, L_s, L_g, L_d,
+                            R_load=50.0, params=DeviceParams()):
+        op = compute_operating_point(W_um, J_A_per_um, params)
+        Zin = input_impedance(omega, L_s, L_g, op)
+        Z0 = 50.0
+        S11 = (Zin - Z0) / (Zin + Z0)
+        R_loop = Z0 + op["omega_T"] * L_s
+        Q_gate = 1.0 / (omega * op["C_gs"] * R_loop)
+        Z_load = 1j * omega * L_d + R_load
+        S21 = -op["g_m"] * Z_load * Q_gate * Z0 / (Z0 + Z_load)
+        S22 = (Z_load - Z0) / (Z_load + Z0)
+        s12_mag = 10 ** ((-40 + 15 * (omega / (2 * math.pi * 40e9))) / 20)
+        S12 = s12_mag + 0j
+        return S11, S21, S12, S22
+
+    def NF_degenerated_cs(omega, W_um, J_A_per_um, L_s, L_g, L_d,
+                          R_load=50.0, params=DeviceParams()):
+        op = compute_operating_point(W_um, J_A_per_um, params)
+        F = F_min_shaeffer_lee(omega, op, params)
+        Zin = input_impedance(omega, L_s, L_g, op)
+        Gamma_s = 0.0 + 0j
+        S11 = (Zin - 50.0) / (Zin + 50.0)
+        Gamma_opt = np.conj(S11)
+        R_n_norm = params.gamma / (params.alpha_nq * op["g_m"] * 50.0)
+        denom = (1.0 - abs(Gamma_s) ** 2) * abs(1.0 + Gamma_opt) ** 2
+        F_at_50 = F + 4.0 * R_n_norm * abs(Gamma_s - Gamma_opt) ** 2 / denom
+        return 10.0 * math.log10(F_at_50)
+
+    return (
+        DeviceParams, F_min_shaeffer_lee, MAG_dB, NF_degenerated_cs,
+        available_gain_circle, compute_operating_point, estimate_autocorr,
+        estimate_psd, friis_cascade, gamma_opt_degenerated_cs,
+        generate_band_limited, generate_flicker, generate_shot,
+        generate_white, input_impedance, load_stability_circle,
+        noise_circle, noise_figure_from_Gamma, rollett_K,
+        source_stability_circle, sparameters_at_freq,
+    )
+
+
+@app.cell
 def _(mo):
     mo.md(r"""
     # 04 — Noise Analysis and Low-Noise Amplifier Design
@@ -229,11 +424,9 @@ def _(mo):
 
 
 @app.cell
-def _(fs_hz, go, make_subplots, mo, n_samples, noise_kind, np):
-    from _lib_noise import (
-        generate_white, generate_flicker, generate_band_limited, generate_shot,
-        estimate_autocorr, estimate_psd,
-    )
+def _(estimate_autocorr, estimate_psd, fs_hz, generate_band_limited,
+      generate_flicker, generate_shot, generate_white, go, make_subplots,
+      mo, n_samples, noise_kind, np):
 
     rng = np.random.default_rng(42)
     N = int(n_samples.value)
@@ -371,9 +564,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, np):
-    from _lib_noise import noise_figure_from_Gamma
-
+def _(mo, noise_figure_from_Gamma, np):
     _Gopt = 0.4 * np.exp(1j * np.deg2rad(60.0))
     _Fmin = 1.3
     _Rn   = 0.08
@@ -469,8 +660,8 @@ def _(mo):
 
 
 @app.cell
-def _(math, mo):
-    from _lib_noise import friis_cascade as _friis
+def _(friis_cascade, math, mo):
+    _friis = friis_cascade
 
     _F_linear = [10 ** (2.0 / 10), 10 ** (6.0 / 10), 10 ** (10.0 / 10)]
     _G_linear = [10 ** (15.0 / 10), 10 ** (10.0 / 10), 10 ** (10.0 / 10)]
@@ -512,8 +703,8 @@ def _(mo):
 
 
 @app.cell
-def _(F1_db, F2_db, F3_db, G1_db, G2_db, G3_db, go, math, mo, reorder):
-    from _lib_noise import friis_cascade as _friis
+def _(F1_db, F2_db, F3_db, G1_db, G2_db, G3_db, friis_cascade, go, math, mo, reorder):
+    _friis = friis_cascade
 
     _stages = {
         "1": (10 ** (F1_db.value / 10), 10 ** (G1_db.value / 10)),
@@ -581,8 +772,8 @@ def _(mo):
 
 
 @app.cell
-def _(mo, np):
-    from _lib_circles import noise_circle as _noise_circle
+def _(mo, noise_circle, np):
+    _noise_circle = noise_circle
 
     _Gopt = 0.4 * np.exp(1j * np.deg2rad(50.0))
     _Fmin = 1.3
@@ -705,16 +896,15 @@ def _(mo):
 
 
 @app.cell
-def _(Fmin_db_c, Gopt_ang_c, Gopt_mag_c, Rn_norm_c,
-      go, mo, np,
-      s11m_c, s11p_c, s12m_c, s12p_c, s21m_c, s21p_c, s22m_c, s22p_c):
-    from _lib_circles import (
-        noise_circle as _noise_circle,
-        available_gain_circle as _ag_circle,
-        source_stability_circle as _src_stab,
-        rollett_K as _rollett_K,
-        MAG_dB as _MAG_dB,
-    )
+def _(Fmin_db_c, Gopt_ang_c, Gopt_mag_c, MAG_dB, Rn_norm_c,
+      available_gain_circle, go, mo, noise_circle, np, rollett_K,
+      s11m_c, s11p_c, s12m_c, s12p_c, s21m_c, s21p_c, s22m_c, s22p_c,
+      source_stability_circle):
+    _noise_circle = noise_circle
+    _ag_circle = available_gain_circle
+    _src_stab = source_stability_circle
+    _rollett_K = rollett_K
+    _MAG_dB = MAG_dB
 
     _S11 = s11m_c.value * np.exp(1j * np.deg2rad(s11p_c.value))
     _S21 = s21m_c.value * np.exp(1j * np.deg2rad(s21p_c.value))
@@ -928,12 +1118,8 @@ def _(mo):
 
 
 @app.cell
-def _(math, mo, np):
-    from _lib_lna import (
-        DeviceParams, compute_operating_point, input_impedance,
-        F_min_shaeffer_lee, gamma_opt_degenerated_cs,
-    )
-
+def _(DeviceParams, F_min_shaeffer_lee, compute_operating_point,
+      gamma_opt_degenerated_cs, input_impedance, math, mo, np):
     params_design = DeviceParams()
     f0           = 28e9
     omega0       = 2 * math.pi * f0
@@ -997,9 +1183,8 @@ def _(math, mo, np):
 
 
 @app.cell
-def _(L_d_design, L_g_design, L_s_design, W_design_um, f0, go, make_subplots,
-      math, mo, np, params_design):
-    from _lib_lna import sparameters_at_freq, NF_degenerated_cs
+def _(L_d_design, L_g_design, L_s_design, NF_degenerated_cs, W_design_um,
+      f0, go, make_subplots, math, mo, np, params_design, sparameters_at_freq):
 
     _freqs = np.linspace(20e9, 40e9, 41)
     _s11m = np.zeros_like(_freqs)
@@ -1056,14 +1241,13 @@ def _(mo):
 
 
 @app.cell
-def _(Ld_pH_l, Lg_pH_l, Ls_pH_l, W_l, J_l, cascode_l, f0_GHz_l,
-      go, make_subplots, math, mo, np):
-    from _lib_lna import (
-        compute_operating_point as _op_point,
-        sparameters_at_freq as _sparams,
-        NF_degenerated_cs as _nf_cs,
-    )
-    from _lib_circles import rollett_K as _rollett_K
+def _(Ld_pH_l, Lg_pH_l, Ls_pH_l, NF_degenerated_cs, W_l, J_l, cascode_l,
+      compute_operating_point, f0_GHz_l, go, make_subplots, math, mo, np,
+      rollett_K, sparameters_at_freq):
+    _op_point = compute_operating_point
+    _sparams = sparameters_at_freq
+    _nf_cs = NF_degenerated_cs
+    _rollett_K = rollett_K
 
     _W   = W_l.value
     _J   = J_l.value * 1e-3
@@ -1167,8 +1351,8 @@ def _(mo):
 
 
 @app.cell
-def _(math, mo):
-    from _lib_lna import compute_operating_point as _op_point
+def _(compute_operating_point, math, mo):
+    _op_point = compute_operating_point
 
     _W = 70.0
     _J = 0.15e-3
