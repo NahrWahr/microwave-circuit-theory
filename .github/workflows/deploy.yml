@@ -68,7 +68,7 @@ jobs:
               <div class="notebook-list">
           EOF
 
-          for notebook in marimo/notebooks/*.py; do
+          for notebook in marimo/notebooks/[0-9]*.py; do
             [ -f "$notebook" ] || continue
             
             basename=$(basename "$notebook" .py)
