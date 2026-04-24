@@ -1204,21 +1204,3 @@ def _(mo):
     """)
     return
 
-
-# ---------------------------------------------------------------------------
-# Section 15 — Summary
-# ---------------------------------------------------------------------------
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""
-    ---
-
-    **Previous:** [02 — Power Gains, Signal Flow Graphs, and Mason's Gain](02_power_gain_definitions.py)
-
-    **Next:** [04 — (Deleted/Merged)](04_unilateral_power_gain.py)
-    """)
-    return
-
-
