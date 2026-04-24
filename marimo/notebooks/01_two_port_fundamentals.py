@@ -267,31 +267,20 @@ def _(mo):
 def _(mo, topology_selector):
     t = topology_selector.value
 
+    r_slider = mo.ui.slider(1, 1000, step=1, value=50, label="R (Ω)", show_value=True)
+    l_slider = mo.ui.slider(0, 10, step=0.1, value=1.0, label="L (nH)", show_value=True)
+    c_slider = mo.ui.slider(0, 1000, step=10, value=100, label="C (fF)", show_value=True)
+
     if t == "series":
-        r_slider = mo.ui.slider(1, 1000, step=1, value=50, label="R (Ω)", show_value=True)
-        l_slider = mo.ui.slider(0, 10, step=0.1, value=0.0, label="L (nH)", show_value=True)
-        c_slider = mo.ui.slider(0, 100, step=1, value=0, label="C (fF) — 0 = open", show_value=True)
-        topo_label = mo.md("**Series element:** $Z_s = R + j\\omega L \\;\\|\\; (1/j\\omega C)$ if C>0")
+        topo_label = mo.md("**Series branch:** $Z_s = (R + j\\omega L) \\parallel (1/j\\omega C)$")
     elif t == "shunt":
-        r_slider = mo.ui.slider(1, 10000, step=10, value=1000, label="R (Ω)", show_value=True)
-        l_slider = mo.ui.slider(0, 10, step=0.1, value=0.0, label="L (nH)", show_value=True)
-        c_slider = mo.ui.slider(0, 1000, step=10, value=100, label="C (fF)", show_value=True)
-        topo_label = mo.md("**Shunt element:** $Y_p = 1/R + j\\omega C + 1/(j\\omega L)$ if L>0")
+        topo_label = mo.md("**Shunt branch:** $Y_p = 1/R + 1/j\\omega L + j\\omega C$")
     elif t == "tee":
-        r_slider = mo.ui.slider(0, 500, step=5, value=25, label="Z1: R (Ω)", show_value=True)
-        l_slider = mo.ui.slider(0, 5, step=0.1, value=1.0, label="Z1: L (nH)", show_value=True)
-        c_slider = mo.ui.slider(1, 1000, step=10, value=200, label="Z3 (shunt): R (Ω)", show_value=True)
-        topo_label = mo.md("**T-network:** Z1 = series arm 1, Z3 = shunt arm, Z2 = Z1 (symmetric)")
+        topo_label = mo.md("**T-network:** Series arms $(R + j\\omega L)/2$, Shunt branch $j\\omega C$")
     elif t == "pi":
-        r_slider = mo.ui.slider(10, 2000, step=10, value=500, label="Y1 shunt (Ω)", show_value=True)
-        l_slider = mo.ui.slider(1, 500, step=5, value=50, label="Z_series (Ω)", show_value=True)
-        c_slider = mo.ui.slider(10, 2000, step=10, value=500, label="Y2 shunt (Ω)", show_value=True)
-        topo_label = mo.md("**π-network:** Y1 = input shunt, Z_s = series arm, Y2 = output shunt")
+        topo_label = mo.md("**$\pi$-network:** Series arm $R + j\\omega L$, Shunt branches $j\\omega C/2$")
     else:  # lsec
-        r_slider = mo.ui.slider(1, 500, step=5, value=50, label="Series R (Ω)", show_value=True)
-        l_slider = mo.ui.slider(0, 10, step=0.1, value=1.0, label="Series L (nH)", show_value=True)
-        c_slider = mo.ui.slider(1, 1000, step=10, value=100, label="Shunt C (fF)", show_value=True)
-        topo_label = mo.md("**L-section:** series $Z = R + j\\omega L$, shunt $Y = j\\omega C$")
+        topo_label = mo.md("**L-section:** Series $R + j\\omega L$, Shunt $j\\omega C$")
 
     freq_slider = mo.ui.slider(
         steps=[0.1, 0.5, 1, 2, 5, 10, 20, 50, 100, 200],
@@ -313,66 +302,70 @@ def _(c_slider, freq_slider, l_slider, mo, np, r_slider, t, go, make_subplots):
     f0_Hz = freq_slider.value * 1e9
     w0 = 2 * np.pi * f0_Hz
 
-    # --- helper: build Z-matrix at angular frequency w ---
-    def _build_Z(w_):
+    # --- helper: build ABCD-matrix at angular frequency w ---
+    def _build_ABCD(w_):
+        z_rl = R_val + 1j * w_ * L_val
+        y_c  = 1j * w_ * C_val
+        
         if t == "series":
-            zs = R_val + 1j * w_ * L_val
+            # Series branch: (R+L) || C
             if C_val > 0:
-                zs = 1.0 / (1.0 / zs + 1j * w_ * C_val)
-            return np.array([[zs, zs], [zs, zs]])
+                zs = 1.0 / (1.0/z_rl + y_c)
+            else:
+                zs = z_rl
+            return np.array([[1.0, zs], [0.0, 1.0]])
         elif t == "shunt":
-            yp = 1.0 / R_val
-            if C_val > 0:
-                yp += 1j * w_ * C_val
+            # Shunt branch: R || L || C
+            yp = 1.0/R_val + y_c
             if L_val > 0:
                 yp += 1.0 / (1j * w_ * L_val)
-            ym = np.array([[yp, -yp], [-yp, yp]])
-            return np.linalg.inv(ym) if abs(np.linalg.det(ym)) > 1e-30 else np.full((2, 2), np.nan + 1j * np.nan)
+            return np.array([[1.0, 0.0], [yp, 1.0]])
         elif t == "tee":
-            z1 = R_val + 1j * w_ * L_val
-            z3 = float(c_slider.value)
-            return np.array([[z1 + z3, z3], [z3, z1 + z3]])
+            # Symmetric T-network: Arms = (R+L)/2, Shunt = C
+            z_arm = z_rl / 2.0
+            t_arm = np.array([[1.0, z_arm], [0.0, 1.0]])
+            t_sh  = np.array([[1.0, 0.0], [y_c, 1.0]])
+            return t_arm @ t_sh @ t_arm
         elif t == "pi":
-            y1 = 1.0 / R_val
-            zs_pi = float(l_slider.value) if abs(l_slider.value) > 1e-15 else 1e-9
-            y2 = 1.0 / float(c_slider.value) if abs(c_slider.value) > 1e-15 else 0.0
-            ys = 1.0 / zs_pi
-            ym = np.array([[y1 + ys, -ys], [-ys, y2 + ys]])
-            return np.linalg.inv(ym) if abs(np.linalg.det(ym)) > 1e-30 else np.full((2, 2), np.nan + 1j * np.nan)
+            # Symmetric Pi-network: Series = R+L, Shunts = C/2
+            y_sh = y_c / 2.0
+            t_sh = np.array([[1.0, 0.0], [y_sh, 1.0]])
+            t_se = np.array([[1.0, z_rl], [0.0, 1.0]])
+            return t_sh @ t_se @ t_sh
         else:  # lsec
-            zser = R_val + 1j * w_ * L_val
-            ysh = 1j * w_ * C_val
-            zsh = 1.0 / ysh if abs(ysh) > 1e-30 else 1e12
-            return np.array([[zser + zsh, zsh], [zsh, zsh]])
+            # L-section: Series R+L, Shunt C
+            t_se = np.array([[1.0, z_rl], [0.0, 1.0]])
+            t_sh = np.array([[1.0, 0.0], [y_c, 1.0]])
+            return t_se @ t_sh
+
+    # --- helper: ABCD to Z, Y ---
+    def _abcd_to_zy(abcd):
+        A, B, C, D = abcd[0,0], abcd[0,1], abcd[1,0], abcd[1,1]
+        detT = A*D - B*C
+        
+        # Z-parameters
+        if abs(C) > 1e-15:
+            Z = np.array([[A/C, detT/C], [1.0/C, D/C]])
+        else:
+            Z = np.full((2, 2), np.nan + 1j * np.nan)
+            
+        # Y-parameters
+        if abs(B) > 1e-15:
+            Y = np.array([[D/B, -detT/B], [-1.0/B, A/B]])
+        else:
+            Y = np.full((2, 2), np.nan + 1j * np.nan)
+            
+        return Z, Y
 
     # --- single-frequency matrix evaluation ---
-    Z = _build_Z(w0)
-    detZ = Z[0, 0] * Z[1, 1] - Z[0, 1] * Z[1, 0]
-    z11, z12, z21, z22 = Z[0, 0], Z[0, 1], Z[1, 0], Z[1, 1]
-
-    if abs(detZ) > 1e-30:
-        Y_mat = np.linalg.inv(Z)
-        y_valid = True
-    else:
-        Y_mat = np.full((2, 2), np.nan)
-        y_valid = False
-
-    if abs(z21) > 1e-30:
-        ABCD_mat = np.array([
-            [z11 / z21, detZ / z21],
-            [1.0 / z21, z22 / z21],
-        ])
-        abcd_valid = True
-    else:
-        ABCD_mat = np.full((2, 2), np.nan)
-        abcd_valid = False
+    T0_mat = _build_ABCD(w0)
+    Z0_mat, Y0_mat = _abcd_to_zy(T0_mat)
 
     def _fmt_z(z):
+        if np.isnan(z) or np.isinf(z): return "NaN"
         r, i = float(np.real(z)), float(np.imag(z))
-        if abs(i) < 1e-5:
-            return f"{r:.2f}"
-        if abs(r) < 1e-5:
-            return f"{i:.2f}j"
+        if abs(i) < 1e-12: return f"{r:.2f}"
+        if abs(r) < 1e-12: return f"{i:.2f}j"
         sign = "+" if i > 0 else "-"
         return f"{r:.2f} {sign} {abs(i):.2f}j"
 
@@ -388,9 +381,9 @@ def _(c_slider, freq_slider, l_slider, mo, np, r_slider, t, go, make_subplots):
             s += r" \; " + unit
         return s
 
-    z_tex = _tex_mat(Z, "Ω")
-    y_tex = _tex_mat(Y_mat, r"\text{S}") if y_valid else r"\text{Singular}"
-    abcd_tex = _tex_mat(ABCD_mat) if abcd_valid else r"\text{Undefined}"
+    z_tex = _tex_mat(Z0_mat, "Ω")
+    y_tex = _tex_mat(Y0_mat, r"\text{S}")
+    abcd_tex = _tex_mat(T0_mat)
     f_label = str(freq_slider.value)
 
     matrices_md = (
@@ -406,9 +399,18 @@ def _(c_slider, freq_slider, l_slider, mo, np, r_slider, t, go, make_subplots):
     z11_f = np.empty(len(freqs), dtype=complex)
     z21_f = np.empty(len(freqs), dtype=complex)
     for idx, _w in enumerate(ws):
-        _Zf = _build_Z(_w)
-        z11_f[idx] = _Zf[0, 0]
-        z21_f[idx] = _Zf[1, 0]
+        if t == "series":
+            # For pure series, Z-matrix is singular. Plot the series element itself.
+            zs = R_val + 1j * _w * L_val
+            if C_val > 0:
+                zs += 1.0 / (1j * _w * C_val)
+            z11_f[idx] = zs
+            z21_f[idx] = np.nan
+        else:
+            _Tf = _build_ABCD(_w)
+            _Zf, _ = _abcd_to_zy(_Tf)
+            z11_f[idx] = _Zf[0, 0]
+            z21_f[idx] = _Zf[1, 0]
 
     fGHz = freqs / 1e9
     mag11, mag21 = np.abs(z11_f), np.abs(z21_f)
@@ -416,6 +418,8 @@ def _(c_slider, freq_slider, l_slider, mo, np, r_slider, t, go, make_subplots):
 
     # --- dual-panel figure ---
     col_z11, col_z21 = "#636EFA", "#00CC96"
+    label11 = "Z_s" if t == "series" else "Z₁₁"
+    label21 = "Z₂₁"
 
     fig = make_subplots(
         rows=1, cols=2,
@@ -424,22 +428,28 @@ def _(c_slider, freq_slider, l_slider, mo, np, r_slider, t, go, make_subplots):
     )
     # magnitude
     fig.add_trace(go.Scatter(
-        x=fGHz, y=mag11, name="Z₁₁", legendgroup="z11",
+        x=fGHz, y=mag11, name=label11, legendgroup="z11",
         line=dict(color=col_z11, width=2.5),
+        connectgaps=False
     ), row=1, col=1)
-    fig.add_trace(go.Scatter(
-        x=fGHz, y=mag21, name="Z₂₁", legendgroup="z21",
-        line=dict(color=col_z21, width=2.5),
-    ), row=1, col=1)
+    if not np.all(np.isnan(mag21)):
+        fig.add_trace(go.Scatter(
+            x=fGHz, y=mag21, name=label21, legendgroup="z21",
+            line=dict(color=col_z21, width=2.5),
+            connectgaps=False
+        ), row=1, col=1)
     # phase
     fig.add_trace(go.Scatter(
-        x=fGHz, y=ph11, name="∠Z₁₁", legendgroup="z11", showlegend=False,
+        x=fGHz, y=ph11, name=f"∠{label11}", legendgroup="z11", showlegend=False,
         line=dict(color=col_z11, width=2, dash="dot"),
+        connectgaps=False
     ), row=1, col=2)
-    fig.add_trace(go.Scatter(
-        x=fGHz, y=ph21, name="∠Z₂₁", legendgroup="z21", showlegend=False,
-        line=dict(color=col_z21, width=2, dash="dot"),
-    ), row=1, col=2)
+    if not np.all(np.isnan(ph21)):
+        fig.add_trace(go.Scatter(
+            x=fGHz, y=ph21, name=f"∠{label21}", legendgroup="z21", showlegend=False,
+            line=dict(color=col_z21, width=2, dash="dot"),
+            connectgaps=False
+        ), row=1, col=2)
 
     # frequency marker line
     fig.add_vline(x=freq_slider.value, line_width=1, line_dash="dash",
