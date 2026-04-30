@@ -11,3 +11,4 @@ wheels/
 
 # Git worktrees
 .worktrees/
+.superpowers/
