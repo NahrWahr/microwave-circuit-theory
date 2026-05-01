@@ -1435,7 +1435,7 @@ def _(mo):
     ---
 
     **Previous:** [03 — S-parameters and Stability](03_s_parameters_stability.py)  |
-    **Next:** *05 — Matching Networks (in preparation)*
+    **Next:** [05 — Matching Networks](05_matching_networks.py)
     """)
     return
 
