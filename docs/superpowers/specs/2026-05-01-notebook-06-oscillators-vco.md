@@ -319,11 +319,11 @@ Navigation footer: Previous → `05_matching_networks.py` | Next → `07_pa_and_
 ## 8. Interactives summary
 
 | # | Name                     | Section | Controls                                        | Outputs                              |
-|---|--------------------------|---------|------------------------------------------------|--------------------------------------|
-| I | Limit cycle visualiser   | §4      | ε, kick magnitude, kick angle                  | Phase portrait, φ(t), A(t)           |
-| II| ISF explorer             | §9      | Waveform Fourier coefficients, topology toggle | Γ(t), cₙ spectrum, L(Δω)            |
-|III| Tank Q breakdown         | §10     | σ, t_ox, ρ_sub, R_var, L, C, f_op             | Q_L/Q_C/Q_tank vs f, loss bar chart  |
-|IV | Phase noise budget tool  | §13     | Q, f₀, P_DC, F/Γ_rms/c₀, topology toggle      | L(Δω) curves, FOM, budget breakdown  |
+|---|--------------------------|---------|-------------------------------------------------|--------------------------------------|
+| I | Limit cycle visualiser   | §4      | ε, kick magnitude, kick angle                   | Phase portrait, φ(t), A(t)           |
+| II| ISF explorer             | §9      | Waveform Fourier coefficients, topology toggle  | Γ(t), cₙ spectrum, L(Δω)             |
+|III| Tank Q breakdown         | §10     | σ, t_ox, ρ_sub, R_var, L, C, f_op               | Q_L/Q_C/Q_tank vs f, loss bar chart  |
+|IV | Phase noise budget tool  | §13     | Q, f₀, P_DC, F/Γ_rms/c₀, topology toggle        | L(Δω) curves, FOM, budget breakdown  |
 
 ---
 

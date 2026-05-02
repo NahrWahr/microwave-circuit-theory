@@ -345,11 +345,11 @@ def _(mo):
 
     $$
     \boxed{\;
-    A(\j\omega_0)\,\beta(\j\omega_0) \;=\; 1
+    A(j\omega_0)\,\beta(j\omega_0) \;=\; 1
     \;}
     $$
 
-    Magnitude $|A\beta| = 1$ and phase $\angle A\beta = 0\pmod{2\pi}$.
+    Magnitude $|A\beta| = 1$ and phase $\arg(A\beta) = 0\pmod{2\pi}$.
 
     **Negative-resistance criterion (impedance view).** The active device
     presents a small-signal resistance $-R_{\text{dev}}$ in parallel with
@@ -404,7 +404,7 @@ def _(mo):
     from input noise to output phase is
 
     $$
-    H_\phi(\j\Delta\omega) \;=\; \frac{1}{2\,j\,Q_L\,\Delta\omega/\omega_0}
+    H_\phi(j\Delta\omega) \;=\; \frac{1}{2\,j\,Q_L\,\Delta\omega/\omega_0}
     \;\Rightarrow\; |H_\phi|^2 \;=\;
     \frac{1}{4 Q_L^2}\left(\frac{\omega_0}{\Delta\omega}\right)^2.
     $$
@@ -1026,16 +1026,7 @@ def _(mo):
     downconversion terms and reads off the spectrum at offset
     $\Delta\omega$:
 
-    $$
-    \boxed{\;
-    S_\phi(\Delta\omega)
-    \;=\; \frac{\overline{i_n^2}/\Delta f}{2\,q_{\text{max}}^{\,2}\,\Delta\omega^2}
-        \;\Gamma_{\text{rms}}^{\,2},
-    \quad
-    \Gamma_{\text{rms}}^{\,2} \;=\; \frac{c_0^2}{4}
-        + \sum_{n\ge 1}\frac{c_n^{\,2}}{2}.
-    \;}
-    $$
+    $$\boxed{\; S_\phi(\Delta\omega) \;=\; \frac{\overline{i_n^2}/\Delta f}{2\,q_{\text{max}}^{\,2}\,\Delta\omega^2}\,\Gamma_{\text{rms}}^{\,2}, \quad \Gamma_{\text{rms}}^{\,2} \;=\; \frac{c_0^2}{4} + \sum_{n\ge 1}\frac{c_n^{\,2}}{2}. \;}$$
 
     **Interpretation by harmonic.** A noise component at $n\omega_0 +
     \Delta\omega$ enters the phase output with weight $c_n^2/2$ at
@@ -1135,8 +1126,8 @@ def _(c0_slider, c1_slider, c2_slider, c3_slider, isf_topology, np):
 
 
 @app.cell
-def _(go, isf_c0, isf_cn, isf_from_harmonics, isf_rms_squared, make_subplots,
-      mo, np, pn_from_isf):
+def _(flicker_slider, go, in_slider, isf_c0, isf_cn, isf_from_harmonics,
+      isf_rms_squared, make_subplots, mo, np, pn_from_isf):
     _phase = np.linspace(0, 2 * np.pi, 400)
     _theta_n = np.zeros_like(isf_cn)
     _gamma = isf_from_harmonics(isf_c0, isf_cn, _theta_n, _phase)
@@ -1145,8 +1136,8 @@ def _(go, isf_c0, isf_cn, isf_from_harmonics, isf_rms_squared, make_subplots,
     _df = np.logspace(2, 8, 400)
     # Cap c0 small to avoid 1/f3 corner exploding off-scale
     _q_max = 1e-12
-    _i_n_white = 10 ** (-168.0 / 10.0)         # A²/Hz default
-    _flicker_corner = 1e5
+    _i_n_white = 10 ** (in_slider.value / 10.0)
+    _flicker_corner = flicker_slider.value
     _L_db = pn_from_isf(_df, isf_c0, isf_cn, _q_max, _i_n_white,
                         _flicker_corner, _f0)
 
@@ -1233,9 +1224,7 @@ def _(mo):
       $\delta = \sqrt{2/(\omega\mu_0\sigma)}$. Series resistance grows as
       $R_s \propto \sqrt{f}$, so
 
-      $$
-      Q_L \;=\; \frac{\omega L}{R_s} \;\propto\; \sqrt{f}
-      $$
+      $$Q_L \;=\; \frac{\omega L}{R_s} \;\propto\; \sqrt{f}$$
 
       in the skin-effect regime. $Q_L$ rises with frequency until other
       mechanisms take over.
@@ -1347,7 +1336,7 @@ def _(C_slider, L_slider, fop_slider, go, inductor_Q, make_subplots, mo, np,
                    row=1, col=1)
     _fig.add_vline(x=fop_slider.value, line=dict(color="#FFD700", dash="dot"),
                    row=1, col=1, annotation_text=f"f_op={fop_slider.value:.0f} GHz")
-    _fig.update_xaxes(title_text="f (GHz)", type="log", row=1, col=1)
+    _fig.update_xaxes(title_text="f (GHz)", row=1, col=1)
     _fig.update_yaxes(title_text="Q", type="log", row=1, col=1)
 
     # Stacked bar: 1/Q contributions at f_op
@@ -1359,6 +1348,7 @@ def _(C_slider, L_slider, fop_slider, go, inductor_Q, make_subplots, mo, np,
     _fig.add_trace(go.Bar(x=["1/Q_tank"], y=[_share_C * 100.0],
                           name="varactor", marker_color="#EF553B"),
                    row=1, col=2)
+    _fig.update_xaxes(title_text="Loss component", row=1, col=2)
     _fig.update_yaxes(title_text="% of total loss", row=1, col=2)
     _fig.update_layout(template="plotly_dark", barmode="stack", height=440,
                        title=f"Q_L = {_Q_L_op:.1f} | Q_C = {_Q_C_op:.1f} | "
@@ -1392,15 +1382,7 @@ def _(mo):
     To compare oscillators across frequency and power, the standard FOM
     normalises out the trivial $\omega_0$ and $P_{\text{DC}}$ scaling:
 
-    $$
-    \boxed{\;
-    \text{FOM}
-    \;=\; -\mathcal{L}(\Delta\omega)
-        + 20\log_{10}\!\frac{f_0}{\Delta f}
-        - 10\log_{10}\!\frac{P_{\text{DC}}}{1\,\text{mW}}
-    \;\text{(dB)}.
-    \;}
-    $$
+    $$\boxed{\; \text{FOM} \;=\; -\mathcal{L}(\Delta\omega) + 20\log_{10}\!\frac{f_0}{\Delta f} - 10\log_{10}\!\frac{P_{\text{DC}}}{1\,\text{mW}} \;\text{(dB)}. \;}$$
 
     Higher (less negative) is better. A typical good 5 GHz CMOS VCO
     achieves FOM ≈ 195 dB; a 28 GHz design often falls to ≈ 185 dB; at
@@ -1466,61 +1448,6 @@ def _(mo):
     pair (NMOS, PMOS, or complementary). The two transistors mutually
     drive each other's gates from the opposite drain, providing the
     negative resistance $-2/g_m$ across a differential tank.
-    """)
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""
-    <div style="text-align: center; margin: 20px 0;">
-    <svg width="380" height="240" viewBox="0 0 380 240" xmlns="http://www.w3.org/2000/svg">
-      <g font-family="sans-serif" font-size="13" fill="currentColor"
-         stroke="currentColor" stroke-width="1.6" fill-opacity="0">
-        <!-- VDD rail -->
-        <line x1="20" y1="30" x2="360" y2="30"/>
-        <text x="20" y="22" text-anchor="start" stroke="none" fill="currentColor">V_DD</text>
-        <!-- Inductor (zigzag) on left -->
-        <path d="M 110 30 L 110 60 L 105 65 L 115 75 L 105 85 L 115 95 L 110 100"/>
-        <!-- Inductor on right -->
-        <path d="M 270 30 L 270 60 L 275 65 L 265 75 L 275 85 L 265 95 L 270 100"/>
-        <!-- Capacitor on left -->
-        <line x1="110" y1="100" x2="110" y2="115"/>
-        <line x1="100" y1="115" x2="120" y2="115"/>
-        <line x1="100" y1="120" x2="120" y2="120"/>
-        <!-- Cap right -->
-        <line x1="270" y1="100" x2="270" y2="115"/>
-        <line x1="260" y1="115" x2="280" y2="115"/>
-        <line x1="260" y1="120" x2="280" y2="120"/>
-        <!-- M1 (left) drain at 110, source at 110/175 -->
-        <line x1="110" y1="120" x2="110" y2="140"/>
-        <line x1="110" y1="140" x2="160" y2="140"/>     <!-- drain -->
-        <line x1="160" y1="140" x2="160" y2="190"/>     <!-- channel down -->
-        <line x1="160" y1="190" x2="110" y2="190"/>     <!-- source out -->
-        <text x="166" y="170" stroke="none" fill="currentColor">M1</text>
-        <!-- M1 gate (cross-coupled to right tank) -->
-        <line x1="160" y1="160" x2="200" y2="160"/>
-        <!-- M2 (right) -->
-        <line x1="270" y1="120" x2="270" y2="140"/>
-        <line x1="270" y1="140" x2="220" y2="140"/>
-        <line x1="220" y1="140" x2="220" y2="190"/>
-        <line x1="220" y1="190" x2="270" y2="190"/>
-        <text x="200" y="170" stroke="none" fill="currentColor">M2</text>
-        <line x1="220" y1="160" x2="180" y2="160"/>
-        <!-- crossover marker -->
-        <circle cx="190" cy="160" r="2.5" fill="currentColor" stroke="none"/>
-        <!-- Tail current source -->
-        <line x1="110" y1="190" x2="190" y2="190"/>
-        <line x1="270" y1="190" x2="190" y2="190"/>
-        <line x1="190" y1="190" x2="190" y2="200"/>
-        <circle cx="190" cy="210" r="10" fill-opacity="0"/>
-        <text x="190" y="215" text-anchor="middle" stroke="none" fill="currentColor">I_t</text>
-        <!-- Output labels -->
-        <text x="92" y="135" stroke="none" fill="currentColor">V_o⁺</text>
-        <text x="282" y="135" stroke="none" fill="currentColor">V_o⁻</text>
-      </g>
-    </svg>
-    </div>
 
     **Operation.** Each transistor's drain is the gate of the other:
     a positive swing on $V_o^+$ drives M1's $g_m$ to push current that
@@ -1585,48 +1512,6 @@ def _(mo):
     requires a higher $g_m$ than cross-coupled, but the topology has only
     one active device — useful when transistor count or DC headroom is
     constrained.
-    """)
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""
-    <div style="text-align: center; margin: 20px 0;">
-    <svg width="320" height="240" viewBox="0 0 320 240" xmlns="http://www.w3.org/2000/svg">
-      <g font-family="sans-serif" font-size="13" fill="currentColor"
-         stroke="currentColor" stroke-width="1.6" fill-opacity="0">
-        <!-- VDD rail -->
-        <line x1="20" y1="30" x2="300" y2="30"/>
-        <text x="20" y="22" text-anchor="start" stroke="none" fill="currentColor">V_DD</text>
-        <!-- Inductor -->
-        <path d="M 160 30 L 160 60 L 155 65 L 165 75 L 155 85 L 165 95 L 160 100"/>
-        <!-- C1 between drain and source -->
-        <line x1="160" y1="100" x2="160" y2="115"/>
-        <line x1="150" y1="115" x2="170" y2="115"/>
-        <line x1="150" y1="120" x2="170" y2="120"/>
-        <text x="180" y="120" stroke="none" fill="currentColor">C₁</text>
-        <line x1="160" y1="120" x2="160" y2="135"/>
-        <!-- Transistor -->
-        <line x1="160" y1="135" x2="160" y2="155"/>      <!-- drain -->
-        <line x1="160" y1="155" x2="200" y2="155"/>      <!-- to gate node -->
-        <line x1="200" y1="135" x2="200" y2="180"/>      <!-- channel -->
-        <text x="206" y="160" stroke="none" fill="currentColor">M1</text>
-        <line x1="200" y1="180" x2="160" y2="180"/>      <!-- source -->
-        <line x1="160" y1="180" x2="160" y2="195"/>
-        <!-- C2 between source and ground -->
-        <line x1="150" y1="195" x2="170" y2="195"/>
-        <line x1="150" y1="200" x2="170" y2="200"/>
-        <text x="180" y="200" stroke="none" fill="currentColor">C₂</text>
-        <line x1="160" y1="200" x2="160" y2="215"/>
-        <line x1="140" y1="215" x2="180" y2="215"/>
-        <text x="160" y="232" text-anchor="middle" stroke="none" fill="currentColor">GND</text>
-        <!-- Output -->
-        <line x1="160" y1="135" x2="80" y2="135"/>
-        <text x="60" y="138" stroke="none" fill="currentColor">V_o</text>
-      </g>
-    </svg>
-    </div>
 
     **ISF analysis.** The transistor in a Colpitts oscillator conducts
     in a *narrow pulse* near the voltage minimum (class-C-like

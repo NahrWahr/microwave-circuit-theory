@@ -1,0 +1,1056 @@
+"""
+Limit-cycle and oscillator phase-noise interactive app.
+
+Run with:
+    uv run python interactive/oscillator_phase_noise.py
+
+The Python side is only a small stdlib HTTP launcher. The Van der Pol
+simulation and all visualization are implemented in the inlined browser app.
+"""
+
+from __future__ import annotations
+
+import contextlib
+import http.server
+import socket
+import socketserver
+import webbrowser
+
+
+HTML = r"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Oscillator Phase Noise - Limit Cycle</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0f1117;
+      --panel: #171b24;
+      --panel-2: #1d2430;
+      --border: #303848;
+      --grid: #2a3444;
+      --grid-soft: #202836;
+      --text: #e6edf7;
+      --muted: #95a3b8;
+      --blue: #4f8cff;
+      --red: #ff5d67;
+      --orange: #ffb454;
+      --green: #4ed389;
+      --cyan: #41d6d3;
+      --shadow: 0 18px 45px rgb(0 0 0 / 0.28);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    body {
+      min-width: 1080px;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(520px, 1.35fr) minmax(420px, 1.05fr) minmax(330px, 0.78fr);
+      gap: 10px;
+      height: 100vh;
+      padding: 10px;
+    }
+
+    .left-stack,
+    .center-stack,
+    .right-stack {
+      display: grid;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .left-stack {
+      grid-template-rows: minmax(430px, 1.25fr) minmax(250px, 0.78fr);
+    }
+
+    .center-stack {
+      grid-template-rows: 1fr 1fr;
+    }
+
+    .right-stack {
+      grid-template-rows: auto 1fr;
+    }
+
+    .panel {
+      min-width: 0;
+      min-height: 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .plot-panel {
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 40px;
+      padding: 10px 12px 8px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 650;
+      letter-spacing: 0;
+    }
+
+    .panel-title span:last-child {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      background: #111620;
+    }
+
+    .controls {
+      padding: 12px;
+      overflow: auto;
+    }
+
+    .control-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .control-row {
+      display: grid;
+      gap: 7px;
+    }
+
+    .label-line,
+    .readout-line {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .label-line strong,
+    .readout-line strong {
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .input-line {
+      display: grid;
+      grid-template-columns: 1fr 88px;
+      gap: 8px;
+      align-items: center;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--blue);
+    }
+
+    input[type="number"],
+    select {
+      width: 100%;
+      height: 30px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: #10151e;
+      color: var(--text);
+      padding: 0 8px;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .segmented,
+    .button-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .button-row {
+      grid-template-columns: 1fr 1fr 1fr;
+      margin-top: 2px;
+    }
+
+    button {
+      height: 34px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--panel-2);
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    button:hover,
+    button.active {
+      border-color: #53627a;
+      background: #263041;
+    }
+
+    button.active {
+      color: var(--cyan);
+    }
+
+    .derived {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .metric {
+      min-width: 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #111720;
+      padding: 9px 10px;
+    }
+
+    .metric-label {
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    .metric-value {
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .wide {
+      grid-column: 1 / -1;
+    }
+
+    @media (max-width: 1180px) {
+      body {
+        min-width: 0;
+        overflow: auto;
+      }
+
+      .app {
+        height: auto;
+        min-height: 100vh;
+        grid-template-columns: 1fr;
+        grid-template-rows: 112vh 92vh auto;
+      }
+
+      .left-stack {
+        grid-template-rows: 68vh 42vh;
+      }
+
+      .center-stack {
+        grid-template-rows: 45vh 45vh;
+      }
+
+      .right-stack {
+        grid-template-rows: auto 52vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="left-stack">
+      <div class="panel plot-panel">
+        <div class="panel-title">
+          <span>Phase Plane</span>
+          <span id="phasePlaneReadout">limit-cycle restoration</span>
+        </div>
+        <canvas id="phasePlane"></canvas>
+      </div>
+      <div class="panel plot-panel">
+        <div class="panel-title">
+          <span>Time-Domain Waveform</span>
+          <span id="waveReadout">x(t) versus ideal carrier</span>
+        </div>
+        <canvas id="waveform"></canvas>
+      </div>
+    </section>
+
+    <section class="center-stack">
+      <div class="panel plot-panel">
+        <div class="panel-title">
+          <span>Phase Error / Zero-Crossing Jitter</span>
+          <span id="jitterReadout">0.0 ps rms</span>
+        </div>
+        <canvas id="phaseError"></canvas>
+      </div>
+      <div class="panel plot-panel">
+        <div class="panel-title">
+          <span>Amplitude Restoration</span>
+          <span id="ampReadout">A = --</span>
+        </div>
+        <canvas id="amplitude"></canvas>
+      </div>
+    </section>
+
+    <section class="right-stack">
+      <div class="panel controls">
+        <div class="control-grid">
+          <div class="control-row">
+            <div class="label-line"><strong>f<sub>0</sub> carrier</strong><span id="f0Label">5.00 GHz</span></div>
+            <div class="input-line">
+              <input id="f0Range" type="range" min="0.5" max="20" step="0.1" value="5">
+              <input id="f0Number" type="number" min="0.5" max="20" step="0.1" value="5">
+            </div>
+          </div>
+
+          <div class="control-row">
+            <div class="label-line"><strong>&mu; nonlinear gain</strong><span id="muLabel">1.60</span></div>
+            <div class="input-line">
+              <input id="muRange" type="range" min="0.1" max="6" step="0.05" value="1.6">
+              <input id="muNumber" type="number" min="0.1" max="6" step="0.05" value="1.6">
+            </div>
+          </div>
+
+          <div class="control-row">
+            <div class="label-line"><strong>Noise strength</strong><span id="noiseLabel">0.18</span></div>
+            <input id="noiseRange" type="range" min="0" max="1" step="0.01" value="0.18">
+          </div>
+
+          <div class="control-row">
+            <div class="label-line"><strong>AM-to-PM coupling</strong><span id="ampmLabel">0.35 rad/A</span></div>
+            <input id="ampmRange" type="range" min="0" max="2" step="0.01" value="0.35">
+          </div>
+
+          <div class="control-row">
+            <div class="label-line"><strong>Perturbation mode</strong><span id="modeLabel">radial</span></div>
+            <div class="segmented">
+              <button id="modeRadial" class="active">Radial</button>
+              <button id="modeTangential">Tangential</button>
+              <button id="modeRandom">Random</button>
+            </div>
+          </div>
+
+          <div class="derived">
+            <div class="metric">
+              <div class="metric-label">Amplitude</div>
+              <div class="metric-value" id="ampMetric">--</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Freq offset</div>
+              <div class="metric-value" id="freqMetric">-- ppm</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">&phi;<sub>rms</sub></div>
+              <div class="metric-value" id="phaseMetric">-- mrad</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">J<sub>rms</sub></div>
+              <div class="metric-value" id="jitterMetric">-- ps</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">L(10 kHz)</div>
+              <div class="metric-value" id="pn10Metric">-- dBc/Hz</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">L(100 kHz)</div>
+              <div class="metric-value" id="pn100Metric">-- dBc/Hz</div>
+            </div>
+            <div class="metric wide">
+              <div class="metric-label">L(1 MHz)</div>
+              <div class="metric-value" id="pn1mMetric">-- dBc/Hz</div>
+            </div>
+          </div>
+
+          <div class="button-row">
+            <button id="runPause">Pause</button>
+            <button id="kick">Kick</button>
+            <button id="reset">Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel plot-panel">
+        <div class="panel-title">
+          <span>Spectrum / Phase Noise</span>
+          <span id="spectrumReadout">offset from carrier</span>
+        </div>
+        <canvas id="spectrum"></canvas>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    "use strict";
+
+    const TAU = Math.PI * 2;
+    const OMEGA0 = TAU;
+    const VISUAL_CYCLES_PER_SECOND = 0.85;
+    const MAX_FRAME_CYCLES = 0.08;
+    const COLORS = {
+      bg: "#111620",
+      grid: "#2a3444",
+      gridSoft: "#202836",
+      text: "#e6edf7",
+      muted: "#95a3b8",
+      blue: "#4f8cff",
+      red: "#ff5d67",
+      orange: "#ffb454",
+      green: "#4ed389",
+      cyan: "#41d6d3",
+      white: "#f4f7fb"
+    };
+
+    const els = {
+      phasePlane: document.getElementById("phasePlane"),
+      waveform: document.getElementById("waveform"),
+      phaseError: document.getElementById("phaseError"),
+      amplitude: document.getElementById("amplitude"),
+      spectrum: document.getElementById("spectrum"),
+      f0Range: document.getElementById("f0Range"),
+      f0Number: document.getElementById("f0Number"),
+      muRange: document.getElementById("muRange"),
+      muNumber: document.getElementById("muNumber"),
+      noiseRange: document.getElementById("noiseRange"),
+      ampmRange: document.getElementById("ampmRange"),
+      f0Label: document.getElementById("f0Label"),
+      muLabel: document.getElementById("muLabel"),
+      noiseLabel: document.getElementById("noiseLabel"),
+      ampmLabel: document.getElementById("ampmLabel"),
+      modeLabel: document.getElementById("modeLabel"),
+      modeRadial: document.getElementById("modeRadial"),
+      modeTangential: document.getElementById("modeTangential"),
+      modeRandom: document.getElementById("modeRandom"),
+      runPause: document.getElementById("runPause"),
+      kick: document.getElementById("kick"),
+      reset: document.getElementById("reset"),
+      ampMetric: document.getElementById("ampMetric"),
+      freqMetric: document.getElementById("freqMetric"),
+      phaseMetric: document.getElementById("phaseMetric"),
+      jitterMetric: document.getElementById("jitterMetric"),
+      pn10Metric: document.getElementById("pn10Metric"),
+      pn100Metric: document.getElementById("pn100Metric"),
+      pn1mMetric: document.getElementById("pn1mMetric"),
+      jitterReadout: document.getElementById("jitterReadout"),
+      ampReadout: document.getElementById("ampReadout"),
+      phasePlaneReadout: document.getElementById("phasePlaneReadout"),
+      waveReadout: document.getElementById("waveReadout"),
+      spectrumReadout: document.getElementById("spectrumReadout")
+    };
+
+    const canvases = [els.phasePlane, els.waveform, els.phaseError, els.amplitude, els.spectrum];
+
+    const state = {
+      f0GHz: 5,
+      mu: 1.6,
+      noise: 0.18,
+      ampm: 0.35,
+      mode: "radial",
+      running: true,
+      lastFrame: performance.now(),
+      t: 0,
+      x: 0.18,
+      v: 0,
+      phase0: null,
+      phasePrev: null,
+      phaseUnwrapped: 0,
+      phaseErrPrev: 0,
+      freqOffsetPpm: 0,
+      lastKick: null,
+      path: [],
+      trace: [],
+      spectrum: [],
+      lastSpectrumUpdate: 0
+    };
+
+    function clamp(value, lo, hi) {
+      return Math.max(lo, Math.min(hi, value));
+    }
+
+    function fmt(value, digits) {
+      return Number.isFinite(value) ? value.toFixed(digits) : "--";
+    }
+
+    function wrapPi(value) {
+      let y = (value + Math.PI) % TAU;
+      if (y < 0) y += TAU;
+      return y - Math.PI;
+    }
+
+    function randn() {
+      let u = 0;
+      let v = 0;
+      while (u === 0) u = Math.random();
+      while (v === 0) v = Math.random();
+      return Math.sqrt(-2 * Math.log(u)) * Math.cos(TAU * v);
+    }
+
+    function radius() {
+      const y = -state.v / OMEGA0;
+      return Math.hypot(state.x, y);
+    }
+
+    function phaseNow() {
+      return Math.atan2(-state.v / OMEGA0, state.x);
+    }
+
+    function setPolar(r, phase) {
+      state.x = r * Math.cos(phase);
+      state.v = -OMEGA0 * r * Math.sin(phase);
+    }
+
+    function deriv(x, v) {
+      return {
+        dx: v,
+        dv: state.mu * (1 - x * x) * v - OMEGA0 * OMEGA0 * x
+      };
+    }
+
+    function rk4(h) {
+      const k1 = deriv(state.x, state.v);
+      const k2 = deriv(state.x + 0.5 * h * k1.dx, state.v + 0.5 * h * k1.dv);
+      const k3 = deriv(state.x + 0.5 * h * k2.dx, state.v + 0.5 * h * k2.dv);
+      const k4 = deriv(state.x + h * k3.dx, state.v + h * k3.dv);
+      state.x += (h / 6) * (k1.dx + 2 * k2.dx + 2 * k3.dx + k4.dx);
+      state.v += (h / 6) * (k1.dv + 2 * k2.dv + 2 * k3.dv + k4.dv);
+    }
+
+    function resizeCanvas(canvas) {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const w = Math.max(1, Math.floor(rect.width * dpr));
+      const h = Math.max(1, Math.floor(rect.height * dpr));
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+      }
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { ctx, w: rect.width, h: rect.height };
+    }
+
+    function clear(ctx, w, h) {
+      ctx.fillStyle = COLORS.bg;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    function drawGrid(ctx, left, top, width, height, xCount, yCount) {
+      ctx.save();
+      ctx.strokeStyle = COLORS.gridSoft;
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= xCount; i++) {
+        const x = left + (width * i) / xCount;
+        ctx.beginPath();
+        ctx.moveTo(x, top);
+        ctx.lineTo(x, top + height);
+        ctx.stroke();
+      }
+      for (let i = 0; i <= yCount; i++) {
+        const y = top + (height * i) / yCount;
+        ctx.beginPath();
+        ctx.moveTo(left, y);
+        ctx.lineTo(left + width, y);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = COLORS.grid;
+      ctx.strokeRect(left, top, width, height);
+      ctx.restore();
+    }
+
+    function labelText(ctx, text, x, y, color, size, align = "left") {
+      ctx.save();
+      ctx.font = `${size}px Inter, system-ui, sans-serif`;
+      ctx.textAlign = align;
+      ctx.textBaseline = "middle";
+      const width = ctx.measureText(text).width;
+      const padX = 5;
+      const left = align === "center" ? x - width / 2 : align === "right" ? x - width : x;
+      ctx.fillStyle = "rgba(17, 22, 32, 0.88)";
+      ctx.fillRect(left - padX, y - size / 2 - 3, width + 2 * padX, size + 6);
+      ctx.fillStyle = color;
+      ctx.fillText(text, x, y);
+      ctx.restore();
+    }
+
+    function drawTrace(ctx, points, xFn, yFn, color, width) {
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      let started = false;
+      for (const p of points) {
+        const x = xFn(p);
+        const y = yFn(p);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+        if (!started) {
+          ctx.moveTo(x, y);
+          started = true;
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function recentStats() {
+      const recent = state.trace.slice(-1200);
+      if (recent.length < 10) {
+        return { amp: radius(), ampRms: 0, phaseRms: 0, jitterPs: 0, freqPpm: 0 };
+      }
+      const ampMean = recent.reduce((a, p) => a + p.r, 0) / recent.length;
+      const phaseMean = recent.reduce((a, p) => a + p.pe, 0) / recent.length;
+      const ampRms = Math.sqrt(recent.reduce((a, p) => a + (p.r - ampMean) ** 2, 0) / recent.length);
+      const phaseRms = Math.sqrt(recent.reduce((a, p) => a + (p.pe - phaseMean) ** 2, 0) / recent.length);
+      const jitterPs = phaseRms / (TAU * Math.max(state.f0GHz, 0.001) * 1e9) * 1e12;
+      return { amp: ampMean, ampRms, phaseRms, jitterPs, freqPpm: state.freqOffsetPpm };
+    }
+
+    function pnAt(offsetHz, stats) {
+      const n = state.noise;
+      const ampm = state.ampm;
+      const corner = 6000 + 180000 * n * n + 35000 * Math.abs(ampm);
+      const floor = -172 + 42 * n + 8 * Math.abs(ampm);
+      const diffusion = 34 * Math.log10(corner / Math.max(offsetHz, 1));
+      const rmsLift = 20 * Math.log10(Math.max(stats.phaseRms, 1e-6) / 0.001);
+      const value = floor + Math.max(0, diffusion) + 0.22 * rmsLift;
+      return clamp(value, -178, -48);
+    }
+
+    function updateReadouts() {
+      const stats = recentStats();
+      els.f0Label.innerHTML = `${fmt(state.f0GHz, 2)} GHz`;
+      els.muLabel.textContent = fmt(state.mu, 2);
+      els.noiseLabel.textContent = fmt(state.noise, 2);
+      els.ampmLabel.textContent = `${fmt(state.ampm, 2)} rad/A`;
+      els.modeLabel.textContent = state.mode;
+      els.ampMetric.textContent = fmt(stats.amp, 3);
+      els.freqMetric.textContent = `${fmt(stats.freqPpm, 2)} ppm`;
+      els.phaseMetric.textContent = `${fmt(stats.phaseRms * 1000, 1)} mrad`;
+      els.jitterMetric.textContent = `${fmt(stats.jitterPs, 2)} ps`;
+      els.pn10Metric.textContent = `${fmt(pnAt(1e4, stats), 1)}`;
+      els.pn100Metric.textContent = `${fmt(pnAt(1e5, stats), 1)}`;
+      els.pn1mMetric.textContent = `${fmt(pnAt(1e6, stats), 1)}`;
+      els.jitterReadout.textContent = `${fmt(stats.jitterPs, 2)} ps rms`;
+      els.ampReadout.textContent = `A = ${fmt(stats.amp, 3)}, ripple ${fmt(stats.ampRms, 3)}`;
+      els.phasePlaneReadout.textContent = `r = ${fmt(radius(), 3)}, μ = ${fmt(state.mu, 2)}`;
+      els.waveReadout.textContent = `phase error ${fmt(stats.phaseRms * 1000, 1)} mrad rms`;
+    }
+
+    function applyNoise(h) {
+      if (state.noise <= 0) return;
+      const r0 = radius();
+      const p0 = phaseNow();
+      const ampKick = state.noise * 0.18 * Math.sqrt(h) * randn();
+      const phaseKick = state.noise * 0.16 * Math.sqrt(h) * randn() + state.ampm * ampKick * 0.22;
+      setPolar(clamp(r0 + ampKick, 0.02, 4.0), p0 + phaseKick);
+    }
+
+    function applyKick() {
+      const r0 = radius();
+      const p0 = phaseNow();
+      let dr = 0;
+      let dp = 0;
+      if (state.mode === "radial") {
+        dr = r0 < 1.8 ? 0.7 : -0.55;
+      } else if (state.mode === "tangential") {
+        dp = 0.55;
+      } else {
+        dr = 0.6 * (Math.random() - 0.5);
+        dp = 0.8 * (Math.random() - 0.5);
+      }
+      setPolar(clamp(r0 + dr, 0.04, 4), p0 + dp);
+      state.lastKick = { t: state.t, r0, p0, r1: radius(), p1: phaseNow() };
+    }
+
+    function simulate(realDt) {
+      const target = clamp(realDt * VISUAL_CYCLES_PER_SECOND, 0, MAX_FRAME_CYCLES);
+      const h = 0.0015;
+      let elapsed = 0;
+      while (elapsed < target) {
+        const step = Math.min(h, target - elapsed);
+        rk4(step);
+        applyNoise(step);
+        state.t += step;
+        elapsed += step;
+
+        const rawPhase = phaseNow();
+        if (state.phasePrev === null) {
+          state.phasePrev = rawPhase;
+          state.phaseUnwrapped = rawPhase;
+          state.phase0 = rawPhase - OMEGA0 * state.t;
+        } else {
+          state.phaseUnwrapped += wrapPi(rawPhase - state.phasePrev);
+          state.phasePrev = rawPhase;
+        }
+        const ideal = OMEGA0 * state.t + state.phase0;
+        const phaseErr = state.phaseUnwrapped - ideal;
+        const dpe = phaseErr - state.phaseErrPrev;
+        state.freqOffsetPpm = 0.995 * state.freqOffsetPpm + 0.005 * (dpe / Math.max(step, 1e-9)) / OMEGA0 * 1e6;
+        state.phaseErrPrev = phaseErr;
+
+        const r = radius();
+        state.path.push({ x: state.x, y: -state.v / OMEGA0, t: state.t });
+        state.trace.push({ t: state.t, x: state.x, r, pe: phaseErr, jitterPs: phaseErr / (TAU * state.f0GHz * 1e9) * 1e12 });
+      }
+      if (state.path.length > 2400) state.path.splice(0, state.path.length - 2400);
+      if (state.trace.length > 5000) state.trace.splice(0, state.trace.length - 5000);
+    }
+
+    function reset() {
+      state.t = 0;
+      state.x = 0.18;
+      state.v = 0;
+      state.phase0 = null;
+      state.phasePrev = null;
+      state.phaseUnwrapped = 0;
+      state.phaseErrPrev = 0;
+      state.freqOffsetPpm = 0;
+      state.lastKick = null;
+      state.path = [];
+      state.trace = [];
+      state.spectrum = [];
+      state.lastSpectrumUpdate = 0;
+    }
+
+    function drawPhasePlane() {
+      const { ctx, w, h } = resizeCanvas(els.phasePlane);
+      clear(ctx, w, h);
+      const pad = { l: 42, r: 18, t: 18, b: 34 };
+      const left = pad.l;
+      const top = pad.t;
+      const width = w - pad.l - pad.r;
+      const height = h - pad.t - pad.b;
+      const scale = Math.min(width, height) / 5.3;
+      const cx = left + width / 2;
+      const cy = top + height / 2;
+      const xToPx = x => cx + x * scale;
+      const yToPx = y => cy - y * scale;
+      drawGrid(ctx, left, top, width, height, 6, 6);
+
+      ctx.strokeStyle = COLORS.grid;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(left, cy);
+      ctx.lineTo(left + width, cy);
+      ctx.moveTo(cx, top);
+      ctx.lineTo(cx, top + height);
+      ctx.stroke();
+
+      ctx.strokeStyle = "rgba(78, 211, 137, 0.72)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i <= 240; i++) {
+        const a = (i / 240) * TAU;
+        const x = 2 * Math.cos(a);
+        const y = 2 * Math.sin(a);
+        if (i === 0) ctx.moveTo(xToPx(x), yToPx(y));
+        else ctx.lineTo(xToPx(x), yToPx(y));
+      }
+      ctx.stroke();
+
+      const visiblePath = state.path.slice(-1800);
+      drawTrace(ctx, visiblePath, p => xToPx(p.x), p => yToPx(p.y), COLORS.blue, 1.8);
+
+      const x = state.x;
+      const y = -state.v / OMEGA0;
+      ctx.fillStyle = COLORS.white;
+      ctx.beginPath();
+      ctx.arc(xToPx(x), yToPx(y), 5.5, 0, TAU);
+      ctx.fill();
+
+      if (state.lastKick && state.t - state.lastKick.t < 2.5) {
+        const alpha = clamp(1 - (state.t - state.lastKick.t) / 2.5, 0, 1);
+        ctx.save();
+        ctx.strokeStyle = `rgba(255, 180, 84, ${alpha})`;
+        ctx.fillStyle = `rgba(255, 180, 84, ${alpha})`;
+        ctx.lineWidth = 3;
+        const x0 = state.lastKick.r0 * Math.cos(state.lastKick.p0);
+        const y0 = state.lastKick.r0 * Math.sin(state.lastKick.p0);
+        const x1 = state.lastKick.r1 * Math.cos(state.lastKick.p1);
+        const y1 = state.lastKick.r1 * Math.sin(state.lastKick.p1);
+        const ax0 = xToPx(x0);
+        const ay0 = yToPx(y0);
+        const ax1 = xToPx(x1);
+        const ay1 = yToPx(y1);
+        const ang = Math.atan2(ay1 - ay0, ax1 - ax0);
+        ctx.beginPath();
+        ctx.moveTo(ax0, ay0);
+        ctx.lineTo(ax1, ay1);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(ax1, ay1);
+        ctx.lineTo(ax1 - 12 * Math.cos(ang - 0.45), ay1 - 12 * Math.sin(ang - 0.45));
+        ctx.lineTo(ax1 - 12 * Math.cos(ang + 0.45), ay1 - 12 * Math.sin(ang + 0.45));
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      labelText(ctx, "x", left + width - 8, cy - 14, COLORS.muted, 12, "right");
+      labelText(ctx, "v / ω0", cx + 12, top + 12, COLORS.muted, 12);
+      labelText(ctx, "estimated limit cycle", xToPx(1.5), yToPx(1.35), COLORS.green, 12);
+      labelText(ctx, `current A ${fmt(radius(), 3)}`, left + 10, top + 14, COLORS.white, 12);
+    }
+
+    function drawWaveform() {
+      const { ctx, w, h } = resizeCanvas(els.waveform);
+      clear(ctx, w, h);
+      const pad = { l: 42, r: 14, t: 18, b: 30 };
+      const left = pad.l;
+      const top = pad.t;
+      const width = w - pad.l - pad.r;
+      const height = h - pad.t - pad.b;
+      const latest = state.t;
+      const win = 8;
+      const points = state.trace.filter(p => latest - p.t <= win);
+      const xToPx = t => left + ((t - (latest - win)) / win) * width;
+      const yToPx = y => top + height * (0.5 - 0.22 * y);
+      drawGrid(ctx, left, top, width, height, 8, 4);
+      ctx.strokeStyle = COLORS.grid;
+      ctx.beginPath();
+      ctx.moveTo(left, top + height / 2);
+      ctx.lineTo(left + width, top + height / 2);
+      ctx.stroke();
+
+      ctx.setLineDash([5, 5]);
+      drawTrace(ctx, points, p => xToPx(p.t), p => yToPx(2 * Math.cos(OMEGA0 * p.t + (state.phase0 || 0))), "rgba(149, 163, 184, 0.8)", 1.4);
+      ctx.setLineDash([]);
+      drawTrace(ctx, points, p => xToPx(p.t), p => yToPx(p.x), COLORS.blue, 2);
+      labelText(ctx, `${fmt(win, 1)} normalized cycles`, left + width - 4, h - 14, COLORS.muted, 11, "right");
+      labelText(ctx, "ideal carrier", left + 8, top + 14, COLORS.muted, 11);
+      labelText(ctx, "oscillator", left + 8, top + 32, COLORS.blue, 11);
+    }
+
+    function drawPhaseError() {
+      const { ctx, w, h } = resizeCanvas(els.phaseError);
+      clear(ctx, w, h);
+      const pad = { l: 50, r: 16, t: 18, b: 30 };
+      const left = pad.l;
+      const top = pad.t;
+      const width = w - pad.l - pad.r;
+      const height = h - pad.t - pad.b;
+      const latest = state.t;
+      const win = 32;
+      const points = state.trace.filter(p => latest - p.t <= win);
+      const phasePeak = Math.max(0.08, ...points.map(p => Math.abs(p.pe)));
+      const jitterPeak = Math.max(0.5, ...points.map(p => Math.abs(p.jitterPs)));
+      const xToPx = t => left + ((t - (latest - win)) / win) * width;
+      const yPhase = y => top + height * (0.5 - 0.42 * y / phasePeak);
+      const yJitter = y => top + height * (0.5 - 0.42 * y / jitterPeak);
+      drawGrid(ctx, left, top, width, height, 8, 4);
+      ctx.strokeStyle = COLORS.grid;
+      ctx.beginPath();
+      ctx.moveTo(left, top + height / 2);
+      ctx.lineTo(left + width, top + height / 2);
+      ctx.stroke();
+      drawTrace(ctx, points, p => xToPx(p.t), p => yPhase(p.pe), COLORS.orange, 2);
+      drawTrace(ctx, points, p => xToPx(p.t), p => yJitter(p.jitterPs), COLORS.cyan, 1.6);
+      labelText(ctx, `phase ±${fmt(phasePeak * 1000, 0)} mrad`, left + 8, top + 14, COLORS.orange, 11);
+      labelText(ctx, `jitter ±${fmt(jitterPeak, 1)} ps`, left + width - 4, top + 14, COLORS.cyan, 11, "right");
+    }
+
+    function drawAmplitude() {
+      const { ctx, w, h } = resizeCanvas(els.amplitude);
+      clear(ctx, w, h);
+      const pad = { l: 45, r: 14, t: 18, b: 30 };
+      const left = pad.l;
+      const top = pad.t;
+      const width = w - pad.l - pad.r;
+      const height = h - pad.t - pad.b;
+      const latest = state.t;
+      const win = 32;
+      const points = state.trace.filter(p => latest - p.t <= win);
+      const minR = Math.min(1.0, ...points.map(p => p.r));
+      const maxR = Math.max(2.8, ...points.map(p => p.r));
+      const xToPx = t => left + ((t - (latest - win)) / win) * width;
+      const yToPx = r => top + height * (1 - (r - minR) / Math.max(maxR - minR, 1e-6));
+      drawGrid(ctx, left, top, width, height, 8, 4);
+      ctx.strokeStyle = COLORS.green;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.moveTo(left, yToPx(2));
+      ctx.lineTo(left + width, yToPx(2));
+      ctx.stroke();
+      ctx.setLineDash([]);
+      drawTrace(ctx, points, p => xToPx(p.t), p => yToPx(p.r), COLORS.green, 2.2);
+      labelText(ctx, "limit-cycle amplitude", left + width - 4, yToPx(2) - 12, COLORS.green, 11, "right");
+      labelText(ctx, `window ${fmt(win, 0)} cycles`, left + width - 4, h - 14, COLORS.muted, 11, "right");
+    }
+
+    function updateSpectrum() {
+      if (performance.now() - state.lastSpectrumUpdate < 260) return;
+      state.lastSpectrumUpdate = performance.now();
+      const stats = recentStats();
+      const bins = 140;
+      const data = [];
+      for (let i = 0; i < bins; i++) {
+        const frac = i / (bins - 1);
+        const logOffset = 3 + 6 * frac;
+        const offset = Math.pow(10, logOffset);
+        const pn = pnAt(offset, stats);
+        const carrier = -8 - 72 * Math.min(1, Math.abs(frac - 0.02) / 0.18);
+        const skirt = pn + 10 * Math.exp(-Math.abs(Math.log10(offset / 2e5))) * state.noise;
+        data.push({ offset, db: clamp(Math.max(skirt, carrier), -180, -5) });
+      }
+      state.spectrum = data;
+      els.spectrumReadout.textContent = `noise ${fmt(state.noise, 2)}, AM-PM ${fmt(state.ampm, 2)}`;
+    }
+
+    function drawSpectrum() {
+      const { ctx, w, h } = resizeCanvas(els.spectrum);
+      clear(ctx, w, h);
+      const pad = { l: 54, r: 15, t: 18, b: 34 };
+      const left = pad.l;
+      const top = pad.t;
+      const width = w - pad.l - pad.r;
+      const height = h - pad.t - pad.b;
+      const xToPx = f => left + ((Math.log10(f) - 3) / 6) * width;
+      const yToPx = db => top + (1 - (db + 180) / 180) * height;
+      drawGrid(ctx, left, top, width, height, 6, 6);
+      drawTrace(ctx, state.spectrum, p => xToPx(p.offset), p => yToPx(p.db), COLORS.cyan, 2.2);
+      for (const f of [1e4, 1e5, 1e6]) {
+        const x = xToPx(f);
+        ctx.strokeStyle = "rgba(255, 180, 84, 0.45)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, top);
+        ctx.lineTo(x, top + height);
+        ctx.stroke();
+        labelText(ctx, f === 1e4 ? "10 k" : f === 1e5 ? "100 k" : "1 M", x, h - 15, COLORS.orange, 10, "center");
+      }
+      labelText(ctx, "dBc/Hz", left + 6, top + 12, COLORS.muted, 11);
+      labelText(ctx, "-180", left - 8, top + height, COLORS.muted, 10, "right");
+      labelText(ctx, "0", left - 8, top, COLORS.muted, 10, "right");
+    }
+
+    function bindNumberPair(range, number, key, min, max) {
+      function setValue(value) {
+        const v = clamp(Number(value), min, max);
+        state[key] = v;
+        range.value = String(v);
+        number.value = String(v);
+      }
+      range.addEventListener("input", () => setValue(range.value));
+      number.addEventListener("change", () => setValue(number.value));
+    }
+
+    bindNumberPair(els.f0Range, els.f0Number, "f0GHz", 0.5, 20);
+    bindNumberPair(els.muRange, els.muNumber, "mu", 0.1, 6);
+    els.noiseRange.addEventListener("input", () => { state.noise = Number(els.noiseRange.value); });
+    els.ampmRange.addEventListener("input", () => { state.ampm = Number(els.ampmRange.value); });
+
+    function setMode(mode) {
+      state.mode = mode;
+      els.modeRadial.classList.toggle("active", mode === "radial");
+      els.modeTangential.classList.toggle("active", mode === "tangential");
+      els.modeRandom.classList.toggle("active", mode === "random");
+    }
+
+    els.modeRadial.addEventListener("click", () => setMode("radial"));
+    els.modeTangential.addEventListener("click", () => setMode("tangential"));
+    els.modeRandom.addEventListener("click", () => setMode("random"));
+    els.runPause.addEventListener("click", () => {
+      state.running = !state.running;
+      els.runPause.textContent = state.running ? "Pause" : "Run";
+    });
+    els.kick.addEventListener("click", applyKick);
+    els.reset.addEventListener("click", reset);
+
+    function frame(now) {
+      const dt = (now - state.lastFrame) / 1000;
+      state.lastFrame = now;
+      if (state.running) simulate(dt);
+      updateSpectrum();
+      updateReadouts();
+      drawPhasePlane();
+      drawWaveform();
+      drawPhaseError();
+      drawAmplitude();
+      drawSpectrum();
+      requestAnimationFrame(frame);
+    }
+
+    window.addEventListener("resize", () => {
+      for (const c of canvases) resizeCanvas(c);
+    });
+
+    for (const c of canvases) resizeCanvas(c);
+    requestAnimationFrame(frame);
+  </script>
+</body>
+</html>
+"""
+
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self) -> None:
+        if self.path not in {"/", "/index.html"}:
+            self.send_error(404)
+            return
+        payload = HTML.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def log_message(self, format: str, *args: object) -> None:
+        return
+
+
+class ThreadingTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
+
+def find_free_port() -> int:
+    with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
+def main() -> None:
+    port = find_free_port()
+    url = f"http://127.0.0.1:{port}/"
+    with ThreadingTCPServer(("127.0.0.1", port), Handler) as server:
+        print(f"Serving oscillator phase-noise app at {url}")
+        print("Press Ctrl-C to stop.")
+        webbrowser.open(url)
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            print("\nStopping server.")
+
+
+if __name__ == "__main__":
+    main()
