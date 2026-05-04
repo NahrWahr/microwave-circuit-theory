@@ -570,23 +570,522 @@ def _(mo):
 @app.cell
 def _(mo):
     mo.md(r"""
-    ### §3. Smith Chart Review and Matching Trajectories
+    ### §3. The Smith Chart from First Principles
 
-    The Smith chart maps normalized impedance $z = Z/Z_0$ to the reflection coefficient $\Gamma$ via the bilinear transform:
-    $\Gamma = \frac{z - 1}{z + 1}$
+    The Smith chart is the single most important graphical tool in microwave engineering. It is not an ad-hoc construction; it follows inevitably from the algebraic properties of the **Mobius (bilinear) transformation** that relates impedance to reflection coefficient. This section derives the chart rigorously.
 
-    Adding a **series element** ($z_{\text{new}} = z + jx$) alters only the reactance, so the trajectory moves along a circle of constant resistance in the impedance plane, which maps to a constant-resistance circle on the Smith chart.
-    Adding a **shunt element** ($y_{\text{new}} = y + jb$) alters only the susceptance, moving along a constant-conductance circle.
+    #### 3.1 The Bilinear (Mobius) Transformation
 
-    | Element | Type | Direction on Smith chart |
-    |---------|------|--------------------------|
-    | Series $L$ | +jX | Clockwise on constant-$R$ circle |
-    | Series $C$ | −jX | Counter-clockwise on constant-$R$ circle |
-    | Shunt $C$ | +jB | Clockwise on constant-$G$ circle |
-    | Shunt $L$ | −jB | Counter-clockwise on constant-$G$ circle |
+    Every normalized impedance $z = Z/Z_0 = r + jx$ maps to a reflection coefficient $\Gamma = u + jv$ via:
 
-    A matching procedure is a sequence of arc moves from the initial normalized load $Z_L/Z_0$ to the chart center ($\Gamma = 0$). Parts II and IV make this concrete for L/π/T networks and stub tuners respectively.
+    $$\Gamma = \frac{z - 1}{z + 1}$$
+
+    The inverse is $z = \frac{1 + \Gamma}{1 - \Gamma}$. This is a **Mobius transformation** of the form $w = \frac{az + b}{cz + d}$ with $a=1, b=-1, c=1, d=1$.
+
+    **Key property:** A Mobius transformation maps every generalized circle (circle or straight line) in one complex plane to a generalized circle in the other. This single fact generates the entire Smith chart.
+
+    #### 3.2 Deriving the Constant-Resistance Circles
+
+    Set $z = r + jx$ with $r$ fixed. Substituting into $\Gamma = (z-1)/(z+1)$:
+
+    $$\Gamma = \frac{(r-1) + jx}{(r+1) + jx}$$
+
+    Multiply numerator and denominator by the conjugate of the denominator:
+
+    $$\Gamma = \frac{[(r-1)+jx][(r+1)-jx]}{|{(r+1)+jx}|^2} = \frac{(r^2-1+x^2) + j[x(r+1) - x(r-1)]}{(r+1)^2 + x^2}$$
+
+    $$u = \frac{r^2 - 1 + x^2}{(r+1)^2 + x^2}, \qquad v = \frac{2x}{(r+1)^2 + x^2}$$
+
+    After algebraic manipulation (eliminating $x$ between these two equations), one obtains:
+
+    $$\boxed{\left(u - \frac{r}{r+1}\right)^2 + v^2 = \frac{1}{(r+1)^2}}$$
+
+    This is a circle in the $\Gamma$-plane centered at $\left(\frac{r}{r+1}, 0\right)$ with radius $\frac{1}{r+1}$.
+
+    - $r = 0$: center $(0, 0)$, radius $1$ -- the unit circle itself (pure reactance).
+    - $r = 1$: center $(0.5, 0)$, radius $0.5$ -- passes through the origin.
+    - $r \to \infty$: center $(1, 0)$, radius $0$ -- the point $\Gamma = 1$ (open circuit).
+
+    #### 3.3 Deriving the Constant-Reactance Circles
+
+    Now fix $x$ and let $r$ vary over $[0, \infty)$. Eliminating $r$ from the same pair of equations yields:
+
+    $$\boxed{(u - 1)^2 + \left(v - \frac{1}{x}\right)^2 = \frac{1}{x^2}}$$
+
+    These are circles centered at $\left(1, \frac{1}{x}\right)$ with radius $\frac{1}{|x|}$, all tangent to the point $\Gamma = 1$ (open circuit). Positive $x$ (inductive) gives circles in the upper half-plane; negative $x$ (capacitive) in the lower half-plane. The $x = 0$ "circle" degenerates to the real axis.
     """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    #### 3.4 The Admittance Chart and the 180-degree Rotation
+
+    For shunt elements it is natural to work in normalized admittance $y = g + jb = 1/z$. Substituting $z = 1/y$:
+
+    $$\Gamma = \frac{1/y - 1}{1/y + 1} = \frac{1 - y}{1 + y} = -\frac{y - 1}{y + 1}$$
+
+    The leading minus sign is multiplication by $e^{j\pi}$: a **180-degree rotation** of the impedance-chart mapping. Therefore constant-$g$ circles are the constant-$r$ circles reflected through the origin, and constant-$b$ circles are reflected constant-$x$ circles.
+
+    The constant-conductance circle for conductance $g$ is:
+
+    $$\left(u + \frac{g}{g+1}\right)^2 + v^2 = \frac{1}{(g+1)^2}$$
+
+    centered at $\left(-\frac{g}{g+1}, 0\right)$. The constant-susceptance circle for susceptance $b$:
+
+    $$(u + 1)^2 + \left(v + \frac{1}{b}\right)^2 = \frac{1}{b^2}$$
+
+    centered at $\left(-1, -\frac{1}{b}\right)$, tangent to $\Gamma = -1$ (short circuit).
+
+    **The Smith chart is thus a dual-coordinate system**: Z-contours (constant $r$, $x$) and Y-contours (constant $g$, $b$) overlaid on the same $|\Gamma| \le 1$ disk. Switching between the two is equivalent to toggling between series and parallel analysis of the circuit.
+
+    #### 3.5 Movement Rules for Matching
+
+    | Element | Domain | Effect | Trajectory |
+    |---------|--------|--------|------------|
+    | Series $L$ ($+jx$) | $z_{\text{new}} = z + jx$ | Increase reactance | CW along constant-$r$ circle |
+    | Series $C$ ($-jx$) | $z_{\text{new}} = z - jx$ | Decrease reactance | CCW along constant-$r$ circle |
+    | Shunt $C$ ($+jb$) | $y_{\text{new}} = y + jb$ | Increase susceptance | CW along constant-$g$ circle |
+    | Shunt $L$ ($-jb$) | $y_{\text{new}} = y - jb$ | Decrease susceptance | CCW along constant-$g$ circle |
+
+    A matching design is a sequence of arc moves from the load point to the chart center ($\Gamma = 0$, i.e. $z = 1$).
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    #### Interactive I -- Bilinear Mapping: $z$-plane $\to$ $\Gamma$-plane
+
+    The chart below shows the bilinear transform in action. On the left is the normalized impedance plane; on the right is the $\Gamma$-plane (the Smith chart). Vertical lines of constant $r$ in the $z$-plane map to the constant-resistance circles. Horizontal lines of constant $x$ map to the constant-reactance arcs.
+    """)
+    return
+
+
+@app.cell
+def _(np, go, mo):
+    _theta_bl = np.linspace(0, 2 * np.pi, 300)
+    _r_vals_bl = [0, 0.2, 0.5, 1.0, 2.0, 5.0]
+    _r_colors_bl = ["#636EFA", "#EF553B", "#00CC96", "#AB63FA", "#FFA15A", "#FF6692"]
+    _x_vals_bl = [0.2, 0.5, 1.0, 2.0, 5.0]
+    _x_colors_bl = ["#19D3F3", "#B6E880", "#FECB52", "#FF97FF", "#72B7B2"]
+
+    from plotly.subplots import make_subplots as _ms_bl
+    _fig_bl = _ms_bl(rows=1, cols=2,
+                     subplot_titles=("z-plane (impedance)", "Gamma-plane (Smith chart)"),
+                     horizontal_spacing=0.08)
+
+    for _i, _r in enumerate(_r_vals_bl):
+        _xln = np.linspace(-6, 6, 200)
+        _fig_bl.add_trace(go.Scatter(
+            x=np.full_like(_xln, _r), y=_xln, mode="lines",
+            line=dict(color=_r_colors_bl[_i], width=1.5),
+            name=f"r = {_r}", legendgroup=f"r{_r}", showlegend=True
+        ), row=1, col=1)
+
+    for _i, _xv in enumerate(_x_vals_bl):
+        _rln = np.linspace(0, 8, 200)
+        _fig_bl.add_trace(go.Scatter(
+            x=_rln, y=np.full_like(_rln, _xv), mode="lines",
+            line=dict(color=_x_colors_bl[_i], width=1, dash="dash"),
+            name=f"x = +{_xv}", legendgroup=f"x{_xv}", showlegend=True
+        ), row=1, col=1)
+        _fig_bl.add_trace(go.Scatter(
+            x=_rln, y=np.full_like(_rln, -_xv), mode="lines",
+            line=dict(color=_x_colors_bl[_i], width=1, dash="dash"),
+            showlegend=False
+        ), row=1, col=1)
+
+    _fig_bl.add_trace(go.Scatter(
+        x=np.cos(_theta_bl), y=np.sin(_theta_bl), mode="lines",
+        line=dict(color="rgba(255,255,255,0.3)", width=1), showlegend=False
+    ), row=1, col=2)
+
+    for _i, _r in enumerate(_r_vals_bl):
+        _ctr_u = _r / (_r + 1); _rad = 1 / (_r + 1)
+        _cu = _ctr_u + _rad * np.cos(_theta_bl)
+        _cv = _rad * np.sin(_theta_bl)
+        _mask = _cu**2 + _cv**2 <= 1.005
+        _cu[~_mask] = np.nan; _cv[~_mask] = np.nan
+        _fig_bl.add_trace(go.Scatter(
+            x=_cu, y=_cv, mode="lines",
+            line=dict(color=_r_colors_bl[_i], width=1.5),
+            legendgroup=f"r{_r}", showlegend=False
+        ), row=1, col=2)
+
+    for _i, _xv in enumerate(_x_vals_bl):
+        for _sgn in [1, -1]:
+            _xval = _sgn * _xv
+            _cv_c = 1.0 / _xval; _rad = abs(_cv_c)
+            _cu = 1 + _rad * np.cos(_theta_bl)
+            _cv = _cv_c + _rad * np.sin(_theta_bl)
+            _mask = (_cu**2 + _cv**2 <= 1.005)
+            _cu[~_mask] = np.nan; _cv[~_mask] = np.nan
+            _fig_bl.add_trace(go.Scatter(
+                x=_cu, y=_cv, mode="lines",
+                line=dict(color=_x_colors_bl[_i], width=1, dash="dash"),
+                showlegend=False
+            ), row=1, col=2)
+
+    _fig_bl.add_trace(go.Scatter(
+        x=[-1, 1], y=[0, 0], mode="lines",
+        line=dict(color="rgba(255,255,255,0.5)", width=0.8, dash="dash"),
+        showlegend=False
+    ), row=1, col=2)
+
+    _fig_bl.update_xaxes(title_text="Re(z) = r", range=[-0.5, 8], row=1, col=1)
+    _fig_bl.update_yaxes(title_text="Im(z) = x", range=[-6, 6], row=1, col=1)
+    _fig_bl.update_xaxes(title_text="Re(Gamma)", range=[-1.15, 1.15],
+                         scaleanchor="y2", scaleratio=1, row=1, col=2)
+    _fig_bl.update_yaxes(title_text="Im(Gamma)", range=[-1.15, 1.15], row=1, col=2)
+    _fig_bl.update_layout(
+        template="plotly_dark", height=500, width=1050,
+        title_text="Bilinear Transform: Lines in z-plane Map to Circles in Gamma-plane",
+        legend=dict(orientation="h", yanchor="bottom", y=-0.22, font=dict(size=10)),
+        margin=dict(t=60, b=80)
+    )
+    mo.ui.plotly(_fig_bl)
+    return
+
+
+@app.cell
+def _(mo):
+    smith_overlay_dd = mo.ui.dropdown(
+        options=["Z-circles only", "Y-circles only", "Z + Y overlay"],
+        value="Z + Y overlay", label="Chart overlay"
+    )
+    smith_r_select = mo.ui.multiselect(
+        options=["0", "0.2", "0.5", "1", "2", "5"],
+        value=["0", "0.5", "1", "2"], label="r (or g) values"
+    )
+    smith_x_select = mo.ui.multiselect(
+        options=["0.2", "0.5", "1", "2", "5"],
+        value=["0.5", "1", "2"], label="x (or b) values"
+    )
+    mo.md("#### Interactive II -- Smith Chart Circle Construction")
+    return smith_overlay_dd, smith_r_select, smith_x_select
+
+
+@app.cell
+def _(smith_overlay_dd, smith_r_select, smith_x_select, np, go, mo):
+    _th2 = np.linspace(0, 2 * np.pi, 500)
+    _mode = smith_overlay_dd.value
+    _r_vals_sc = [float(v) for v in smith_r_select.value]
+    _x_vals_sc = [float(v) for v in smith_x_select.value]
+    _show_z = _mode in ("Z-circles only", "Z + Y overlay")
+    _show_y = _mode in ("Y-circles only", "Z + Y overlay")
+
+    _fig_sc = go.Figure()
+    _fig_sc.add_trace(go.Scatter(
+        x=np.cos(_th2), y=np.sin(_th2), mode="lines",
+        line=dict(color="rgba(255,255,255,0.35)", width=1.2),
+        showlegend=False, hoverinfo="skip"
+    ))
+    _fig_sc.add_trace(go.Scatter(
+        x=[-1, 1], y=[0, 0], mode="lines",
+        line=dict(color="rgba(255,255,255,0.25)", width=0.8),
+        showlegend=False, hoverinfo="skip"
+    ))
+
+    _zp = ["#636EFA", "#EF553B", "#00CC96", "#AB63FA", "#FFA15A", "#FF6692"]
+    _yp = ["#19D3F3", "#B6E880", "#FECB52", "#FF97FF", "#72B7B2", "#FFA07A"]
+
+    if _show_z:
+        for _i, _r in enumerate(_r_vals_sc):
+            _ctr = _r / (_r + 1); _rad = 1.0 / (_r + 1)
+            _cu = _ctr + _rad * np.cos(_th2); _cv = _rad * np.sin(_th2)
+            _m = _cu**2 + _cv**2 <= 1.005; _cu[~_m] = np.nan; _cv[~_m] = np.nan
+            _fig_sc.add_trace(go.Scatter(x=_cu, y=_cv, mode="lines",
+                line=dict(color=_zp[_i % len(_zp)], width=1.8), name=f"r = {_r:g}"))
+        for _i, _xv in enumerate(_x_vals_sc):
+            _col = _zp[(_i + 3) % len(_zp)]
+            for _sgn in [1, -1]:
+                _xval = _sgn * _xv; _cv_c = 1.0 / _xval; _rad = abs(_cv_c)
+                _cu = 1 + _rad * np.cos(_th2); _cv = _cv_c + _rad * np.sin(_th2)
+                _m = _cu**2 + _cv**2 <= 1.005; _cu[~_m] = np.nan; _cv[~_m] = np.nan
+                _fig_sc.add_trace(go.Scatter(x=_cu, y=_cv, mode="lines",
+                    line=dict(color=_col, width=1, dash="dash"),
+                    name=f"x = {_xval:+g}", showlegend=(_sgn == 1)))
+
+    if _show_y:
+        for _i, _g in enumerate(_r_vals_sc):
+            _ctr = -_g / (_g + 1); _rad = 1.0 / (_g + 1)
+            _cu = _ctr + _rad * np.cos(_th2); _cv = _rad * np.sin(_th2)
+            _m = _cu**2 + _cv**2 <= 1.005; _cu[~_m] = np.nan; _cv[~_m] = np.nan
+            _fig_sc.add_trace(go.Scatter(x=_cu, y=_cv, mode="lines",
+                line=dict(color=_yp[_i % len(_yp)], width=1.8, dash="dot"), name=f"g = {_g:g}"))
+        for _i, _bv in enumerate(_x_vals_sc):
+            _col = _yp[(_i + 3) % len(_yp)]
+            for _sgn in [1, -1]:
+                _bval = _sgn * _bv; _cv_c = -1.0 / _bval; _rad = abs(_cv_c)
+                _cu = -1 + _rad * np.cos(_th2); _cv = _cv_c + _rad * np.sin(_th2)
+                _m = _cu**2 + _cv**2 <= 1.005; _cu[~_m] = np.nan; _cv[~_m] = np.nan
+                _fig_sc.add_trace(go.Scatter(x=_cu, y=_cv, mode="lines",
+                    line=dict(color=_col, width=1, dash="dashdot"),
+                    name=f"b = {_bval:+g}", showlegend=(_sgn == 1)))
+
+    _fig_sc.add_trace(go.Scatter(
+        x=[0, 1, -1], y=[0, 0, 0], mode="markers+text",
+        marker=dict(size=7, color=["#FECB52", "#EF553B", "#00CC96"]),
+        text=["z=1", "OC", "SC"], textposition="top center",
+        textfont=dict(size=10, color="white"), showlegend=False
+    ))
+    _fig_sc.update_layout(
+        template="plotly_dark", height=600, width=650,
+        title_text=f"Smith Chart Construction ({_mode})",
+        xaxis=dict(title="Re(Gamma)", range=[-1.2, 1.2], scaleanchor="y", scaleratio=1),
+        yaxis=dict(title="Im(Gamma)", range=[-1.2, 1.2]),
+        legend=dict(font=dict(size=9), orientation="v", x=1.02, y=1),
+        margin=dict(l=50, r=140, t=50, b=50)
+    )
+    mo.vstack([
+        mo.hstack([smith_overlay_dd, smith_r_select, smith_x_select]),
+        mo.ui.plotly(_fig_sc)
+    ])
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    #### Interactive III -- Step-by-Step Matching Network Synthesis
+
+    Build a matching network element by element. Each button adds a reactive component to the cascade. The Smith chart traces the full trajectory from load to (ideally) the chart center $\Gamma = 0$.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    # State: list of (element_name, normalized_value) tuples
+    get_synth_chain, set_synth_chain = mo.state([])
+    # Load impedance state
+    get_synth_load, set_synth_load = mo.state((0.5, 1.0))
+    return get_synth_chain, set_synth_chain, get_synth_load, set_synth_load
+
+
+@app.cell
+def _(mo, set_synth_chain, set_synth_load, get_synth_chain):
+    synth_step_val = mo.ui.slider(0.1, 5.0, value=0.5, step=0.1, label="Step size (normalized)")
+    synth_load_r = mo.ui.slider(0.1, 5.0, value=0.5, step=0.1, label="Load r")
+    synth_load_x = mo.ui.slider(-4.0, 4.0, value=1.0, step=0.1, label="Load x")
+
+    def _add_element(elem_name):
+        def _handler(_btn_val):
+            set_synth_chain(lambda chain: chain + [(elem_name, synth_step_val.value)])
+        return _handler
+
+    def _undo(_btn_val):
+        set_synth_chain(lambda chain: chain[:-1] if chain else [])
+
+    def _reset(_btn_val):
+        set_synth_chain([])
+
+    def _update_load(_btn_val):
+        set_synth_load((synth_load_r.value, synth_load_x.value))
+        set_synth_chain([])
+
+    btn_series_L = mo.ui.button(label="Series L (+jx)", on_click=_add_element("Series L"))
+    btn_series_C = mo.ui.button(label="Series C (-jx)", on_click=_add_element("Series C"))
+    btn_shunt_C = mo.ui.button(label="Shunt C (+jb)", on_click=_add_element("Shunt C"))
+    btn_shunt_L = mo.ui.button(label="Shunt L (-jb)", on_click=_add_element("Shunt L"))
+    btn_undo = mo.ui.button(label="Undo last", on_click=_undo)
+    btn_reset = mo.ui.button(label="Reset all", on_click=_reset)
+    btn_set_load = mo.ui.button(label="Set load", on_click=_update_load)
+    return (synth_step_val, synth_load_r, synth_load_x,
+            btn_series_L, btn_series_C, btn_shunt_C, btn_shunt_L,
+            btn_undo, btn_reset, btn_set_load)
+
+
+@app.cell
+def _(get_synth_chain, get_synth_load,
+      synth_step_val, synth_load_r, synth_load_x,
+      btn_series_L, btn_series_C, btn_shunt_C, btn_shunt_L,
+      btn_undo, btn_reset, btn_set_load,
+      np, go, mo):
+    _chain = get_synth_chain()
+    _load_r, _load_x = get_synth_load()
+    _th = np.linspace(0, 2 * np.pi, 500)
+
+    # --- Compute the trajectory through the element chain ---
+    _z_points = [_load_r + 1j * _load_x]
+    _arc_segments = []  # list of (gamma_array, is_series_type)
+    _step_labels = []
+
+    for _elem_name, _val in _chain:
+        _z_cur = _z_points[-1]
+        _t = np.linspace(0, _val, 100)
+        if _elem_name == "Series L":
+            _z_arc = _z_cur + 1j * _t
+            _is_series = True
+            _step_labels.append(f"+jx={_val:.1f}")
+        elif _elem_name == "Series C":
+            _z_arc = _z_cur - 1j * _t
+            _is_series = True
+            _step_labels.append(f"-jx={_val:.1f}")
+        elif _elem_name == "Shunt C":
+            _y_cur = 1.0 / _z_cur
+            _y_arc = _y_cur + 1j * _t
+            _z_arc = 1.0 / _y_arc
+            _is_series = False
+            _step_labels.append(f"+jb={_val:.1f}")
+        else:  # Shunt L
+            _y_cur = 1.0 / _z_cur
+            _y_arc = _y_cur - 1j * _t
+            _z_arc = 1.0 / _y_arc
+            _is_series = False
+            _step_labels.append(f"-jb={_val:.1f}")
+        _gamma_arc = (_z_arc - 1) / (_z_arc + 1)
+        _arc_segments.append((_gamma_arc, _is_series, _elem_name))
+        _z_points.append(_z_arc[-1])
+
+    _gamma_points = [(_z - 1) / (_z + 1) for _z in _z_points]
+
+    # --- Build the Smith chart figure ---
+    _fig_syn = go.Figure()
+
+    # Unit circle
+    _fig_syn.add_trace(go.Scatter(
+        x=np.cos(_th), y=np.sin(_th), mode="lines",
+        line=dict(color="rgba(255,255,255,0.25)", width=1),
+        showlegend=False, hoverinfo="skip"
+    ))
+    # Background r-circles
+    for _rv in [0, 0.2, 0.5, 1, 2, 5]:
+        _ct = _rv / (_rv + 1); _rd = 1.0 / (_rv + 1)
+        _cu = _ct + _rd * np.cos(_th); _cv = _rd * np.sin(_th)
+        _m = _cu**2 + _cv**2 <= 1.005; _cu[~_m] = np.nan; _cv[~_m] = np.nan
+        _fig_syn.add_trace(go.Scatter(x=_cu, y=_cv, mode="lines",
+            line=dict(color="rgba(100,110,200,0.18)", width=0.7),
+            showlegend=False, hoverinfo="skip"))
+    # Background g-circles
+    for _gv in [0, 0.2, 0.5, 1, 2, 5]:
+        _ct = -_gv / (_gv + 1); _rd = 1.0 / (_gv + 1)
+        _cu = _ct + _rd * np.cos(_th); _cv = _rd * np.sin(_th)
+        _m = _cu**2 + _cv**2 <= 1.005; _cu[~_m] = np.nan; _cv[~_m] = np.nan
+        _fig_syn.add_trace(go.Scatter(x=_cu, y=_cv, mode="lines",
+            line=dict(color="rgba(25,211,243,0.12)", width=0.7),
+            showlegend=False, hoverinfo="skip"))
+    # Real axis
+    _fig_syn.add_trace(go.Scatter(x=[-1, 1], y=[0, 0], mode="lines",
+        line=dict(color="rgba(255,255,255,0.2)", width=0.6),
+        showlegend=False, hoverinfo="skip"))
+
+    # Color palette for arcs
+    _series_colors = ["#636EFA", "#AB63FA", "#636EFA", "#AB63FA", "#636EFA", "#AB63FA"]
+    _shunt_colors = ["#EF553B", "#FF6692", "#EF553B", "#FF6692", "#EF553B", "#FF6692"]
+
+    # Draw arc segments
+    for _idx, (_garc, _is_s, _ename) in enumerate(_arc_segments):
+        _col = _series_colors[_idx % len(_series_colors)] if _is_s else _shunt_colors[_idx % len(_shunt_colors)]
+        _fig_syn.add_trace(go.Scatter(
+            x=_garc.real, y=_garc.imag, mode="lines",
+            line=dict(color=_col, width=3),
+            name=f"Step {_idx+1}: {_ename} ({_step_labels[_idx]})",
+            legendgroup=f"step{_idx}"
+        ))
+        # Arrowhead at the end of each arc
+        if len(_garc) > 2:
+            _dx = _garc[-1].real - _garc[-3].real
+            _dy = _garc[-1].imag - _garc[-3].imag
+            _fig_syn.add_annotation(
+                x=_garc[-1].real, y=_garc[-1].imag,
+                ax=_garc[-1].real - _dx * 8,
+                ay=_garc[-1].imag - _dy * 8,
+                xref="x", yref="y", axref="x", ayref="y",
+                showarrow=True, arrowhead=2, arrowsize=1.5,
+                arrowcolor=_col, arrowwidth=2
+            )
+
+    # Draw node markers at each impedance point
+    for _idx, _gp in enumerate(_gamma_points):
+        _z = _z_points[_idx]
+        if _idx == 0:
+            _marker_color = "#00CC96"; _sym = "circle"; _label = f"Load z={_z:.2f}"
+            _name = "Load"
+        elif _idx == len(_gamma_points) - 1:
+            _marker_color = "#FECB52"; _sym = "star"; _label = f"z={_z:.2f}"
+            _name = "Current"
+        else:
+            _marker_color = "rgba(255,255,255,0.7)"; _sym = "circle"; _label = f"z={_z:.2f}"
+            _name = f"Node {_idx}"
+        _fig_syn.add_trace(go.Scatter(
+            x=[_gp.real], y=[_gp.imag], mode="markers",
+            marker=dict(size=9 if _idx in (0, len(_gamma_points)-1) else 6,
+                        color=_marker_color, symbol=_sym,
+                        line=dict(width=1, color="white")),
+            name=_name,
+            hovertext=_label, hoverinfo="text"
+        ))
+
+    # Chart center target
+    _fig_syn.add_trace(go.Scatter(
+        x=[0], y=[0], mode="markers+text",
+        marker=dict(size=8, color="white", symbol="cross-thin",
+                    line=dict(width=1.5, color="white")),
+        text=["Target (z=1)"], textposition="bottom left",
+        textfont=dict(size=9, color="rgba(255,255,255,0.6)"), showlegend=False
+    ))
+
+    # Current impedance info
+    _z_cur = _z_points[-1]
+    _y_cur = 1.0 / _z_cur
+    _gamma_cur = _gamma_points[-1]
+    _gamma_mag = abs(_gamma_cur)
+    _ml_dB = 10 * np.log10(1 - _gamma_mag**2 + 1e-30) if _gamma_mag < 1 else float('-inf')
+
+    _fig_syn.update_layout(
+        template="plotly_dark", height=620, width=700,
+        title_text="Step-by-Step Matching Network Synthesis",
+        xaxis=dict(title="Re(Gamma)", range=[-1.25, 1.25], scaleanchor="y", scaleratio=1),
+        yaxis=dict(title="Im(Gamma)", range=[-1.25, 1.25]),
+        legend=dict(font=dict(size=9), x=1.02, y=1, bgcolor="rgba(0,0,0,0.5)"),
+        margin=dict(l=50, r=180, t=50, b=50)
+    )
+
+    # --- Network state summary ---
+    _chain_rows = ""
+    for _idx, (_ename, _val) in enumerate(_chain):
+        _chain_rows += f"| {_idx+1} | {_ename} | {_step_labels[_idx]} |\n"
+    if not _chain_rows:
+        _chain_rows = "| -- | No elements | -- |\n"
+
+    _status_md = mo.md(f"""
+**Network State**
+
+| Property | Value |
+|---|---|
+| z (normalized) | {_z_cur.real:.4f} {_z_cur.imag:+.4f}j |
+| y (normalized) | {_y_cur.real:.4f} {_y_cur.imag:+.4f}j |
+| Gamma | {_gamma_cur.real:.4f} {_gamma_cur.imag:+.4f}j |
+| |Gamma| | {_gamma_mag:.4f} |
+| Mismatch loss | {_ml_dB:.2f} dB |
+
+**Element Chain**
+
+| Step | Element | Value |
+|---|---|---|
+{_chain_rows}
+""")
+
+    _controls = mo.vstack([
+        mo.md("**Add element:**"),
+        mo.hstack([btn_series_L, btn_series_C]),
+        mo.hstack([btn_shunt_C, btn_shunt_L]),
+        synth_step_val,
+        mo.md("---"),
+        mo.hstack([btn_undo, btn_reset]),
+        mo.md("---"),
+        mo.md("**Load impedance:**"),
+        synth_load_r, synth_load_x, btn_set_load,
+    ])
+
+    mo.hstack([
+        mo.vstack([_controls, _status_md]),
+        mo.ui.plotly(_fig_syn)
+    ], widths=[1, 2])
     return
 
 
