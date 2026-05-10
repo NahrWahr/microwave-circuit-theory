@@ -1,0 +1,1022 @@
+"""
+Transmission-line bounce-diagram interactive app.
+
+Run with:
+    uv run python interactive/transmission_line_bounce.py
+
+Pozar Ch. 2 transient transmission-line behavior on a Z0 = 50 Ohm line.
+All impedances entered as normalized values z = Z/Z0; reactive load
+elements are specified as a reactance x = X/Z0 at a reference frequency
+(1/tau for transients, the source frequency for sine). Three excitations
+(smoothed step, Gaussian pulse, steady-state sinusoid). Four synchronized
+panes: bounce/lattice diagram, 3D cylinder rendering with V and I as
+space curves around the line, and 2D V(z,t) and I(z,t) plots. FFT-based
+numerics in the browser; the Python side is only a small stdlib HTTP
+launcher.
+"""
+
+from __future__ import annotations
+
+import contextlib
+import http.server
+import socket
+import socketserver
+import webbrowser
+
+
+HTML = r"""<!doctype html>
+<!-- v2.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Transmission Line - Bounce Diagram</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0f1117;
+      --panel: #171b24;
+      --panel-2: #1d2430;
+      --border: #303848;
+      --grid: #2a3444;
+      --grid-soft: #202836;
+      --text: #e6edf7;
+      --muted: #95a3b8;
+      --blue: #4f8cff;
+      --red: #ff5d67;
+      --orange: #ffb454;
+      --green: #4ed389;
+      --cyan: #41d6d3;
+      --shadow: 0 18px 45px rgb(0 0 0 / 0.28);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%; margin: 0;
+      background: var(--bg); color: var(--text); overflow: hidden;
+    }
+    body { min-width: 1240px; min-height: 760px; }
+    .app {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 8px;
+      height: 100vh;
+      padding: 8px;
+    }
+    .header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 14px;
+      background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+    .title { font-size: 14px; font-weight: 650; letter-spacing: 0.2px; }
+    .schematic { color: var(--muted); font-size: 12px; font-family: ui-monospace, Menlo, Consolas, monospace; }
+    .plots {
+      display: grid;
+      grid-template-columns: 1fr 1.4fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 8px;
+      min-height: 0;
+    }
+    .panel {
+      border: 1px solid var(--border); border-radius: 8px;
+      background: var(--panel); box-shadow: var(--shadow);
+      display: grid; grid-template-rows: auto 1fr;
+      min-height: 0; min-width: 0; overflow: hidden;
+    }
+    .panel-title {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 6px 12px; border-bottom: 1px solid var(--border);
+      font-size: 12px; font-weight: 650; color: var(--text);
+    }
+    .panel-title .legend { display: flex; gap: 12px; font-weight: 500; color: var(--muted); }
+    .legend-chip { display: inline-flex; align-items: center; gap: 6px; }
+    .legend-chip .swatch {
+      display: inline-block; width: 14px; height: 3px; border-radius: 2px; background: currentColor;
+    }
+    .swatch-fwd { color: var(--orange); }
+    .swatch-rev { color: var(--cyan); }
+    .swatch-tot { color: var(--text); }
+    canvas { display: block; width: 100%; height: 100%; }
+    .canvas-wrap { position: relative; min-width: 0; min-height: 0; }
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(220px, 1fr));
+      gap: 8px;
+      padding: 8px;
+      background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    }
+    .ctl-group {
+      background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px;
+      padding: 8px 10px; display: grid; gap: 6px;
+    }
+    .ctl-title { font-size: 11px; font-weight: 700; letter-spacing: 0.4px; color: var(--muted); text-transform: uppercase; }
+    .row { display: grid; grid-template-columns: 70px 1fr 60px; gap: 8px; align-items: center; font-size: 12px; }
+    .row label { color: var(--muted); }
+    .row input[type=range] { width: 100%; accent-color: var(--orange); }
+    .row .val { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; color: var(--text); text-align: right; }
+    select, input[type=number] {
+      background: var(--bg); border: 1px solid var(--border); color: var(--text);
+      border-radius: 4px; padding: 3px 6px; font-size: 12px;
+    }
+    button {
+      background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+      border-radius: 4px; padding: 4px 8px; font-size: 11px; cursor: pointer;
+    }
+    button:hover { border-color: var(--orange); }
+    button.primary { background: var(--orange); color: #1a1408; border-color: var(--orange); font-weight: 600; }
+    .preset-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+    .play-row { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; }
+    .radio-row { display: flex; gap: 10px; font-size: 12px; }
+    .radio-row label { display: inline-flex; gap: 4px; align-items: center; color: var(--muted); }
+    .readouts { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; color: var(--muted); }
+    .readouts span.k { color: var(--text); }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div class="title">Transmission Line — 3D, Bounce Diagram &amp; Wave Animation</div>
+    <div class="schematic">Vs &mdash;[z<sub>s</sub>]&mdash;&#x25A1;[Z<sub>0</sub>=50&Omega;, &ell;, v<sub>p</sub>]&#x25A1;&mdash;[z<sub>L</sub>]&nbsp;&nbsp;(impedances normalized to 50&Omega;)</div>
+    <div class="readouts" id="readouts">
+      <span class="k">&tau;</span>=<span id="ro-tau">--</span>&nbsp;
+      <span class="k">f<sub>ref</sub></span>=<span id="ro-fref">--</span>&nbsp;
+      <span class="k">&Gamma;<sub>S</sub></span>=<span id="ro-gs">--</span>&nbsp;
+      <span class="k">&Gamma;<sub>L</sub>(f<sub>ref</sub>)</span>=<span id="ro-gl">--</span>
+    </div>
+  </div>
+
+  <div class="plots">
+    <div class="panel">
+      <div class="panel-title">
+        <span id="bounce-title">Bounce Diagram</span>
+        <span class="legend">
+          <span class="legend-chip swatch-fwd"><span class="swatch"></span>forward</span>
+          <span class="legend-chip swatch-rev"><span class="swatch"></span>reverse</span>
+        </span>
+      </div>
+      <div class="canvas-wrap"><canvas id="cv-bounce"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">
+        <span>3D View — line as cylinder, V (top), I (front)</span>
+        <span class="legend">
+          <span class="legend-chip swatch-fwd"><span class="swatch"></span>fwd</span>
+          <span class="legend-chip swatch-rev"><span class="swatch"></span>rev</span>
+          <span class="legend-chip swatch-tot"><span class="swatch"></span>total</span>
+        </span>
+      </div>
+      <div class="canvas-wrap"><canvas id="cv-3d"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">
+        <span>V(z, t)</span>
+        <span class="legend">
+          <span class="legend-chip swatch-fwd"><span class="swatch"></span>V<sup>+</sup></span>
+          <span class="legend-chip swatch-rev"><span class="swatch"></span>V<sup>-</sup></span>
+          <span class="legend-chip swatch-tot"><span class="swatch"></span>V<sub>tot</sub></span>
+        </span>
+      </div>
+      <div class="canvas-wrap"><canvas id="cv-v"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">
+        <span>I(z, t)</span>
+        <span class="legend">
+          <span class="legend-chip swatch-fwd"><span class="swatch"></span>I<sup>+</sup></span>
+          <span class="legend-chip swatch-rev"><span class="swatch"></span>I<sup>-</sup>=-V<sup>-</sup>/Z<sub>0</sub></span>
+          <span class="legend-chip swatch-tot"><span class="swatch"></span>I<sub>tot</sub></span>
+        </span>
+      </div>
+      <div class="canvas-wrap"><canvas id="cv-i"></canvas></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="ctl-group">
+      <div class="ctl-title">Source</div>
+      <div class="row"><label>Signal</label>
+        <select id="sig-type">
+          <option value="step">Smoothed step</option>
+          <option value="gauss">Gaussian pulse</option>
+          <option value="sine">Steady-state sinusoid</option>
+        </select>
+        <span></span>
+      </div>
+      <div class="row" id="row-rise"><label>t<sub>rise</sub>/&tau;</label>
+        <input id="rng-rise" type="range" min="0.005" max="0.2" step="0.005" value="0.02">
+        <span class="val" id="val-rise">0.020</span>
+      </div>
+      <div class="row hidden" id="row-pw"><label>&sigma;/&tau;</label>
+        <input id="rng-pw" type="range" min="0.01" max="0.5" step="0.005" value="0.05">
+        <span class="val" id="val-pw">0.050</span>
+      </div>
+      <div class="row hidden" id="row-fr"><label>f &middot; &tau;</label>
+        <input id="rng-fr" type="range" min="0.5" max="8" step="0.1" value="2.0">
+        <span class="val" id="val-fr">2.0</span>
+      </div>
+      <div class="row"><label>z<sub>s</sub></label>
+        <input id="rng-zs" type="range" min="0" max="10" step="0.05" value="1.0">
+        <span class="val" id="val-zs">1.00</span>
+      </div>
+    </div>
+
+    <div class="ctl-group">
+      <div class="ctl-title">Line</div>
+      <div class="row"><label>&ell; [m]</label>
+        <input id="rng-len" type="range" min="0.1" max="10" step="0.1" value="1.0">
+        <span class="val" id="val-len">1.0</span>
+      </div>
+      <div class="row"><label>v<sub>p</sub>/c</label>
+        <input id="rng-vp" type="range" min="0.3" max="1.0" step="0.01" value="0.5">
+        <span class="val" id="val-vp">0.50</span>
+      </div>
+    </div>
+
+    <div class="ctl-group">
+      <div class="ctl-title">Load (z<sub>L</sub> = r + jx)</div>
+      <div class="radio-row">
+        <label><input type="radio" name="load-kind" value="R" checked> R</label>
+        <label><input type="radio" name="load-kind" value="RL"> R+jx<sub>L</sub></label>
+        <label><input type="radio" name="load-kind" value="RC"> R&parallel;(-jx<sub>C</sub>)</label>
+      </div>
+      <div class="row"><label>r<sub>L</sub></label>
+        <input id="rng-rl" type="range" min="0" max="10" step="0.05" value="2.0">
+        <span class="val" id="val-rl">2.00</span>
+      </div>
+      <div class="row hidden" id="row-xl"><label>x<sub>L</sub></label>
+        <input id="rng-xl" type="range" min="0" max="6" step="0.05" value="1.0">
+        <span class="val" id="val-xl">1.00</span>
+      </div>
+      <div class="row hidden" id="row-xc"><label>x<sub>C</sub></label>
+        <input id="rng-xc" type="range" min="0.05" max="6" step="0.05" value="1.0">
+        <span class="val" id="val-xc">1.00</span>
+      </div>
+    </div>
+
+    <div class="ctl-group">
+      <div class="ctl-title">Presets &amp; playback</div>
+      <div class="preset-row">
+        <button data-preset="matched">Matched</button>
+        <button data-preset="open">Open</button>
+        <button data-preset="short">Short</button>
+        <button data-preset="2z0">2&middot;Z<sub>0</sub></button>
+        <button data-preset="rl">RL load</button>
+        <button data-preset="srcmm">Src mismatch</button>
+      </div>
+      <div class="play-row">
+        <button id="btn-play" class="primary">Pause</button>
+        <input id="rng-time" type="range" min="0" max="1000" step="1" value="0">
+        <span class="val" id="val-time">0.00&tau;</span>
+      </div>
+      <div class="row"><label>speed</label>
+        <input id="rng-speed" type="range" min="0.05" max="2.0" step="0.05" value="0.4">
+        <span class="val" id="val-speed">0.40</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // v2.0
+  "use strict";
+  const C0 = 2.99792458e8;
+  const PI = Math.PI;
+  const TWO_PI = 2 * PI;
+  const Z0_FIXED = 50.0;
+
+  const css = getComputedStyle(document.documentElement);
+  const COL = {
+    fwd: css.getPropertyValue("--orange").trim(),
+    rev: css.getPropertyValue("--cyan").trim(),
+    tot: css.getPropertyValue("--text").trim(),
+    grid: css.getPropertyValue("--grid").trim(),
+    gridSoft: css.getPropertyValue("--grid-soft").trim(),
+    border: css.getPropertyValue("--border").trim(),
+    muted: css.getPropertyValue("--muted").trim(),
+    panel: css.getPropertyValue("--panel").trim(),
+  };
+
+  // ---------- FFT (Cooley-Tukey radix-2, in-place) ----------
+  function fft(a, sign) {
+    const n = a.length >> 1;
+    let j = 0;
+    for (let i = 0; i < n; i++) {
+      if (i < j) {
+        const ir = i << 1, jr = j << 1;
+        let t = a[ir]; a[ir] = a[jr]; a[jr] = t;
+        t = a[ir + 1]; a[ir + 1] = a[jr + 1]; a[jr + 1] = t;
+      }
+      let m = n >> 1;
+      while (m >= 1 && j >= m) { j -= m; m >>= 1; }
+      j += m;
+    }
+    for (let s = 1; s < n; s <<= 1) {
+      const m = s << 1;
+      const theta = sign * PI / s;
+      const wpr = Math.cos(theta), wpi = Math.sin(theta);
+      for (let k = 0; k < n; k += m) {
+        let wr = 1.0, wi = 0.0;
+        for (let l = 0; l < s; l++) {
+          const i1 = (k + l) << 1;
+          const i2 = (k + l + s) << 1;
+          const tr = wr * a[i2] - wi * a[i2 + 1];
+          const ti = wr * a[i2 + 1] + wi * a[i2];
+          a[i2]     = a[i1]     - tr;
+          a[i2 + 1] = a[i1 + 1] - ti;
+          a[i1]     = a[i1]     + tr;
+          a[i1 + 1] = a[i1 + 1] + ti;
+          const wrn = wr * wpr - wi * wpi;
+          wi = wr * wpi + wi * wpr;
+          wr = wrn;
+        }
+      }
+    }
+    if (sign > 0) {
+      const inv = 1.0 / n;
+      for (let i = 0; i < a.length; i++) a[i] *= inv;
+    }
+  }
+
+  function fftForward(re) {
+    const n = re.length;
+    const a = new Float64Array(2 * n);
+    for (let i = 0; i < n; i++) a[2 * i] = re[i];
+    fft(a, -1);
+    return a;
+  }
+  function ifftToReal(spec) {
+    const n = spec.length >> 1;
+    const a = new Float64Array(spec);
+    fft(a, +1);
+    const out = new Float64Array(n);
+    for (let i = 0; i < n; i++) out[i] = a[2 * i];
+    return out;
+  }
+
+  // ---------- Reflection coefficient (using normalized impedance z = Z/Z0) ----------
+  // Inputs: rL, xL_ref (= w_ref*L/Z0), xC_ref (= 1/(w_ref*C*Z0)).
+  // For the actual impedance at angular frequency w:
+  //   RL load: zL(w) = rL + j (w/w_ref) * xL_ref
+  //   RC load: yL(w) = 1/rL + j (w/w_ref) * (1/xC_ref);  zL(w) = 1/yL
+  function gammaLoadNormalized(w, w_ref, kind, rL, xLref, xCref) {
+    let zr, zi;
+    const fRatio = (w_ref > 0) ? (w / w_ref) : 0;
+    if (kind === "R") { zr = rL; zi = 0; }
+    else if (kind === "RL") { zr = rL; zi = fRatio * xLref; }
+    else { // R || (-jxC) at w_ref => 1/(jw*C) = -j/(wC); norm yL = 1/r + j*w*C*Z0
+      const yr = (rL > 0) ? 1.0 / rL : 1e9;
+      const yi = (xCref > 0) ? fRatio / xCref : 0;
+      const dd = yr * yr + yi * yi;
+      zr = yr / dd; zi = -yi / dd;
+    }
+    // Gamma = (z - 1) / (z + 1)
+    const nr = zr - 1, ni = zi;
+    const dr = zr + 1, di = zi;
+    const dd = dr * dr + di * di;
+    return [(nr * dr + ni * di) / dd, (ni * dr - nr * di) / dd];
+  }
+
+  // ---------- Source signal sampling ----------
+  function sampleSource(kind, params, Nt, dt) {
+    const v = new Float64Array(Nt);
+    const tau = params.tau;
+    const t0 = 0.4 * tau;
+    if (kind === "step") {
+      const tr = Math.max(params.tRise, 2 * dt);
+      for (let i = 0; i < Nt; i++) {
+        const t = i * dt;
+        v[i] = 0.5 * (1 + Math.tanh((t - t0) / tr));
+      }
+    } else if (kind === "gauss") {
+      const sg = Math.max(params.sigma, 2 * dt);
+      for (let i = 0; i < Nt; i++) {
+        const t = i * dt;
+        const x = (t - t0) / sg;
+        v[i] = Math.exp(-0.5 * x * x);
+      }
+    } else {
+      const w0 = TWO_PI * params.freq;
+      const tr = 0.05 * tau;
+      for (let i = 0; i < Nt; i++) {
+        const t = i * dt;
+        const env = 0.5 * (1 + Math.tanh((t - t0) / tr));
+        v[i] = env * Math.sin(w0 * t);
+      }
+    }
+    return v;
+  }
+
+  // ---------- Pre-compute (z,t) grids ----------
+  function precompute(params) {
+    const Nt = 2048;
+    const Nz = 200;
+    const tau = params.tau;
+    const Tw = 6 * tau;
+    const dt = Tw / Nt;
+    const dz = params.length / (Nz - 1);
+    const w_ref = TWO_PI * params.fref;
+
+    const v_s = sampleSource(params.signal, params, Nt, dt);
+    const Vs = fftForward(v_s);
+
+    // Voltage divider with normalized z_s: factor = 1 / (z_s + 1)
+    const divider = 1.0 / (params.zs + 1);
+    const A0 = new Float64Array(2 * Nt);
+    for (let k = 0; k < Nt; k++) {
+      A0[2 * k]     = Vs[2 * k]     * divider;
+      A0[2 * k + 1] = Vs[2 * k + 1] * divider;
+    }
+
+    // F(w) = A0 / (1 - Gs * Gl(w) * e^{-jw tau})
+    const F = new Float64Array(2 * Nt);
+    const FGl = new Float64Array(2 * Nt);
+    const Gs = (params.zs - 1) / (params.zs + 1); // real
+    for (let k = 0; k < Nt; k++) {
+      const kSigned = (k <= Nt / 2) ? k : k - Nt;
+      const w = TWO_PI * kSigned / Tw;
+      const [glr, gli] = gammaLoadNormalized(w, w_ref, params.loadKind,
+        params.rL, params.xL, params.xC);
+      const phi = -w * tau;
+      const er = Math.cos(phi), ei = Math.sin(phi);
+      const gr = Gs * glr, gi = Gs * gli;
+      const pr = gr * er - gi * ei, pi = gr * ei + gi * er;
+      const dr = 1 - pr, di = -pi;
+      const dd = dr * dr + di * di;
+      const ar = A0[2 * k], ai = A0[2 * k + 1];
+      const fr = (ar * dr + ai * di) / dd;
+      const fi = (ai * dr - ar * di) / dd;
+      F[2 * k] = fr; F[2 * k + 1] = fi;
+      FGl[2 * k]     = fr * glr - fi * gli;
+      FGl[2 * k + 1] = fr * gli + fi * glr;
+    }
+
+    const Vplus  = new Array(Nz);
+    const Vminus = new Array(Nz);
+    const phaseBuf = new Float64Array(2 * Nt);
+    for (let iz = 0; iz < Nz; iz++) {
+      const z = iz * dz;
+      for (let k = 0; k < Nt; k++) {
+        const kSigned = (k <= Nt / 2) ? k : k - Nt;
+        const w = TWO_PI * kSigned / Tw;
+        const phF = -w * z / params.vp;
+        const cr = Math.cos(phF), ci = Math.sin(phF);
+        const fr = F[2 * k], fi = F[2 * k + 1];
+        phaseBuf[2 * k]     = fr * cr - fi * ci;
+        phaseBuf[2 * k + 1] = fr * ci + fi * cr;
+      }
+      Vplus[iz] = ifftToReal(phaseBuf);
+      for (let k = 0; k < Nt; k++) {
+        const kSigned = (k <= Nt / 2) ? k : k - Nt;
+        const w = TWO_PI * kSigned / Tw;
+        const phR = -w * (2 * params.length - z) / params.vp;
+        const cr = Math.cos(phR), ci = Math.sin(phR);
+        const fr = FGl[2 * k], fi = FGl[2 * k + 1];
+        phaseBuf[2 * k]     = fr * cr - fi * ci;
+        phaseBuf[2 * k + 1] = fr * ci + fi * cr;
+      }
+      Vminus[iz] = ifftToReal(phaseBuf);
+    }
+    return { Vplus, Vminus, Tw, dt, Nz, Nt, dz };
+  }
+
+  // ---------- State ----------
+  const state = {
+    params: null,
+    grid: null,
+    tNow: 0,
+    running: true,
+    speed: 0.4,
+    yMax: 1.5,
+    iMax: 0.03,
+    lastFrame: performance.now(),
+    bouncePaths: [],
+  };
+
+  // ---------- Read controls ----------
+  function readParams() {
+    const sig = document.getElementById("sig-type").value;
+    const len = +document.getElementById("rng-len").value;
+    const vpFrac = +document.getElementById("rng-vp").value;
+    const vp = vpFrac * C0;
+    const zs = +document.getElementById("rng-zs").value;
+    const rL = +document.getElementById("rng-rl").value;
+    const xL = +document.getElementById("rng-xl").value;
+    const xC = +document.getElementById("rng-xc").value;
+    const tRiseFrac = +document.getElementById("rng-rise").value;
+    const sigFrac = +document.getElementById("rng-pw").value;
+    const fFrac = +document.getElementById("rng-fr").value;
+    const loadKind = document.querySelector("input[name=load-kind]:checked").value;
+    const tau = 2 * len / vp;
+    const freq = (sig === "sine") ? fFrac / tau : 1 / tau;
+    const fref = (sig === "sine") ? freq : 1 / tau;
+    return {
+      signal: sig, Z0: Z0_FIXED, length: len, vp, zs, rL, xL, xC, loadKind,
+      tRise: tRiseFrac * tau,
+      sigma: sigFrac * tau,
+      freq, fref, tau,
+    };
+  }
+
+  function recompute() {
+    const p = readParams();
+    state.params = p;
+    state.grid = precompute(p);
+    let mx = 0;
+    for (let iz = 0; iz < state.grid.Nz; iz++) {
+      const v = state.grid.Vplus[iz], r = state.grid.Vminus[iz];
+      for (let it = 0; it < state.grid.Nt; it++) {
+        const t = Math.abs(v[it] + r[it]);
+        if (t > mx) mx = t;
+        if (Math.abs(v[it]) > mx) mx = Math.abs(v[it]);
+        if (Math.abs(r[it]) > mx) mx = Math.abs(r[it]);
+      }
+    }
+    state.yMax = Math.max(0.2, 1.15 * mx);
+    state.iMax = state.yMax / Z0_FIXED;
+    state.bouncePaths = buildBouncePaths(p);
+    const slider = document.getElementById("rng-time");
+    slider.max = String(Math.floor(state.grid.Tw * 1e10));
+    if (state.tNow > state.grid.Tw) state.tNow = 0;
+    updateReadouts();
+  }
+
+  function updateReadouts() {
+    const p = state.params;
+    const Gs = (p.zs - 1) / (p.zs + 1);
+    document.getElementById("ro-tau").textContent = (p.tau * 1e9).toFixed(2) + " ns";
+    document.getElementById("ro-fref").textContent = (p.fref * 1e-6).toFixed(1) + " MHz";
+    document.getElementById("ro-gs").textContent = Gs.toFixed(3);
+    const w_ref = TWO_PI * p.fref;
+    const [glr, gli] = gammaLoadNormalized(w_ref, w_ref, p.loadKind, p.rL, p.xL, p.xC);
+    const mag = Math.hypot(glr, gli), ph = Math.atan2(gli, glr) * 180 / PI;
+    document.getElementById("ro-gl").textContent =
+      mag.toFixed(3) + "∠" + ph.toFixed(0) + "°";
+  }
+
+  // ---------- Bounce paths ----------
+  function buildBouncePaths(p) {
+    const out = [];
+    const halfTau = p.tau / 2;
+    const Gs = (p.zs - 1) / (p.zs + 1);
+    const w_ref = TWO_PI * p.fref;
+    const [glr, gli] = gammaLoadNormalized(w_ref, w_ref, p.loadKind, p.rL, p.xL, p.xC);
+    const GlMag = Math.hypot(glr, gli);
+    const ampThresh = 1e-3;
+    let amp = 1.0, n = 0;
+    const maxBounces = 12;
+    let tCur = 0, dir = 'fwd', xStart = 0;
+    while (Math.abs(amp) > ampThresh && n < maxBounces) {
+      const tNext = tCur + halfTau;
+      const xEnd = (dir === 'fwd') ? 1 : 0;
+      out.push({ x0: xStart, t0: tCur, x1: xEnd, t1: tNext, dir, amp });
+      tCur = tNext;
+      if (dir === 'fwd') {
+        amp *= (p.loadKind === 'R') ? glr : GlMag;
+        dir = 'rev'; xStart = 1;
+      } else {
+        amp *= Gs;
+        dir = 'fwd'; xStart = 0;
+      }
+      n++;
+    }
+    return out;
+  }
+
+  // ---------- Canvas helpers ----------
+  function fitCanvas(cv) {
+    const dpr = window.devicePixelRatio || 1;
+    const r = cv.getBoundingClientRect();
+    cv.width = Math.max(2, Math.floor(r.width * dpr));
+    cv.height = Math.max(2, Math.floor(r.height * dpr));
+    const ctx = cv.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx, w: r.width, h: r.height };
+  }
+  function clear(ctx, w, h) { ctx.fillStyle = COL.panel; ctx.fillRect(0, 0, w, h); }
+  function drawAxes(ctx, x0, y0, x1, y1, opts) {
+    ctx.strokeStyle = COL.gridSoft; ctx.lineWidth = 1;
+    ctx.beginPath();
+    const nx = opts.nx || 8, ny = opts.ny || 6;
+    for (let i = 0; i <= nx; i++) {
+      const x = x0 + (i / nx) * (x1 - x0);
+      ctx.moveTo(x, y0); ctx.lineTo(x, y1);
+    }
+    for (let i = 0; i <= ny; i++) {
+      const y = y0 + (i / ny) * (y1 - y0);
+      ctx.moveTo(x0, y); ctx.lineTo(x1, y);
+    }
+    ctx.stroke();
+    ctx.strokeStyle = COL.border;
+    ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+  }
+
+  // ---------- Bounce diagram ----------
+  function drawBounce() {
+    const cv = document.getElementById("cv-bounce");
+    const { ctx, w, h } = fitCanvas(cv);
+    clear(ctx, w, h);
+    const M = { l: 44, r: 16, t: 18, b: 24 };
+    const x0 = M.l, x1 = w - M.r, y0 = M.t, y1 = h - M.b;
+    const Tplot = 4 * state.params.tau;
+    drawAxes(ctx, x0, y0, x1, y1, { nx: 8, ny: 8 });
+    ctx.fillStyle = COL.muted;
+    ctx.font = "11px ui-monospace, Menlo, Consolas, monospace";
+    ctx.fillText("z=0", x0, y1 + 14);
+    ctx.fillText("z=l", x1 - 18, y1 + 14);
+    ctx.fillText("t=0", 4, y0 + 4);
+    ctx.fillText((Tplot * 1e9).toFixed(1) + " ns", 4, y1 - 2);
+    const xMap = (x) => x0 + x * (x1 - x0);
+    const tMap = (t) => y0 + (t / Tplot) * (y1 - y0);
+    for (const seg of state.bouncePaths) {
+      if (seg.t0 > Tplot) continue;
+      const t1c = Math.min(seg.t1, Tplot);
+      const frac = (t1c - seg.t0) / (seg.t1 - seg.t0);
+      const x1c = seg.x0 + frac * (seg.x1 - seg.x0);
+      ctx.strokeStyle = (seg.dir === 'fwd') ? COL.fwd : COL.rev;
+      ctx.globalAlpha = Math.min(1, Math.max(0.15, Math.abs(seg.amp)));
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(xMap(seg.x0), tMap(seg.t0));
+      ctx.lineTo(xMap(x1c), tMap(t1c));
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    if (state.tNow >= 0 && state.tNow <= Tplot) {
+      ctx.strokeStyle = COL.tot; ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(x0, tMap(state.tNow));
+      ctx.lineTo(x1, tMap(state.tNow));
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  // ---------- 2D V/I waveforms ----------
+  function drawWaveform(canvasId, isCurrent) {
+    const cv = document.getElementById(canvasId);
+    const { ctx, w, h } = fitCanvas(cv);
+    clear(ctx, w, h);
+    const M = { l: 50, r: 16, t: 16, b: 22 };
+    const x0 = M.l, x1 = w - M.r, y0 = M.t, y1 = h - M.b;
+    drawAxes(ctx, x0, y0, x1, y1, { nx: 8, ny: 6 });
+    const yMax = isCurrent ? state.iMax : state.yMax;
+    const labelV = isCurrent ? "I [A]" : "V [V]";
+    ctx.fillStyle = COL.muted; ctx.font = "11px ui-monospace";
+    ctx.fillText("z=0", x0, y1 + 14);
+    ctx.fillText("z=l", x1 - 18, y1 + 14);
+    ctx.fillText("+" + yMax.toPrecision(2), 4, y0 + 10);
+    ctx.fillText("-" + yMax.toPrecision(2), 4, y1 - 2);
+    ctx.fillText(labelV, 4, (y0 + y1) / 2);
+
+    const grid = state.grid;
+    const it = Math.max(0, Math.min(grid.Nt - 1, Math.round(state.tNow / grid.dt)));
+    const xMap = (iz) => x0 + (iz / (grid.Nz - 1)) * (x1 - x0);
+    const yMap = (v) => {
+      const yc = (y0 + y1) / 2;
+      return yc - (v / yMax) * ((y1 - y0) / 2);
+    };
+    function plot(arrFn, color, alpha, lw) {
+      ctx.strokeStyle = color; ctx.globalAlpha = alpha; ctx.lineWidth = lw;
+      ctx.beginPath();
+      for (let iz = 0; iz < grid.Nz; iz++) {
+        const v = arrFn(iz, it);
+        const x = xMap(iz), y = yMap(v);
+        if (iz === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke(); ctx.globalAlpha = 1;
+    }
+    if (isCurrent) {
+      plot((iz) => grid.Vplus[iz][it] / Z0_FIXED,  COL.fwd, 0.85, 1.6);
+      plot((iz) => -grid.Vminus[iz][it] / Z0_FIXED, COL.rev, 0.85, 1.6);
+      plot((iz) => (grid.Vplus[iz][it] - grid.Vminus[iz][it]) / Z0_FIXED, COL.tot, 1.0, 2.0);
+    } else {
+      plot((iz) => grid.Vplus[iz][it],  COL.fwd, 0.85, 1.6);
+      plot((iz) => grid.Vminus[iz][it], COL.rev, 0.85, 1.6);
+      plot((iz) => grid.Vplus[iz][it] + grid.Vminus[iz][it], COL.tot, 1.0, 2.0);
+    }
+    ctx.strokeStyle = COL.muted;
+    ctx.setLineDash([2, 3]);
+    ctx.beginPath();
+    ctx.moveTo(x1, y0); ctx.lineTo(x1, y1);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.strokeStyle = COL.gridSoft;
+    ctx.beginPath();
+    const yc = (y0 + y1) / 2;
+    ctx.moveTo(x0, yc); ctx.lineTo(x1, yc);
+    ctx.stroke();
+  }
+
+  // ---------- 3D pane ----------
+  // World axes: x = along the line (z position), y = vertical (V axis),
+  // w = depth (I axis). View rotates azimuth then elevation.
+  const VIEW = { az: 28 * PI / 180, el: 18 * PI / 180 };
+  function project(x, y, w) {
+    const ca = Math.cos(VIEW.az), sa = Math.sin(VIEW.az);
+    const ce = Math.cos(VIEW.el), se = Math.sin(VIEW.el);
+    const x1 = ca * x - sa * w;
+    const w1 = sa * x + ca * w;
+    const y2 = ce * y - se * w1;
+    return [x1, y2];
+  }
+
+  function draw3D() {
+    const cv = document.getElementById("cv-3d");
+    const { ctx, w, h } = fitCanvas(cv);
+    clear(ctx, w, h);
+    const M = { l: 16, r: 16, t: 12, b: 12 };
+    const px0 = M.l, py0 = M.t, px1 = w - M.r, py1 = h - M.b;
+    const cw = px1 - px0, chh = py1 - py0;
+
+    // World extents: x in [0, L_world], y in [-Y_world, +Y_world], w in [-W_world, +W_world]
+    const Lworld = 4.0;
+    const Yw = 1.6, Ww = 1.6;
+
+    // Compute bounding screen extents to fit canvas.
+    const corners = [];
+    for (const x of [0, Lworld]) for (const y of [-Yw, Yw]) for (const ww of [-Ww, Ww]) {
+      corners.push(project(x - Lworld / 2, y, ww));
+    }
+    let sxMin = +1e9, sxMax = -1e9, syMin = +1e9, syMax = -1e9;
+    for (const [a, b] of corners) {
+      if (a < sxMin) sxMin = a; if (a > sxMax) sxMax = a;
+      if (b < syMin) syMin = b; if (b > syMax) syMax = b;
+    }
+    const sx = cw / (sxMax - sxMin);
+    const sy = chh / (syMax - syMin);
+    const sc = Math.min(sx, sy) * 0.92;
+    const cx = (px0 + px1) / 2, cy = (py0 + py1) / 2;
+    const xCenter = (sxMin + sxMax) / 2, yCenter = (syMin + syMax) / 2;
+    function S(x, y, ww) {
+      const [a, b] = project(x - Lworld / 2, y, ww);
+      return [cx + (a - xCenter) * sc, cy - (b - yCenter) * sc];
+    }
+
+    const Rcyl = 0.35;
+
+    // --- Cylinder wireframe ---
+    ctx.strokeStyle = COL.gridSoft;
+    ctx.lineWidth = 1;
+    // Rings at start, middle, end
+    const ringX = [0, Lworld * 0.5, Lworld];
+    for (const xr of ringX) {
+      ctx.beginPath();
+      const N = 36;
+      for (let k = 0; k <= N; k++) {
+        const th = (k / N) * TWO_PI;
+        const yy = Rcyl * Math.cos(th), ww = Rcyl * Math.sin(th);
+        const [px, py] = S(xr, yy, ww);
+        if (k === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    }
+    // Axial lines at θ = 0, π/2, π, 3π/2
+    for (let k = 0; k < 4; k++) {
+      const th = k * PI / 2;
+      const yy = Rcyl * Math.cos(th), ww = Rcyl * Math.sin(th);
+      ctx.beginPath();
+      const [pa, pb] = S(0, yy, ww);
+      const [pc, pd] = S(Lworld, yy, ww);
+      ctx.moveTo(pa, pb); ctx.lineTo(pc, pd);
+      ctx.stroke();
+    }
+
+    // Source / load end caps (subtle fill)
+    ctx.fillStyle = COL.muted;
+    ctx.font = "11px ui-monospace";
+    {
+      const [pa, pb] = S(0, Rcyl + 0.18, 0);
+      ctx.fillText("z=0  Vs,zs", pa - 10, pb);
+      const [pc, pd] = S(Lworld, Rcyl + 0.18, 0);
+      ctx.fillText("z=l  zL", pc - 8, pd);
+    }
+
+    // --- Wave traces ---
+    const grid = state.grid;
+    const it = Math.max(0, Math.min(grid.Nt - 1, Math.round(state.tNow / grid.dt)));
+    const sV = 0.9 / state.yMax;
+    const sI = 0.9 / state.iMax;
+
+    function trace3(getPoint, color, alpha, lw) {
+      ctx.strokeStyle = color; ctx.globalAlpha = alpha; ctx.lineWidth = lw;
+      ctx.beginPath();
+      const N = grid.Nz;
+      for (let iz = 0; iz < N; iz++) {
+        const xWorld = (iz / (N - 1)) * Lworld;
+        const [yWorld, wWorld] = getPoint(iz);
+        const [px, py] = S(xWorld, yWorld, wWorld);
+        if (iz === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.stroke(); ctx.globalAlpha = 1;
+    }
+
+    // V curves: sit on top of cylinder (w=0, y = Rcyl + V*sV)
+    trace3((iz) => [Rcyl + grid.Vplus[iz][it] * sV, 0], COL.fwd, 0.85, 1.6);
+    trace3((iz) => [Rcyl + grid.Vminus[iz][it] * sV, 0], COL.rev, 0.85, 1.6);
+    trace3((iz) => [Rcyl + (grid.Vplus[iz][it] + grid.Vminus[iz][it]) * sV, 0], COL.tot, 1.0, 2.2);
+
+    // I curves: front of cylinder (y=0, w = Rcyl + I*sI)
+    trace3((iz) => [0, Rcyl + (grid.Vplus[iz][it] / Z0_FIXED) * sI], COL.fwd, 0.55, 1.4);
+    trace3((iz) => [0, Rcyl + (-grid.Vminus[iz][it] / Z0_FIXED) * sI], COL.rev, 0.55, 1.4);
+    trace3((iz) => [0, Rcyl + ((grid.Vplus[iz][it] - grid.Vminus[iz][it]) / Z0_FIXED) * sI], COL.tot, 0.85, 1.8);
+
+    // Axis labels
+    ctx.fillStyle = COL.muted;
+    {
+      const [a, b] = S(Lworld * 1.02, 0, 0); ctx.fillText("z", a + 4, b);
+      const [c, d] = S(0, Yw * 0.95, 0);     ctx.fillText("V", c, d);
+      const [e, f] = S(0, 0, Ww * 0.95);     ctx.fillText("I", e, f - 4);
+    }
+    // current time stamp
+    ctx.fillStyle = COL.muted;
+    ctx.fillText("t = " + (state.tNow / state.params.tau).toFixed(2) + "τ", px0 + 4, py0 + 12);
+  }
+
+  // ---------- Animation ----------
+  function frame(now) {
+    const dt = (now - state.lastFrame) / 1000;
+    state.lastFrame = now;
+    if (state.running) {
+      state.tNow += dt * state.speed * state.params.tau;
+      if (state.tNow > state.grid.Tw) state.tNow = 0;
+      const slider = document.getElementById("rng-time");
+      slider.value = String(Math.floor(state.tNow * 1e10));
+    }
+    document.getElementById("val-time").textContent =
+      (state.tNow / state.params.tau).toFixed(2) + "τ";
+    drawBounce();
+    draw3D();
+    drawWaveform("cv-v", false);
+    drawWaveform("cv-i", true);
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- UI wiring ----------
+  function bindRange(id, valId, fmt) {
+    const r = document.getElementById(id);
+    const v = document.getElementById(valId);
+    const update = () => { v.textContent = fmt(+r.value); recompute(); };
+    r.addEventListener("input", update);
+    v.textContent = fmt(+r.value);
+  }
+  function setupSignalRows() {
+    const sig = document.getElementById("sig-type").value;
+    document.getElementById("row-rise").classList.toggle("hidden", sig !== "step");
+    document.getElementById("row-pw").classList.toggle("hidden", sig !== "gauss");
+    document.getElementById("row-fr").classList.toggle("hidden", sig !== "sine");
+  }
+  function setupLoadRows() {
+    const k = document.querySelector("input[name=load-kind]:checked").value;
+    document.getElementById("row-xl").classList.toggle("hidden", k !== "RL");
+    document.getElementById("row-xc").classList.toggle("hidden", k !== "RC");
+  }
+  function applyPreset(name) {
+    const $ = (id) => document.getElementById(id);
+    const setLoad = (kind, r, x) => {
+      document.querySelector(`input[name=load-kind][value=${kind}]`).checked = true;
+      $("rng-rl").value = r; $("val-rl").textContent = (+r).toFixed(2);
+      if (kind === "RL") { $("rng-xl").value = x; $("val-xl").textContent = (+x).toFixed(2); }
+      if (kind === "RC") { $("rng-xc").value = x; $("val-xc").textContent = (+x).toFixed(2); }
+    };
+    if (name === "matched") { setLoad("R", 1.0); $("rng-zs").value = 1.0; $("val-zs").textContent = "1.00"; }
+    else if (name === "open") { setLoad("R", 10.0); $("rng-zs").value = 1.0; $("val-zs").textContent = "1.00"; }
+    else if (name === "short") { setLoad("R", 0.0); $("rng-zs").value = 1.0; $("val-zs").textContent = "1.00"; }
+    else if (name === "2z0") { setLoad("R", 2.0); $("rng-zs").value = 1.0; $("val-zs").textContent = "1.00"; }
+    else if (name === "rl") { setLoad("RL", 1.0, 2.0); $("rng-zs").value = 1.0; $("val-zs").textContent = "1.00"; }
+    else if (name === "srcmm") { setLoad("R", 2.0); $("rng-zs").value = 4.0; $("val-zs").textContent = "4.00"; }
+    setupLoadRows();
+    recompute();
+  }
+
+  document.getElementById("sig-type").addEventListener("change", () => { setupSignalRows(); recompute(); });
+  document.querySelectorAll("input[name=load-kind]").forEach((el) =>
+    el.addEventListener("change", () => { setupLoadRows(); recompute(); })
+  );
+  bindRange("rng-len", "val-len", (v) => v.toFixed(2));
+  bindRange("rng-vp", "val-vp", (v) => v.toFixed(2));
+  bindRange("rng-zs", "val-zs", (v) => v.toFixed(2));
+  bindRange("rng-rl", "val-rl", (v) => v.toFixed(2));
+  bindRange("rng-xl", "val-xl", (v) => v.toFixed(2));
+  bindRange("rng-xc", "val-xc", (v) => v.toFixed(2));
+  bindRange("rng-rise", "val-rise", (v) => v.toFixed(3));
+  bindRange("rng-pw", "val-pw", (v) => v.toFixed(3));
+  bindRange("rng-fr", "val-fr", (v) => v.toFixed(1));
+  document.getElementById("rng-speed").addEventListener("input", (e) => {
+    state.speed = +e.target.value;
+    document.getElementById("val-speed").textContent = (+e.target.value).toFixed(2);
+  });
+  document.getElementById("rng-time").addEventListener("input", (e) => {
+    state.running = false;
+    document.getElementById("btn-play").textContent = "Play";
+    state.tNow = (+e.target.value) / 1e10;
+  });
+  document.getElementById("btn-play").addEventListener("click", () => {
+    state.running = !state.running;
+    document.getElementById("btn-play").textContent = state.running ? "Pause" : "Play";
+    state.lastFrame = performance.now();
+  });
+  document.querySelectorAll("button[data-preset]").forEach((b) =>
+    b.addEventListener("click", () => applyPreset(b.dataset.preset))
+  );
+
+  // ---------- Self-tests (?test=1) ----------
+  function runTests() {
+    const log = (s, ok) => console.log(`%c[test] ${s}`, `color:${ok?'#4ed389':'#ff5d67'}`);
+    {
+      const w_ref = TWO_PI * 1e8;
+      const [r, i] = gammaLoadNormalized(w_ref, w_ref, "R", 1.0, 0, 0);
+      log(`matched Gl ~ 0: |G|=${Math.hypot(r, i).toExponential(2)}`, Math.hypot(r, i) < 1e-12);
+    }
+    {
+      const w_ref = TWO_PI * 1e8;
+      const [r, i] = gammaLoadNormalized(w_ref, w_ref, "R", 1e8, 0, 0);
+      log(`open Gl ~ +1: G=${r.toFixed(4)}`, Math.abs(r - 1) < 1e-3 && Math.abs(i) < 1e-3);
+    }
+    {
+      const w_ref = TWO_PI * 1e8;
+      const [r, i] = gammaLoadNormalized(w_ref, w_ref, "R", 0.0, 0, 0);
+      log(`short Gl ~ -1: G=${r.toFixed(4)}`, Math.abs(r + 1) < 1e-6 && Math.abs(i) < 1e-6);
+    }
+    {
+      const p = readParams();
+      p.signal = "step"; p.loadKind = "R"; p.rL = 1e8; p.zs = 1;
+      p.tau = 2 * p.length / p.vp;
+      p.fref = 1 / p.tau;
+      const g = precompute(p);
+      const it = Math.floor(g.Nt * 0.9);
+      const vLoad = g.Vplus[g.Nz - 1][it] + g.Vminus[g.Nz - 1][it];
+      log(`open-step V_load ~ 2: ${vLoad.toFixed(3)}`, Math.abs(vLoad - 2) < 0.05);
+    }
+    {
+      const p = readParams();
+      p.signal = "gauss"; p.loadKind = "R"; p.rL = 1.0; p.zs = 1;
+      p.tau = 2 * p.length / p.vp; p.fref = 1 / p.tau;
+      const g = precompute(p);
+      let mx = 0;
+      for (let iz = 0; iz < g.Nz; iz++)
+        for (let it = 0; it < g.Nt; it++) mx = Math.max(mx, Math.abs(g.Vminus[iz][it]));
+      log(`matched V- near zero: max=${mx.toExponential(2)}`, mx < 1e-3);
+    }
+  }
+
+  setupSignalRows();
+  setupLoadRows();
+  recompute();
+  state.lastFrame = performance.now();
+  requestAnimationFrame(frame);
+
+  if (new URLSearchParams(location.search).get("test") === "1") {
+    setTimeout(runTests, 100);
+  }
+</script>
+</body>
+</html>
+"""
+
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self) -> None:
+        if self.path.split("?", 1)[0] not in {"/", "/index.html"}:
+            self.send_error(404)
+            return
+        payload = HTML.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def log_message(self, format: str, *args: object) -> None:
+        return
+
+
+class ThreadingTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
+
+def find_free_port() -> int:
+    with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
+def main() -> None:
+    port = find_free_port()
+    url = f"http://127.0.0.1:{port}/"
+    with ThreadingTCPServer(("127.0.0.1", port), Handler) as server:
+        print(f"Serving transmission-line bounce app at {url}")
+        print("Press Ctrl-C to stop.")
+        webbrowser.open(url)
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            print("\nStopping server.")
+
+
+if __name__ == "__main__":
+    main()

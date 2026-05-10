@@ -875,7 +875,7 @@ def _(mo):
     mo.md(r"""
     ---
 
-    # Part V — Wrap and Bridge to Notebook 08
+    # Part V — Wrap and bridge to notebook 08
     """)
     return
 
@@ -892,16 +892,12 @@ def _(mo):
     3. **Volterra Series with Memory (Part III):** We revealed the physical inadequacy of memoryless polynomials at mmWave. Using the harmonic-input probing method, we derived frequency-dependent Volterra kernels for a short-channel CMOS device, rigorously explaining AM-PM distortion and the tone-spacing dependence of IIP3.
 
     ### Bridge to Notebook 08
-    
-    This notebook focused strictly on the single-device physics and canonical classes. **Notebook 08** will shift to system-level architectures and advanced efficiency techniques, specifically covering:
-    - **Switching-Mode Classes:** Class E (zero-voltage switching) and Class F (harmonic shaping).
-    - **Efficiency Enhancement:** Doherty PAs and Outphasing (LINC) to recover efficiency during power back-off.
-    - **Digital PAs:** Switched-capacitor architectures used aggressively in modern mmWave CMOS.
-    - **Transceiver Integration:** Budgeting the LNA noise, LO phase noise, and PA distortion to compute the final Error Vector Magnitude (EVM).
+
+    This notebook focused on the transmit-path active device. **Notebook 08** returns to the local-oscillator side and asks the question that notebook 06 (phase noise) deferred: how *high in frequency and output power* can a CMOS oscillator actually go in a given process? It develops the Momeni–Afshari activity-condition design methodology — extending notebook 02's Mason-$U$ / $f_{\max}$ analysis with an explicit $(A, \varphi)$ parameterization — and shows why three-stage rings reach $f_{\max}$ while cross-coupled topologies stop short, then covers the triple-push technique for output above $f_{\max}$ (the 256 GHz / 482 GHz CMOS regime).
 
     <br>
 
-    [← Notebook 06: Oscillators and VCOs](./06_oscillators_vco.py) | [Notebook 08: Advanced PA Architectures →](./08_advanced_pa_architectures.py)
+    [← Notebook 06: Oscillators and VCOs](./06_oscillators_vco.py) | [Notebook 08: Systematic Oscillator Design →](./08_systematic_oscillator_design.py)
     """)
     return
 
