@@ -766,13 +766,46 @@ def _(mo):
 
     For a MOSFET at frequencies well above $f_T / 10$ and well below package resonances,
     $U$ rolls off as $1/f^2$, i.e. **−20 dB/decade**. This is a direct consequence
-    of the intrinsic transistor Y-parameters.
+    of the physical parameters of the transistor. To prove this rigorously, we must analyze the small-signal model including the physical gate resistance $R_g$.
 
-    Let's examine a simplified MOSFET small-signal model. At moderate to high frequencies, the intrinsic parameters are approximated by:
+    **Problem Definition and Constraints**
+    We seek to determine the frequency dependence of Mason's Unilateral Gain $U$ for a MOSFET small-signal model. We consider the intrinsic parameters $C_{gs}, C_{gd}, g_m, g_{ds}$ and add the extrinsic gate resistance $R_g$ in series with the gate terminal.
+    We constrain our analysis to normal RF operating frequencies $\omega$ such that the gate impedance is dominated by the intrinsic capacitance: $\omega R_g C_{gs} \ll 1$. Furthermore, we assume $C_{gd} \ll C_{gs}$ and $g_m \gg \omega C_{gd}$.
+
+    **Derivation of Input Admittance**
+    The input impedance looking into the gate is the series combination of the physical gate resistance and the intrinsic gate-source capacitance (evaluating the two-port parameter $y_{11}$ with port 2 short-circuited):
 
     $$
-    Y_{11} \approx j\omega C_{gs}
+    Z_{11} = R_g + \frac{1}{j\omega C_{gs}}
     $$
+
+    The corresponding input admittance $Y_{11}$ is the reciprocal of $Z_{11}$:
+
+    $$
+    Y_{11} = \frac{1}{Z_{11}} = \frac{1}{R_g + \frac{1}{j\omega C_{gs}}} = \frac{j\omega C_{gs}}{1 + j\omega R_g C_{gs}}
+    $$
+
+    To extract the real and imaginary parts, multiply the numerator and the denominator by the complex conjugate of the denominator:
+
+    $$
+    Y_{11} = \frac{j\omega C_{gs} (1 - j\omega R_g C_{gs})}{1 + (\omega R_g C_{gs})^2} = \frac{\omega^2 C_{gs}^2 R_g + j\omega C_{gs}}{1 + (\omega R_g C_{gs})^2}
+    $$
+
+    Applying the constraint $\omega R_g C_{gs} \ll 1$, the denominator simplifies to $1$. Thus, we obtain the rigorous approximation for the input admittance:
+
+    $$
+    Y_{11} \approx \omega^2 C_{gs}^2 R_g + j\omega C_{gs}
+    $$
+
+    This crucially reveals that $R_g$ introduces a frequency-dependent real part to the input admittance:
+
+    $$
+    \operatorname{Re}(Y_{11}) \approx \omega^2 C_{gs}^2 R_g
+    $$
+
+    **Derivation of U**
+    At moderate to high frequencies, the other Y-parameters of the small-signal model are:
+
     $$
     Y_{12} \approx -j\omega C_{gd}
     $$
@@ -780,32 +813,26 @@ def _(mo):
     Y_{21} \approx g_m - j\omega C_{gd} \approx g_m
     $$
     $$
-    Y_{22} \approx g_{ds} + j\omega (C_{gd} + C_{db})
+    Y_{22} \approx g_{ds} + j\omega (C_{gd} + C_{db}) \implies \operatorname{Re}(Y_{22}) \approx g_{ds}
     $$
 
-    However, to see the $-20\text{ dB/decade}$ rolloff correctly, we must include the physical gate resistance $R_g$, which introduces a real part to the input admittance. A more rigorous analysis including $R_g$ gives:
-
-    $$
-    \operatorname{Re}(Y_{11}) \approx \omega^2 C_{gs}^2 R_g
-    $$
-
-    Now, evaluate the components of $U$:
+    We evaluate the components of Mason's Unilateral Gain $U$:
     - **Numerator:** $|Y_{21} - Y_{12}|^2 \approx |g_m - j\omega C_{gd} - (-j\omega C_{gd})|^2 = g_m^2$
-    - **Denominator:** $\operatorname{Re}(Y_{22}) \approx g_{ds}$ and $\operatorname{Re}(Y_{12}) \operatorname{Re}(Y_{21})$ is typically negligible or much smaller compared to $\operatorname{Re}(Y_{11}) \operatorname{Re}(Y_{22})$.
+    - **Denominator:** For a MOSFET, the cross-term $\operatorname{Re}(Y_{12}) \operatorname{Re}(Y_{21})$ is identically zero because $\operatorname{Re}(Y_{12}) = 0$. Therefore, the denominator simplifies strictly to $4 \operatorname{Re}(Y_{11}) \operatorname{Re}(Y_{22})$.
 
-    Substituting these into Mason's formula:
+    Substituting the symbolic expressions into Mason's formula:
 
     $$
-    U \approx \frac{g_m^2}{4 \operatorname{Re}(Y_{11}) \operatorname{Re}(Y_{22})} \approx \frac{g_m^2}{4 (\omega^2 C_{gs}^2 R_g) g_{ds}}
+    U = \frac{|Y_{21} - Y_{12}|^2}{4 ( \operatorname{Re}(Y_{11}) \operatorname{Re}(Y_{22}) - \operatorname{Re}(Y_{12})\operatorname{Re}(Y_{21}) )} \approx \frac{g_m^2}{4 (\omega^2 C_{gs}^2 R_g) (g_{ds})}
     $$
 
-    Notice the $\omega^2$ in the denominator! Since $\omega = 2\pi f$, this means:
+    Since $\omega = 2\pi f$, the frequency dependence is exclusively in the denominator as $1/f^2$:
 
     $$
     U(f) \propto \frac{1}{f^2}
     $$
 
-    Taking $10 \log_{10}$ of this expression yields:
+    Taking $10 \log_{10}$ of this expression yields the decibel slope:
 
     $$
     10\log_{10} U(f) = 10\log_{10} \left( \text{const} \cdot \frac{1}{f^2} \right) = \text{const} - 20\log_{10} f

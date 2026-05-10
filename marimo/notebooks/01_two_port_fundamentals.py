@@ -9,8 +9,9 @@
 
 import marimo
 
-__generated_with = "0.23.0"
+__generated_with = "0.23.2"
 app = marimo.App(width="full")
+
 
 @app.cell
 def _():
@@ -18,6 +19,7 @@ def _():
     import numpy as np
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
+
     return go, make_subplots, mo, np
 
 
@@ -26,25 +28,25 @@ def _(mo):
     mo.md(r"""
     # 01 — Two-Port Fundamentals
 
-    Microwave circuit theory relies on the rigorous characterization of linear 
-    networks. While a single-port network is described by a single impedance $Z$, 
-    a multi-port network requires a matrix representation to capture the interactions 
+    Microwave circuit theory relies on the rigorous characterization of linear
+    networks. While a single-port network is described by a single impedance $Z$,
+    a multi-port network requires a matrix representation to capture the interactions
     between its terminals.
 
     ---
 
     ## 1. The Port Condition
 
-    A **port** is a pair of terminals where the current entering one terminal is exactly 
-    equal to the current exiting the other. This ensures that the network can be 
+    A **port** is a pair of terminals where the current entering one terminal is exactly
+    equal to the current exiting the other. This ensures that the network can be
     treated as a black box with well-defined terminal voltages and currents.
 
     ## 2. Z-Parameters (Impedance)
 
     Choose $(I_1, I_2)$ as independent variables:
 
-    $$\begin{pmatrix} V_1 \\ V_2 \end{pmatrix} 
-      = \begin{pmatrix} Z_{11} & Z_{12} \\ Z_{21} & Z_{22} \end{pmatrix} 
+    $$\begin{pmatrix} V_1 \\ V_2 \end{pmatrix}
+      = \begin{pmatrix} Z_{11} & Z_{12} \\ Z_{21} & Z_{22} \end{pmatrix}
         \begin{pmatrix} I_1 \\ I_2 \end{pmatrix}$$
 
     - $Z_{11} = V_1/I_1 |_{I_2=0}$: Input impedance with output open-circuited.
@@ -63,7 +65,7 @@ def _(mo):
         <circle cx="50" cy="160" r="4" fill="currentColor"/>
         <text x="30" y="115" text-anchor="middle">V<tspan dy="5" font-size="12">1</tspan></text>
         <line x1="10" y1="70" x2="10" y2="150" stroke="currentColor" stroke-width="2" marker-end="url(#arrow)"/>
-        
+
         <!-- I1 arrow -->
         <line x1="60" y1="60" x2="100" y2="60" stroke="currentColor" stroke-width="2" marker-end="url(#arrow)"/>
         <text x="80" y="50" text-anchor="middle">I<tspan dy="5" font-size="12">1</tspan></text>
@@ -77,7 +79,7 @@ def _(mo):
         <circle cx="400" cy="160" r="4" fill="currentColor"/>
         <text x="420" y="115" text-anchor="middle">V<tspan dy="5" font-size="12">2</tspan></text>
         <line x1="440" y1="70" x2="440" y2="150" stroke="currentColor" stroke-width="2" marker-end="url(#arrow)"/>
-        
+
         <!-- I2 arrow -->
         <line x1="390" y1="60" x2="350" y2="60" stroke="currentColor" stroke-width="2" marker-end="url(#arrow)"/>
         <text x="370" y="50" text-anchor="middle">I<tspan dy="5" font-size="12">2</tspan></text>
@@ -91,8 +93,8 @@ def _(mo):
 
     Choose $(V_1, V_2)$ as independent variables:
 
-    $$\begin{pmatrix} I_1 \\ I_2 \end{pmatrix} 
-      = \begin{pmatrix} Y_{11} & Y_{12} \\ Y_{21} & Y_{22} \end{pmatrix} 
+    $$\begin{pmatrix} I_1 \\ I_2 \end{pmatrix}
+      = \begin{pmatrix} Y_{11} & Y_{12} \\ Y_{21} & Y_{22} \end{pmatrix}
         \begin{pmatrix} V_1 \\ V_2 \end{pmatrix}$$
 
     - $Y_{11} = I_1/V_1 |_{V_2=0}$: Input admittance with output short-circuited.
@@ -202,16 +204,16 @@ def _(mo):
         <text x="300" y="65" text-anchor="middle">V<tspan dy="5" font-size="12">2</tspan></text>
         <circle cx="300" cy="160" r="18" fill="none" stroke="currentColor" stroke-width="2"/>
         <text x="300" y="165" text-anchor="middle">−I<tspan dy="5" font-size="12">2</tspan></text>
-        
+
         <line x1="282" y1="60" x2="168" y2="60" stroke="currentColor" stroke-width="2" marker-end="url(#arrow)"/>
         <text x="225" y="50" text-anchor="middle">A</text>
-        
+
         <line x1="282" y1="160" x2="168" y2="160" stroke="currentColor" stroke-width="2" marker-end="url(#arrow)"/>
         <text x="225" y="150" text-anchor="middle">D</text>
-        
+
         <line x1="285" y1="70" x2="165" y2="150" stroke="currentColor" stroke-width="2" marker-end="url(#arrow)"/>
         <text x="200" y="130" text-anchor="end">C</text>
-        
+
         <line x1="285" y1="150" x2="165" y2="70" stroke="currentColor" stroke-width="2" marker-end="url(#arrow)"/>
         <text x="250" y="130" text-anchor="start">B</text>
       </g>
@@ -294,7 +296,7 @@ def _(mo, topology_selector):
 
 
 @app.cell
-def _(c_slider, freq_slider, l_slider, mo, np, r_slider, t, go, make_subplots):
+def _(c_slider, freq_slider, go, l_slider, make_subplots, mo, np, r_slider, t):
     # --- read controls ---
     R_val = float(r_slider.value)
     L_val = float(l_slider.value) * 1e-9
@@ -306,7 +308,7 @@ def _(c_slider, freq_slider, l_slider, mo, np, r_slider, t, go, make_subplots):
     def _build_ABCD(w_):
         z_rl = R_val + 1j * w_ * L_val
         y_c  = 1j * w_ * C_val
-        
+
         if t == "series":
             # Series branch: (R+L) || C
             if C_val > 0:
@@ -342,19 +344,19 @@ def _(c_slider, freq_slider, l_slider, mo, np, r_slider, t, go, make_subplots):
     def _abcd_to_zy(abcd):
         A, B, C, D = abcd[0,0], abcd[0,1], abcd[1,0], abcd[1,1]
         detT = A*D - B*C
-        
+
         # Z-parameters
         if abs(C) > 1e-15:
             Z = np.array([[A/C, detT/C], [1.0/C, D/C]])
         else:
             Z = np.full((2, 2), np.nan + 1j * np.nan)
-            
+
         # Y-parameters
         if abs(B) > 1e-15:
             Y = np.array([[D/B, -detT/B], [-1.0/B, A/B]])
         else:
             Y = np.full((2, 2), np.nan + 1j * np.nan)
-            
+
         return Z, Y
 
     # --- single-frequency matrix evaluation ---
@@ -466,6 +468,7 @@ def _(c_slider, freq_slider, l_slider, mo, np, r_slider, t, go, make_subplots):
     )
 
     mo.vstack([mo.md(matrices_md), mo.ui.plotly(fig)])
+    return
 
 
 @app.cell
@@ -533,7 +536,18 @@ def _(mo):
 
 
 @app.cell
-def _(cascade_c, cascade_l, cascade_n, cascade_r, cascade_zl, cascade_zs, go, make_subplots, mo, np):
+def _(
+    cascade_c,
+    cascade_l,
+    cascade_n,
+    cascade_r,
+    cascade_zl,
+    cascade_zs,
+    go,
+    make_subplots,
+    mo,
+    np,
+):
     _freqs = np.logspace(8, 11, 600)
     _ws    = 2 * np.pi * _freqs
     _fGHz  = _freqs / 1e9
@@ -688,19 +702,31 @@ def _(mo):
 
     ### 1.4 Algebraic Formulation of Power for $N$-Ports
 
-    Using matrices, the total complex power entering an $N$-port is the sum of the power at each port:
+    For an $N$-port network, we can arrange the port voltages and currents into $N \times 1$ column vectors:
 
-    $$S = \frac{1}{2} \sum_{i=1}^{N} \tilde{V}_i \tilde{I}_i^* = \frac{1}{2} \mathbf{I}^H \mathbf{V} = \frac{1}{2} \mathbf{V}^T \mathbf{I}^*$$
+    $$\mathbf{V} = \begin{bmatrix} \tilde{V}_1 \\ \tilde{V}_2 \\ \vdots \\ \tilde{V}_N \end{bmatrix}, \qquad \mathbf{I} = \begin{bmatrix} \tilde{I}_1 \\ \tilde{I}_2 \\ \vdots \\ \tilde{I}_N \end{bmatrix}$$
 
-    where $\mathbf{I}^H = (\mathbf{I}^*)^T$ is the Hermitian transpose. The real active power is:
+    Using these vectors, the total complex power entering the $N$-port is the sum of the complex power at each port. This can be written compactly using vector algebra. There are several mathematically equivalent ways to express this inner product:
+
+    $$S = \frac{1}{2} \sum_{i=1}^{N} \tilde{V}_i \tilde{I}_i^* = \frac{1}{2} \mathbf{I}^H \mathbf{V} = \frac{1}{2} \mathbf{V}^T \mathbf{I}^* = \frac{1}{2} \langle \mathbf{V}, \mathbf{I} \rangle$$
+
+    where $\mathbf{I}^H = (\mathbf{I}^*)^T$ is the Hermitian (conjugate) transpose, which converts the $N \times 1$ column vector into a $1 \times N$ row vector.
+
+    The real active power $P$ dissipated by the entire network is the real part of the complex power $S$:
 
     $$P = \operatorname{Re}(S) = \frac{1}{2} \operatorname{Re}(\mathbf{I}^H \mathbf{V}) = \frac{1}{4} (\mathbf{I}^H \mathbf{V} + \mathbf{V}^H \mathbf{I})$$
 
-    Substituting $\mathbf{V} = \mathbf{Z}\mathbf{I}$:
+    An $N$-port network can be completely characterized by its $N \times N$ impedance matrix $\mathbf{Z}$, such that $\mathbf{V} = \mathbf{Z}\mathbf{I}$. Substituting this relationship into the power equation yields a formal quadratic representation of the network's power:
 
-    $$P = \frac{1}{4} (\mathbf{I}^H \mathbf{Z} \mathbf{I} + \mathbf{I}^H \mathbf{Z}^H \mathbf{I}) = \frac{1}{2} \mathbf{I}^H \left( \frac{\mathbf{Z} + \mathbf{Z}^H}{2} \right) \mathbf{I}$$
+    $$P = \frac{1}{4} (\mathbf{I}^H (\mathbf{Z} \mathbf{I}) + (\mathbf{Z} \mathbf{I})^H \mathbf{I}) = \frac{1}{4} (\mathbf{I}^H \mathbf{Z} \mathbf{I} + \mathbf{I}^H \mathbf{Z}^H \mathbf{I}) = \frac{1}{2} \mathbf{I}^H \left( \frac{\mathbf{Z} + \mathbf{Z}^H}{2} \right) \mathbf{I}$$
 
-    The matrix $\frac{1}{2}(\mathbf{Z} + \mathbf{Z}^H)$ is the **Hermitian part** of $\mathbf{Z}$. Thus, power dissipation is governed strictly by the Hermitian part of the impedance (or admittance) matrix.
+    The matrix $\mathbf{Z}_H = \frac{1}{2}(\mathbf{Z} + \mathbf{Z}^H)$ is the **Hermitian part** of the impedance matrix $\mathbf{Z}$.
+
+    This formulation leads to a fundamental theorem in microwave circuit theory: the real power dissipated by an $N$-port network depends solely on the Hermitian part of its impedance (or admittance) matrix. 
+    
+    This provides a rigorous mathematical definition for network lossiness:
+    - **Passive/Lossy:** The network dissipates power ($P \ge 0$) for any excitation, meaning $\mathbf{Z}_H$ is positive semi-definite.
+    - **Lossless:** The network dissipates no real power ($P = 0$), meaning $\mathbf{Z}_H = \mathbf{0}$. Therefore, a lossless network must have an anti-Hermitian impedance matrix ($\mathbf{Z} = -\mathbf{Z}^H$), which implies all diagonal entries are zero and off-diagonal entries are purely imaginary ($Z_{ij} = jX_{ij}$ if we consider symmetric reciprocal networks). More generally, for any lossless network, $Z_{ij} = -Z_{ji}^*$.
     """)
     return
 
@@ -1059,3 +1085,5 @@ def _(mo):
     return
 
 
+if __name__ == "__main__":
+    app.run()

@@ -42,232 +42,155 @@ def _(mo):
     mo.md(r"""
     ## 4. Stability — The Problem
 
-    A two-port **oscillates** when, for some passive termination ($|\Gamma_S| < 1$,
-    $|\Gamma_L| < 1$), the reflected wave exceeds the incident wave — i.e., the
-    input or output reflection coefficient magnitude exceeds unity:
+    **Review: Deriving $\Gamma_{\text{in}}$ and $\Gamma_{\text{out}}$**
+    The reflection coefficients looking into a two-port network depend on its S-parameters and the source/load terminations. A load impedance $Z_L$ imposes the boundary condition $a_2 = \Gamma_L b_2$, where $\Gamma_L = \frac{Z_L - Z_0}{Z_L + Z_0}$. Substituting this constraint into the S-matrix equations yields the input reflection coefficient:
+
+    $$\Gamma_{\text{in}} = \frac{b_1}{a_1} = S_{11} + \frac{S_{12}S_{21}\Gamma_L}{1 - S_{22}\Gamma_L}$$
+
+    By symmetry, a source impedance $Z_S$ imposes $a_1 = \Gamma_S b_1$ ($\Gamma_S = \frac{Z_S - Z_0}{Z_S + Z_0}$), yielding the output reflection coefficient:
+
+    $$\Gamma_{\text{out}} = \frac{b_2}{a_2} = S_{22} + \frac{S_{12}S_{21}\Gamma_S}{1 - S_{11}\Gamma_S}$$
+
+    **Oscillation and Stability Criteria**
+    A two-port **oscillates** when, for some passive termination ($|\Gamma_S| \leq 1$, $|\Gamma_L| \leq 1$), the reflected wave exceeds the incident wave — i.e., the input or output reflection coefficient magnitude exceeds unity:
 
     $$|\Gamma_{\text{in}}| > 1 \quad \text{or} \quad |\Gamma_{\text{out}}| > 1$$
 
-    A device is **unconditionally stable** if no passive source or load termination
-    can cause $|\Gamma_{\text{in}}| \geq 1$ or $|\Gamma_{\text{out}}| \geq 1$.
+    A device is **unconditionally stable** if no passive source or load termination can cause $|\Gamma_{\text{in}}| \geq 1$ or $|\Gamma_{\text{out}}| \geq 1$.
 
-    Physically, instability arises when $S_{12} \neq 0$ creates a feedback loop between
-    output and input: if the loop gain $|S_{12}S_{21}\Gamma_S\Gamma_L|$ has the right
-    phase, the denominator $|\Delta_{\text{SFG}}|$ of $G_T$ collapses to zero and the
-    network sustains a wave with no input — an oscillation.
+    Physically, instability arises when $S_{12} \neq 0$ creates a feedback loop between output and input. If the loop gain has sufficient magnitude and the correct phase, the denominator of the transducer gain approaches zero, sustaining an oscillation.
     """)
     return
 
 
 # ---------------------------------------------------------------------------
-# Section 5 — Rollett K derivation
+# Section 5 — Stability Circles
 # ---------------------------------------------------------------------------
 
 
 @app.cell
 def _(mo):
     mo.md(r"""
-    ## 5. Rollett's Stability Factor $K$
+    ## 5. Stability Circles
 
-    We require $|\Gamma_{\text{in}}| < 1$ for all $|\Gamma_L| < 1$.  Writing out
-    $\Gamma_{\text{in}}$ in the $\Delta$ form from notebook 02 §8:
+    We require $|\Gamma_{\text{in}}| < 1$ for all $|\Gamma_L| \leq 1$. Writing $\Gamma_{\text{in}}$ in terms of the S-matrix determinant $\Delta = S_{11}S_{22} - S_{12}S_{21}$:
 
-    $$\Gamma_{\text{in}} = S_{11} + \frac{S_{12}S_{21}\Gamma_L}{1 - S_{22}\Gamma_L}
-      = \frac{S_{11}(1-S_{22}\Gamma_L) + S_{12}S_{21}\Gamma_L}{1 - S_{22}\Gamma_L}
-      = \frac{S_{11} - \Delta\Gamma_L}{1 - S_{22}\Gamma_L}$$
+    $$\Gamma_{\text{in}} = \frac{S_{11} - \Delta\Gamma_L}{1 - S_{22}\Gamma_L}$$
 
-    where $\Delta = S_{11}S_{22} - S_{12}S_{21}$ is the determinant of the S-matrix.
+    The boundary between stable and unstable regions in the $\Gamma_L$ plane is given by the condition $|\Gamma_{\text{in}}| = 1$:
 
-    The condition $|\Gamma_{\text{in}}| = 1$ becomes:
     $$|S_{11} - \Delta\Gamma_L| = |1 - S_{22}\Gamma_L|$$
 
     Squaring both sides and expanding using $|A-B|^2 = |A|^2 - AB^* - A^*B + |B|^2$:
 
-    $$|S_{11}|^2 - \Delta\Gamma_L S_{11}^* - \Delta^*\Gamma_L^* S_{11} + |\Delta|^2|\Gamma_L|^2
-      = 1 - S_{22}\Gamma_L - S_{22}^*\Gamma_L^* + |S_{22}|^2|\Gamma_L|^2$$
+    $$|S_{11}|^2 - \Delta\Gamma_L S_{11}^* - \Delta^*\Gamma_L^* S_{11} + |\Delta|^2|\Gamma_L|^2 = 1 - S_{22}\Gamma_L - S_{22}^*\Gamma_L^* + |S_{22}|^2|\Gamma_L|^2$$
 
-    Rearranging and grouping terms, we obtain the boundary equation:
+    Rearranging terms yields the boundary equation:
 
-    $$ \begin{aligned}
-    (|\Delta|^2 - |S_{22}|^2)|\Gamma_L|^2
-    &+ (S_{22}^* - \Delta^* S_{11})\Gamma_L^* \\
-    &+ (S_{22} - \Delta S_{11}^*)\Gamma_L + |S_{11}|^2 - 1 = 0
-    \end{aligned} $$
+    $$ (|\Delta|^2 - |S_{22}|^2)|\Gamma_L|^2 + (S_{22}^* - \Delta^* S_{11})\Gamma_L^* + (S_{22} - \Delta S_{11}^*)\Gamma_L + |S_{11}|^2 - 1 = 0 $$
 
-    This forms the equation of a circle in the $\Gamma_L$ plane — the **output stability circle**.
-    In §7 we formally complete the square and read off:
+    To cast this into the standard circle equation $|\Gamma_L - C_L|^2 = R_L^2$, we divide by $-(|S_{22}|^2 - |\Delta|^2)$. Defining the real scalar denominator $D_L \equiv |S_{22}|^2 - |\Delta|^2$, we define the complex centre:
 
-    $$C_L = \frac{(S_{22} - \Delta S_{11}^*)^*}{|S_{22}|^2 - |\Delta|^2}, \qquad R_L = \frac{|S_{12}S_{21}|}{\left| |S_{22}|^2 - |\Delta|^2 \right|}$$
+    $$C_L = \frac{S_{22}^* - \Delta^* S_{11}}{D_L} = \frac{(S_{22} - \Delta S_{11}^*)^*}{|S_{22}|^2 - |\Delta|^2}$$
 
-    **Derivation of the Rollett factor ($K$):**
-    For **unconditional stability**, the stability circle must lie entirely *outside* the unit disk
-    (assuming $|S_{11}| < 1$ so the origin is stable). This geometrically requires the distance to the
-    centre to be strictly greater than the radius plus the unit disk radius ($1$):
-
-    $$|C_L| - R_L > 1 \implies |C_L| > 1 + R_L$$
-
-    Since both sides are positive, we square the inequality:
-    $$|C_L|^2 > 1 + 2R_L + R_L^2 \implies |C_L|^2 - R_L^2 - 1 > 2R_L$$
-
-    From the definitions of $C_L$ and $R_L$, we can analytically prove that (see §7):
-    $$|C_L|^2 - R_L^2 = \frac{1 - |S_{11}|^2}{|S_{22}|^2 - |\Delta|^2}$$
-
-    Substituting this identity into our inequality yields:
-    $$\frac{1 - |S_{11}|^2}{|S_{22}|^2 - |\Delta|^2} - 1 > \frac{2|S_{12}S_{21}|}{\left| |S_{22}|^2 - |\Delta|^2 \right|}$$
-
-    To clear the denominators safely without flipping the inequality, we observe the sign of the denominator. Since unconditional stability requires $|C_L|^2 - R_L^2 > 0$, and the numerator $1 - |S_{11}|^2 > 0$ (for a passively matched port), the denominator must be strictly positive:
-    $$|S_{22}|^2 - |\Delta|^2 > 0$$
-
-    Multiplying through by $(|S_{22}|^2 - |\Delta|^2)$:
-    $$1 - |S_{11}|^2 - |S_{22}|^2 + |\Delta|^2 > 2|S_{12}S_{21}|$$
-
-    Dividing by $2|S_{12}S_{21}|$, we rigorously arrive at the **Rollett criterion**:
-
-    $$\boxed{K = \frac{1 - |S_{11}|^2 - |S_{22}|^2 + |\Delta|^2}{2|S_{12}S_{21}|} > 1
-      \quad \text{AND} \quad |\Delta| < 1}$$
-
-    *(Note: The auxiliary condition $|\Delta| < 1$ ensures that both ports are simultaneously unconditionally stable, preventing internal oscillation modes).*
-    """)
-    return
-
-
-# ---------------------------------------------------------------------------
-# Section 6 — μ-test
-# ---------------------------------------------------------------------------
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""
-    ## 6. The μ-test (Edwards & Sinsky, 1992)
-
-    A limitation of the Rollett criterion is that it requires **two** conditions
-    ($K > 1$ and $|\Delta| < 1$).  Edwards and Sinsky showed that a single parameter
-    suffices:
-
-    $$\boxed{\mu = \frac{1 - |S_{11}|^2}{|S_{22} - \Delta S_{11}^*| + |S_{12}S_{21}|} > 1}$$
-
-    *Derivation.* The device is unconditionally stable iff the output stability circle
-    lies entirely outside the unit disk, which mathematically requires:
-
-    $$|C_L| - R_L > 1$$
-
-    We can multiply and divide by the conjugate term $(|C_L| + R_L)$:
-
-    $$ \frac{|C_L|^2 - R_L^2}{|C_L| + R_L} > 1 $$
-
-    From our previous derivations, the numerator is $|C_L|^2 - R_L^2 = \frac{1 - |S_{11}|^2}{|S_{22}|^2 - |\Delta|^2}$.
-    Substituting $C_L$ and $R_L$ into the denominator:
+    Substituting this definition, completing the square by adding $|C_L|^2$ to both sides, and simplifying the radius yields:
 
     $$ \begin{aligned}
-    |C_L| + R_L &= \frac{|S_{22} - \Delta S_{11}^*|}{\left| |S_{22}|^2 - |\Delta|^2 \right|} + \frac{|S_{12}S_{21}|}{\left| |S_{22}|^2 - |\Delta|^2 \right|}
-    \end{aligned} $$
-
-    Assuming $|S_{22}|^2 - |\Delta|^2 > 0$ for a stable device, the terms perfectly combine:
-
-    $$ \frac{\frac{1 - |S_{11}|^2}{|S_{22}|^2 - |\Delta|^2}}{\frac{|S_{22} - \Delta S_{11}^*| + |S_{12}S_{21}|}{|S_{22}|^2 - |\Delta|^2}} > 1 $$
-
-    The denominator terms cancel exactly, leaving the beautifully compact $\mu$-test criterion:
-
-    $$ \boxed{\mu = \frac{1 - |S_{11}|^2}{|S_{22} - \Delta S_{11}^*| + |S_{12}S_{21}|} > 1} $$
-
-    **Advantages of μ over K:**
-    - $\mu > 1$ is both necessary **and** sufficient (single test)
-    - $\mu$ has a geometric meaning: it is the **distance** from the centre of the
-      Smith chart to the nearest point of the output stability circle
-    - A larger $\mu$ means more stability margin
-    """)
-    return
-
-
-# ---------------------------------------------------------------------------
-# Section 7 — Stability circles full derivation
-# ---------------------------------------------------------------------------
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""
-    ## 7. Stability Circles — Full Derivation
-
-    ### 7.1 Output stability circle
-
-    We seek the locus of $\Gamma_L$ values for which $|\Gamma_{\text{in}}| = 1$
-    (the boundary between stable and unstable regions).
-
-    Starting from the boundary equation derived in §5:
-
-    $$ \begin{aligned}
-    (|\Delta|^2 - |S_{22}|^2)|\Gamma_L|^2
-    &+ (S_{22}^* - \Delta^* S_{11})\Gamma_L^* \\
-    &+ (S_{22} - \Delta S_{11}^*)\Gamma_L + |S_{11}|^2 - 1 = 0
-    \end{aligned} $$
-
-    We divide the entire equation by $-(|S_{22}|^2 - |\Delta|^2)$. Defining the real scalar denominator $D_L \equiv |S_{22}|^2 - |\Delta|^2$, we rewrite the equation:
-
-    $$ \begin{aligned}
-    |\Gamma_L|^2 &- \frac{S_{22}^* - \Delta^* S_{11}}{D_L}\Gamma_L^* \\
-    &- \frac{S_{22} - \Delta S_{11}^*}{D_L}\Gamma_L = \frac{|S_{11}|^2 - 1}{D_L}
-    \end{aligned} $$
-
-    To cast this into the standard circle equation form $|\Gamma_L - C_L|^2 = R_L^2$, we define a complex variable representing the geometric centre:
-
-    $$C_L = \frac{(S_{22} - \Delta S_{11}^*)^*}{D_L} = \frac{S_{22}^* - \Delta^* S_{11}}{D_L}$$
-
-    Substituting this definition back into the boundary equation:
-
-    $$|\Gamma_L|^2 - C_L \Gamma_L^* - C_L^* \Gamma_L = \frac{|S_{11}|^2 - 1}{D_L}$$
-
-    **Completing the square.** We add $|C_L|^2$ to both sides. The left side collapses into a perfect absolute square:
-
-    $$|\Gamma_L - C_L|^2 = \frac{|S_{11}|^2 - 1}{D_L} + |C_L|^2$$
-
-    Equating this to the right side, the squared radius $R_L^2$ must be:
-
-    $$R_L^2 = \frac{|S_{11}|^2 - 1}{D_L} + \frac{|S_{22} - \Delta S_{11}^*|^2}{D_L^2}$$
-
-    Now, we rigorously expand the numerator of $R_L^2$:
-
-    $$ \begin{aligned}
-    R_L^2 &= \frac{(|S_{11}|^2 - 1)(|S_{22}|^2 - |\Delta|^2) + |S_{22}|^2 - \Delta^* S_{11}S_{22}^* - \Delta S_{11}^* S_{22} + |\Delta|^2|S_{11}|^2}{D_L^2} \\
-          &= \frac{|S_{11}|^2|S_{22}|^2 - |S_{11}|^2|\Delta|^2 - |S_{22}|^2 + |\Delta|^2 + |S_{22}|^2 - \Delta^* S_{11}S_{22}^* - \Delta S_{11}^* S_{22} + |\Delta|^2|S_{11}|^2}{D_L^2} \\
+    R_L^2 &= \frac{|S_{11}|^2 - 1}{D_L} + \frac{|S_{22} - \Delta S_{11}^*|^2}{D_L^2} \\
+          &= \frac{(|S_{11}|^2 - 1)(|S_{22}|^2 - |\Delta|^2) + |S_{22}|^2 - \Delta^* S_{11}S_{22}^* - \Delta S_{11}^* S_{22} + |\Delta|^2|S_{11}|^2}{D_L^2} \\
           &= \frac{|S_{11}S_{22}|^2 - \Delta^* S_{11}S_{22}^* - \Delta S_{11}^* S_{22} + |\Delta|^2}{D_L^2}
     \end{aligned} $$
 
-    Recognising that the numerator is exactly $|S_{11}S_{22} - \Delta|^2$, and substituting $\Delta = S_{11}S_{22} - S_{12}S_{21}$, we find:
+    Recognizing the numerator is exactly $|S_{11}S_{22} - \Delta|^2$, and substituting $\Delta = S_{11}S_{22} - S_{12}S_{21}$, we find $S_{11}S_{22} - \Delta = S_{12}S_{21}$. Taking the square root yields the output stability circle parameters:
 
-    $$S_{11}S_{22} - \Delta = S_{12}S_{21} \implies R_L^2 = \frac{|S_{12}S_{21}|^2}{D_L^2}$$
+    $$\boxed{C_L = \frac{(S_{22} - \Delta S_{11}^*)^*}{|S_{22}|^2 - |\Delta|^2}, \qquad R_L = \frac{|S_{12}S_{21}|}{\left| |S_{22}|^2 - |\Delta|^2 \right|}}$$
 
-    Taking the square root yields the formal definitions of the output stability circle:
+    By symmetry ($S_{11} \leftrightarrow S_{22}$, $\Gamma_S \leftrightarrow \Gamma_L$), the input stability circle parameters are:
 
-    $$\boxed{C_L = \frac{(S_{22} - \Delta S_{11}^*)^*}{|S_{22}|^2 - |\Delta|^2}, \qquad
-      R_L = \frac{|S_{12}S_{21}|}{\left| |S_{22}|^2 - |\Delta|^2 \right|}}$$
+    $$\boxed{C_S = \frac{(S_{11} - \Delta S_{22}^*)^*}{|S_{11}|^2 - |\Delta|^2}, \qquad R_S = \left|\frac{S_{12}S_{21}}{|S_{11}|^2 - |\Delta|^2}\right|}$$
 
-    ### 7.2 Input stability circle
+    To determine the stable region, test the origin $\Gamma_L = 0$ where $\Gamma_{\text{in}} = S_{11}$. If $|S_{11}| < 1$, the origin is stable. If $|C_L| > R_L$, the origin is outside the circle, meaning the exterior is stable. Unconditional stability requires the entire Smith chart ($|\Gamma_L| \leq 1$) to lie in the stable region. Thus, the stability circle must lie entirely outside the unit disk:
 
-    By symmetry (swap ports: $S_{11} \leftrightarrow S_{22}$, $\Gamma_S \leftrightarrow \Gamma_L$):
+    $$|C_L| - R_L > 1$$
+    """)
+    return
 
-    $$\boxed{C_S = \frac{(S_{11} - \Delta S_{22}^*)^*}{|S_{11}|^2 - |\Delta|^2}, \qquad
-      R_S = \left|\frac{S_{12}S_{21}}{|S_{11}|^2 - |\Delta|^2}\right|}$$
 
-    ### 7.3 Determining the stable region
+# ---------------------------------------------------------------------------
+# Section 6 — Rollett K derivation
+# ---------------------------------------------------------------------------
 
-    The stability circle divides the $\Gamma$-plane into two regions.  To determine
-    which side is stable, test **one known point** — typically $\Gamma_L = 0$ (the
-    $Z_0$ termination):
 
-    - At $\Gamma_L = 0$: $\Gamma_{\text{in}} = S_{11}$
-    - If $|S_{11}| < 1$ (which is almost always true for a practical device), then
-      $\Gamma_L = 0$ is in the **stable** region
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ## 6. Rollett's Stability Factor $K$
 
-    The origin is at distance $|C_L|$ from the circle centre:
-    - If $|C_L| > R_L$: the origin is **outside** the stability circle → the interior
-      of the circle is the unstable region
-    - If $|C_L| < R_L$: the origin is **inside** the stability circle → the exterior
-      of the circle (within the unit disk) is the unstable region
+    **Problem Definition and Constraints**
+    We seek analytical conditions for unconditional stability using the geometric requirement $|C_L| - R_L > 1$, under the premise that $|S_{11}| < 1$ and $|S_{22}| < 1$.
 
-    When the stability circle lies entirely outside the unit disk ($|C_L| - R_L > 1$),
-    the **entire Smith chart** is stable — this corresponds to unconditional stability.
+    Squaring the unconditional stability inequality $|C_L| > 1 + R_L$ yields:
+
+    $$|C_L|^2 > 1 + 2R_L + R_L^2 \implies |C_L|^2 - R_L^2 - 1 > 2R_L$$
+
+    We rigorously expand $|C_L|^2 - R_L^2$:
+
+    $$|C_L|^2 - R_L^2 = \frac{|S_{22} - \Delta S_{11}^*|^2 - |S_{12}S_{21}|^2}{(|S_{22}|^2 - |\Delta|^2)^2}$$
+
+    Expanding $|S_{22} - \Delta S_{11}^*|^2$ and using $|S_{12}S_{21}|^2 = |S_{11}S_{22} - \Delta|^2$, the cross-terms precisely cancel, yielding:
+
+    $$(|S_{22}|^2 - |\Delta|^2)(1 - |S_{11}|^2)$$
+
+    Thus, the expression evaluates exactly to:
+
+    $$|C_L|^2 - R_L^2 = \frac{1 - |S_{11}|^2}{|S_{22}|^2 - |\Delta|^2}$$
+
+    Substituting this into the squared inequality gives:
+
+    $$\frac{1 - |S_{11}|^2}{|S_{22}|^2 - |\Delta|^2} - 1 > \frac{2|S_{12}S_{21}|}{\left| |S_{22}|^2 - |\Delta|^2 \right|}$$
+
+    For the expression $|C_L|^2 - R_L^2$ to be strictly positive (as $1 - |S_{11}|^2 > 0$), we must have $|S_{22}|^2 - |\Delta|^2 > 0$. Multiplying the inequality by this positive denominator:
+
+    $$1 - |S_{11}|^2 - |S_{22}|^2 + |\Delta|^2 > 2|S_{12}S_{21}|$$
+
+    Dividing by $2|S_{12}S_{21}|$ yields the **Rollett criterion**:
+
+    $$\boxed{K = \frac{1 - |S_{11}|^2 - |S_{22}|^2 + |\Delta|^2}{2|S_{12}S_{21}|} > 1}$$
+
+    A necessary auxiliary condition is $|\Delta| < 1$, ensuring both ports are simultaneously stable.
+    """)
+    return
+
+
+# ---------------------------------------------------------------------------
+# Section 7 — μ-test
+# ---------------------------------------------------------------------------
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ## 7. The $\mu$-test (Edwards & Sinsky, 1992)
+
+    **Problem Definition and Constraints**
+    The Rollett criterion requires two distinct conditions ($K > 1$ and $|\Delta| < 1$). The $\mu$-test provides a single, unified parameter that is both necessary and sufficient for unconditional stability.
+
+    Starting from the identical geometric requirement $|C_L| - R_L > 1$, we rationalize the inequality by multiplying the numerator and the denominator by $(|C_L| + R_L)$:
+
+    $$ \frac{|C_L|^2 - R_L^2}{|C_L| + R_L} > 1 $$
+
+    Substituting the previously derived numerator $|C_L|^2 - R_L^2 = \frac{1 - |S_{11}|^2}{|S_{22}|^2 - |\Delta|^2}$ and the direct sum of $C_L$ and $R_L$ into the denominator:
+
+    $$ \frac{\frac{1 - |S_{11}|^2}{|S_{22}|^2 - |\Delta|^2}}{\frac{|S_{22} - \Delta S_{11}^*| + |S_{12}S_{21}|}{|S_{22}|^2 - |\Delta|^2}} > 1 $$
+
+    The denominators $(|S_{22}|^2 - |\Delta|^2)$ algebraically cancel, yielding the rigorous $\mu$-test criterion:
+
+    $$ \boxed{\mu = \frac{1 - |S_{11}|^2}{|S_{22} - \Delta S_{11}^*| + |S_{12}S_{21}|} > 1} $$
+
+    **Geometric Meaning and Utility**
+    - $\mu > 1$ is both **necessary and sufficient** for unconditional stability.
+    - $\mu$ is strictly the **distance** from the center of the Smith chart to the nearest point on the output stability circle.
+    - A larger $\mu$ scalar corresponds directly to a proportionally larger stability margin.
     """)
     return
 
@@ -469,7 +392,7 @@ def _(ang_s21, gL_ang, gL_mag, gS_ang, gS_mag, mo, np, s11_db, s12_db, s21_db, s
     def db(x):
         return 10*np.log10(max(x, 1e-30))
 
-    mag_str = f"{db(MAG):.2f} dB" if MAG is not None else "N/A (K < 1)"
+    mag_str = f"{db(MAG):.2f}" if MAG is not None else "N/A (K < 1)"
 
     mo.md(f"""
 ### Gain Summary
@@ -481,9 +404,9 @@ def _(ang_s21, gL_ang, gL_mag, gS_ang, gS_mag, mo, np, s11_db, s12_db, s21_db, s
 | $G_A$ (available, $\\Gamma_L = \\Gamma_{{\\text{{out}}}}^*$) | {GA:.4f} | {db(GA):.2f} | Upper bound on $G_T$ for this $\\Gamma_S$ |
 | $G$ (operating, $\\Gamma_S = \\Gamma_{{\\text{{in}}}}^*$) | {G_op:.4f} | {db(G_op):.2f} | Upper bound on $G_T$ for this $\\Gamma_L$ |
 | $G_S$ (source mismatch) | {GS_factor:.4f} | {db(GS_factor):.2f} | Max at $\\Gamma_S = S_{{11}}^*$ |
-| $G_0 = |S_{{21}}|^2$ | {G0_factor:.4f} | {db(G0_factor):.2f} | Device gain at $Z_0$ terminations |
+| $G_0 = \\vert S_{{21}}\\vert^2$ | {G0_factor:.4f} | {db(G0_factor):.2f} | Device gain at $Z_0$ terminations |
 | $G_L$ (load mismatch) | {GL_factor:.4f} | {db(GL_factor):.2f} | Max at $\\Gamma_L = S_{{22}}^*$ |
-| MSG | {MSG:.4f} | {db(MSG):.2f} | $= |S_{{21}}/S_{{12}}|$ |
+| MSG | {MSG:.4f} | {db(MSG):.2f} | $= \\vert S_{{21}}/S_{{12}}\\vert$ |
 | MAG | — | {mag_str} | Requires $K > 1$ |
 | Rollett $K$ | {K:.4f} | — | $> 1$ = unconditionally stable |
 | Unilateral merit $U_m$ | {U_err:.4f} | — | $G_{{TU}}$ within $\\pm${db(1/(1-U_err)**2):.2f} dB |
@@ -1203,4 +1126,424 @@ def _(mo):
       at the cost of reduced gain
     """)
     return
+
+
+# ---------------------------------------------------------------------------
+# Section 15 — Power Gain Boosting (Bameri & Momeni, JSSC 2017)
+# ---------------------------------------------------------------------------
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ## 15. Power Gain Boosting via LLR Embedding
+
+    Section 14 showed that $\text{MAG} = |S_{21}/S_{12}|(K-\sqrt{K^2-1})$ is the best gain from conjugate-matching a given device. But MAG is **not** the absolute gain limit.
+
+    *Bameri & Momeni (JSSC 2017)* showed that wrapping the active two-port (A2P) in a **linear-lossless-reciprocal (LLR)** feedback network boosts the effective $G_{ma}$ to the **Maximum Achievable Gain**:
+
+    $$ G_{\max} = (2U - 1) + 2\sqrt{U(U - 1)} $$
+
+    where $U$ is Mason's Unilateral Gain, **invariant** under LLR embedding. For $U \gg 1$: $G_{\max} \approx 4U$ — a **6 dB boost** over $U$.
+
+    ### 15.1 The Gain-Plane
+
+    Express $G_{ma}$ as a function of the complex ratio $A = Y_{21}/Y_{12}$ and real invariant $U$:
+
+    $$\frac{G_{ma}}{U} = \left|\frac{A - G_{ma}}{A - 1}\right|^2$$
+
+    For $|A| \gg 1$, this yields **equi-gain circles** in the $(U/A)$-plane with centre $(U/G_{ma},\, 0)$ and radius $\sqrt{U/G_{ma}}$. The **$K = 1$ boundary** is a parabola:
+
+    $$\operatorname{Im}^2\!\!\left(\frac{U}{A}\right) = \operatorname{Re}\!\left(\frac{U}{A}\right) + \frac{1}{4}$$
+
+    Only the **left arc** of each circle (inside the parabola, $K > 1$) is valid. $G_{\max}$ sits at the leftmost tangent point on the real axis.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    u_slider_gp = mo.ui.slider(start=1.5, stop=30.0, step=0.5, value=8.0,
+                                label="Mason's U", show_value=True)
+    a2p_re_gp = mo.ui.slider(start=-1.0, stop=2.0, step=0.05, value=0.5,
+                              label="Re(U/A)", show_value=True)
+    a2p_im_gp = mo.ui.slider(start=-1.5, stop=1.5, step=0.05, value=0.3,
+                              label="Im(U/A)", show_value=True)
+    mo.hstack([u_slider_gp, a2p_re_gp, a2p_im_gp], gap="1.5rem")
+    return a2p_im_gp, a2p_re_gp, u_slider_gp
+
+
+@app.cell
+def _(a2p_im_gp, a2p_re_gp, go, mo, np, u_slider_gp):
+    _U = u_slider_gp.value
+    _pt_re, _pt_im = a2p_re_gp.value, a2p_im_gp.value
+
+    _fig = go.Figure()
+    _th = np.linspace(0, 2 * np.pi, 800)
+
+    # K=1 parabola
+    _yp = np.linspace(-1.8, 1.8, 600)
+    _xp = _yp**2 - 0.25
+    _fig.add_trace(go.Scatter(x=_xp, y=_yp, mode="lines",
+        name="K=1", line=dict(color="royalblue", dash="dash", width=1.5)))
+    _fig.add_trace(go.Scatter(
+        x=np.concatenate([_xp, [_xp.min()]]),
+        y=np.concatenate([_yp, [_yp[0]]]),
+        fill="toself", fillcolor="rgba(65,105,225,0.07)",
+        line=dict(width=0), showlegend=False, hoverinfo="skip"))
+
+    # Equi-gain arcs
+    for _r, _l, _c in [(1.0, "Gma=U", "rgba(255,255,255,0.35)"),
+                        (2.0, "Gma=2U", "rgba(255,255,255,0.55)"),
+                        (3.0, "Gma=3U", "rgba(255,255,255,0.7)")]:
+        _cx = 1.0 / _r; _cr = np.sqrt(_cx)
+        _xc = _cx + _cr * np.cos(_th); _yc = _cr * np.sin(_th)
+        _ok = _xc <= (_yc**2 + 0.25)
+        _fig.add_trace(go.Scatter(x=np.where(_ok, _xc, np.nan),
+            y=np.where(_ok, _yc, np.nan), mode="lines", name=_l,
+            line=dict(color=_c, width=1.5)))
+
+    # Gmax arc
+    _Gmax = (2 * _U - 1) + 2 * np.sqrt(_U * (_U - 1))
+    _rm = _Gmax / _U
+    _cxm = 1.0 / _rm; _crm = np.sqrt(_cxm)
+    _xm = _cxm + _crm * np.cos(_th); _ym = _crm * np.sin(_th)
+    _om = _xm <= (_ym**2 + 0.25)
+    _fig.add_trace(go.Scatter(x=np.where(_om, _xm, np.nan),
+        y=np.where(_om, _ym, np.nan), mode="lines",
+        name=f"Gmax={_rm:.1f}U", line=dict(color="cyan", width=2.5)))
+
+    # Gmax optimal point and A2P marker
+    _x_opt = _cxm - _crm
+    _fig.add_trace(go.Scatter(x=[_x_opt], y=[0], mode="markers",
+        name="Gmax optimum", marker=dict(size=12, color="red", symbol="star")))
+    _fig.add_trace(go.Scatter(x=[_pt_re], y=[_pt_im], mode="markers+text",
+        name="A2P", text=["A2P"], textposition="top right",
+        marker=dict(size=10, color="yellow")))
+
+    # Arrow from A2P to Gmax
+    _fig.add_annotation(x=_x_opt, y=0, ax=_pt_re, ay=_pt_im,
+        xref="x", yref="y", axref="x", ayref="y",
+        showarrow=True, arrowhead=3, arrowsize=1.5,
+        arrowwidth=2, arrowcolor="rgba(255,200,0,0.7)")
+
+    _fig.update_layout(
+        template="plotly_dark",
+        title=f"Gain-Plane  (U={_U:.1f},  Gmax={10*np.log10(_Gmax):.1f} dB)",
+        xaxis=dict(title="Re(U/A)", range=[-1.2, 2.5],
+                   scaleanchor="y", scaleratio=1),
+        yaxis=dict(title="Im(U/A)", range=[-1.8, 1.8]),
+        height=600,
+    )
+    mo.ui.plotly(_fig)
+    return
+
+
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ### 15.2 T-Embedding: Parallel + Series Feedback
+
+    Two complementary LLR embeddings enable **omnidirectional** movement in the gain-plane:
+
+    **Parallel embedding** — reactive element $jB_P$ shunted between input and output:
+
+    $$Y_{EP} = Y + \begin{pmatrix} jB_P & -jB_P \\ -jB_P & jB_P \end{pmatrix}$$
+
+    This moves the gain-plane coordinate by $\Delta(U/A) \approx -jB_P \cdot U / Y_{21}$, at angle $\pm\pi/2 - \angle Y_{21}$.
+
+    **Series embedding** — reactive element $jX_S$ in the common (emitter/source) terminal:
+
+    $$Z_{ES} = Z + jX_S \begin{pmatrix} 1 & 1 \\ 1 & 1 \end{pmatrix}$$
+
+    Movement at angle $\pm\pi/2 - \angle Y_{21} + \angle \Delta_Y$. The phase difference $\angle \Delta_Y$ from the parallel case gives the second degree of freedom.
+
+    **Combined T-embedding** applies both simultaneously. By summing many infinitesimal steps, the net embedding reduces to a single pair $(B_{TP}, X_{TS})$ computed from the A2P's Z-parameters via a closed-form quadratic (Eqs. 12–14 in the paper).
+
+    The T-embedding **guarantees** $K > 1$ after embedding, and can target any $G_{ma}$ up to $G_{\max}$.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    g11_gp = mo.ui.slider(0.001, 0.05, step=0.001, value=0.012, label="G₁₁ (S)", show_value=True)
+    b11_gp = mo.ui.slider(-0.05, 0.05, step=0.001, value=0.015, label="B₁₁ (S)", show_value=True)
+    g22_gp = mo.ui.slider(0.001, 0.05, step=0.001, value=0.008, label="G₂₂ (S)", show_value=True)
+    b22_gp = mo.ui.slider(-0.05, 0.05, step=0.001, value=-0.010, label="B₂₂ (S)", show_value=True)
+    y21m_gp = mo.ui.slider(0.01, 0.5, step=0.005, value=0.12, label="|Y₂₁| (S)", show_value=True)
+    y21p_gp = mo.ui.slider(-180, 180, step=5, value=-85, label="∠Y₂₁ (°)", show_value=True)
+    y12m_gp = mo.ui.slider(0.001, 0.1, step=0.001, value=0.005, label="|Y₁₂| (S)", show_value=True)
+    y12p_gp = mo.ui.slider(-180, 180, step=5, value=80, label="∠Y₁₂ (°)", show_value=True)
+    mo.hstack([
+        mo.vstack([mo.md("**Port 1**"), g11_gp, b11_gp]),
+        mo.vstack([mo.md("**Port 2**"), g22_gp, b22_gp]),
+        mo.vstack([mo.md("**Y₂₁**"), y21m_gp, y21p_gp]),
+        mo.vstack([mo.md("**Y₁₂**"), y12m_gp, y12p_gp]),
+    ], gap="1.5rem")
+    return b11_gp, b22_gp, g11_gp, g22_gp, y12m_gp, y12p_gp, y21m_gp, y21p_gp
+
+
+@app.cell
+def _(b11_gp, b22_gp, g11_gp, g22_gp, go, mo, np, y12m_gp, y12p_gp, y21m_gp, y21p_gp):
+    # Build Y-parameter matrix
+    Y11_gp = g11_gp.value + 1j * b11_gp.value
+    Y22_gp = g22_gp.value + 1j * b22_gp.value
+    Y21_gp = y21m_gp.value * np.exp(1j * np.radians(y21p_gp.value))
+    Y12_gp = y12m_gp.value * np.exp(1j * np.radians(y12p_gp.value))
+
+    # Mason's U
+    denom_U = 4 * (Y11_gp.real * Y22_gp.real - Y12_gp.real * Y21_gp.real)
+    U_gp = abs(Y21_gp - Y12_gp)**2 / denom_U if abs(denom_U) > 1e-30 else np.inf
+
+    # A = Y21/Y12
+    A_gp = Y21_gp / Y12_gp if abs(Y12_gp) > 1e-30 else np.inf
+    ua_gp = U_gp / A_gp  # gain-plane coordinate
+
+    # K factor (from Y-params)
+    K_gp = (2 * Y11_gp.real * Y22_gp.real - (Y12_gp * Y21_gp).real) / abs(Y12_gp * Y21_gp) if abs(Y12_gp * Y21_gp) > 1e-30 else np.inf
+
+    # Gma of bare device
+    if K_gp > 1:
+        Gma_bare = abs(A_gp) * (K_gp - np.sqrt(K_gp**2 - 1))
+    else:
+        Gma_bare = None
+
+    # Gmax
+    Gmax_gp = (2 * U_gp - 1) + 2 * np.sqrt(max(U_gp * (U_gp - 1), 0)) if U_gp > 1 else 1.0
+
+    # --- T-embedding calculation (Eqs. 12-14) ---
+    det_Y_gp = Y11_gp * Y22_gp - Y12_gp * Y21_gp
+    Z11_gp = Y22_gp / det_Y_gp
+    Z12_gp = -Y12_gp / det_Y_gp
+    Z21_gp = -Y21_gp / det_Y_gp
+    Z22_gp = Y11_gp / det_Y_gp
+
+    R11, X11_z = Z11_gp.real, Z11_gp.imag
+    R12, X12_z = Z12_gp.real, Z12_gp.imag
+    R21, X21_z = Z21_gp.real, Z21_gp.imag
+    R22, X22_z = Z22_gp.real, Z22_gp.imag
+
+    DZ = Z11_gp * Z22_gp - Z12_gp * Z21_gp
+    M_gp = R11 + R22 - R12 - R21
+    N_gp = X12_z + X21_z - X11_z - X22_z
+
+    a_q = (1 + Gmax_gp) * M_gp
+    b_q = ((X21_z + Gmax_gp * X12_z) * M_gp
+           + (R21 + Gmax_gp * R12) * N_gp
+           + (1 + Gmax_gp) * DZ.imag)
+    c_q = ((R21 + Gmax_gp * R12) * DZ.real
+           + (X21_z + Gmax_gp * X12_z) * DZ.imag)
+
+    disc_gp = b_q**2 - 4 * a_q * c_q
+    if disc_gp >= 0 and abs(a_q) > 1e-30:
+        XTS_gp = (-b_q - np.sqrt(disc_gp)) / (2 * a_q)
+        denom_btp = 1 + Gmax_gp * (DZ.imag + XTS_gp * M_gp)
+        BTP_gp = -(R21 + Gmax_gp * R12) / denom_btp if abs(denom_btp) > 1e-30 else 0.0
+    else:
+        XTS_gp = 0.0
+        BTP_gp = 0.0
+
+    # --- Verify: compute embedded device parameters ---
+    ZE11 = Z11_gp + 1j * XTS_gp
+    ZE12 = Z12_gp + 1j * XTS_gp
+    ZE21 = Z21_gp + 1j * XTS_gp
+    ZE22 = Z22_gp + 1j * XTS_gp
+    det_ZE = ZE11 * ZE22 - ZE12 * ZE21
+    YE11 = ZE22 / det_ZE; YE12 = -ZE12 / det_ZE
+    YE21 = -ZE21 / det_ZE; YE22 = ZE11 / det_ZE
+    # Add parallel embedding
+    YET11 = YE11 + 1j * BTP_gp
+    YET12 = YE12 - 1j * BTP_gp
+    YET21 = YE21 - 1j * BTP_gp
+    YET22 = YE22 + 1j * BTP_gp
+
+    A_emb = YET21 / YET12 if abs(YET12) > 1e-30 else np.inf
+    U_emb = abs(YET21 - YET12)**2 / (4 * (YET11.real * YET22.real - YET12.real * YET21.real) + 1e-30)
+    K_emb = (2 * YET11.real * YET22.real - (YET12 * YET21).real) / (abs(YET12 * YET21) + 1e-30)
+    Gma_emb = abs(A_emb) * (K_emb - np.sqrt(max(K_emb**2 - 1, 0))) if K_emb > 1 else None
+    ua_emb = U_emb / A_emb if abs(A_emb) > 1e-30 else 0
+
+    # --- dB helper ---
+    def _db(x):
+        return 10 * np.log10(max(x, 1e-30)) if x is not None and x > 0 else float("nan")
+
+    # --- Gain-plane plot with trajectory ---
+    _fig2 = go.Figure()
+    _th2 = np.linspace(0, 2 * np.pi, 800)
+    _yp2 = np.linspace(-1.8, 1.8, 500)
+    _xp2 = _yp2**2 - 0.25
+    _fig2.add_trace(go.Scatter(x=_xp2, y=_yp2, mode="lines",
+        name="K=1", line=dict(color="royalblue", dash="dash", width=1.5)))
+
+    # Gmax arc
+    _rm2 = Gmax_gp / U_gp if U_gp > 0 else 1
+    _cxm2 = 1.0 / _rm2; _crm2 = np.sqrt(abs(_cxm2))
+    _xm2 = _cxm2 + _crm2 * np.cos(_th2); _ym2 = _crm2 * np.sin(_th2)
+    _om2 = _xm2 <= (_ym2**2 + 0.25)
+    _fig2.add_trace(go.Scatter(x=np.where(_om2, _xm2, np.nan),
+        y=np.where(_om2, _ym2, np.nan), mode="lines",
+        name=f"Gmax arc", line=dict(color="cyan", width=2)))
+
+    _x_opt2 = _cxm2 - _crm2
+    _fig2.add_trace(go.Scatter(x=[_x_opt2], y=[0], mode="markers",
+        name="Gmax point", marker=dict(size=12, color="red", symbol="star")))
+
+    # A2P bare position
+    _fig2.add_trace(go.Scatter(x=[ua_gp.real], y=[ua_gp.imag],
+        mode="markers+text", name="Bare A2P", text=["bare"],
+        textposition="top right", marker=dict(size=10, color="yellow")))
+
+    # Embedded position
+    _fig2.add_trace(go.Scatter(x=[ua_emb.real], y=[ua_emb.imag],
+        mode="markers+text", name="Embedded A2P", text=["embedded"],
+        textposition="bottom right", marker=dict(size=10, color="lime")))
+
+    # Arrow
+    _fig2.add_annotation(x=ua_emb.real, y=ua_emb.imag,
+        ax=ua_gp.real, ay=ua_gp.imag,
+        xref="x", yref="y", axref="x", ayref="y",
+        showarrow=True, arrowhead=3, arrowsize=1.5,
+        arrowwidth=2, arrowcolor="rgba(0,255,100,0.7)")
+
+    _fig2.update_layout(
+        template="plotly_dark",
+        title="T-Embedding: Movement in the Gain-Plane",
+        xaxis=dict(title="Re(U/A)", range=[-1.5, 3.0],
+                   scaleanchor="y", scaleratio=1),
+        yaxis=dict(title="Im(U/A)", range=[-2.0, 2.0]),
+        height=550,
+    )
+
+    # --- Summary table ---
+    _gma_bare_str = f"{_db(Gma_bare):.2f} dB" if Gma_bare else "N/A (K<1)"
+    _gma_emb_str = f"{_db(Gma_emb):.2f} dB" if Gma_emb else "N/A"
+
+    _summary = mo.md(f"""
+### T-Embedding Results
+
+| Quantity | Bare Device | Embedded Device |
+|---|---|---|
+| $U$ (Mason's) | {_db(U_gp):.2f} dB ({U_gp:.2f}) | {_db(U_emb):.2f} dB ({U_emb:.2f}) |
+| $K$ | {K_gp:.3f} | {K_emb:.3f} |
+| $G_{{ma}}$ | {_gma_bare_str} | {_gma_emb_str} |
+| $G_{{\\max}}$ | {_db(Gmax_gp):.2f} dB | — |
+
+**Embedding elements:** $B_{{TP}}$ = {BTP_gp:.6f} S, $X_{{TS}}$ = {XTS_gp:.4f} Ω
+
+*$U$ invariance check:* bare $U$ = {U_gp:.4f}, embedded $U$ = {U_emb:.4f} (ratio = {U_emb/U_gp:.6f})
+""")
+    mo.vstack([mo.ui.plotly(_fig2), _summary])
+    return
+
+
+
+
+@app.cell
+def _(go, mo, np):
+    # Gmax vs U comparison sweep
+    _U_sweep = np.linspace(1.01, 100, 500)
+    _Gmax_sweep = (2 * _U_sweep - 1) + 2 * np.sqrt(_U_sweep * (_U_sweep - 1))
+    _approx_4U = 4 * _U_sweep
+
+    _fig3 = go.Figure()
+    _fig3.add_trace(go.Scatter(x=10*np.log10(_U_sweep), y=10*np.log10(_Gmax_sweep),
+        name="Gmax (exact)", line=dict(color="cyan", width=2.5)))
+    _fig3.add_trace(go.Scatter(x=10*np.log10(_U_sweep), y=10*np.log10(_approx_4U),
+        name="4U (approx)", line=dict(color="orange", dash="dash", width=1.5)))
+    _fig3.add_trace(go.Scatter(x=10*np.log10(_U_sweep), y=10*np.log10(_U_sweep),
+        name="U", line=dict(color="white", dash="dot", width=1.5)))
+
+    # Annotate the 6 dB gap
+    _fig3.add_annotation(x=15, y=15+6, text="≈ 6 dB gap",
+        showarrow=True, arrowhead=2, ax=0, ay=30,
+        font=dict(color="cyan", size=12))
+
+    _fig3.update_layout(
+        template="plotly_dark",
+        title="Maximum Achievable Gain vs Mason's U",
+        xaxis_title="U (dB)", yaxis_title="Gain (dB)",
+        height=420,
+        legend=dict(x=0.02, y=0.98),
+    )
+    mo.ui.plotly(_fig3)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ### 15.3 Power Flow and Practical Limits
+
+    In a gain-boosted amplifier, the feedback network routes power $P_f$ through the T-embedding back into the A2P. The **device power gain** is:
+
+    $$A_{PD} = \frac{P_{out,D}}{P_{in,D}} = \frac{G_{ma} + P_f/P_{in}}{1 + P_f/P_{in}}$$
+
+    As $G_{ma} \to G_{\max}$, the feedback power $P_f$ dominates ($P_f/P_{in} \to \infty$), and $A_{PD} \to 1$ (0 dB). In practice, losses in real passive elements dissipate this feedback power, limiting how close to $G_{\max}$ one can get.
+
+    This is the fundamental trade-off: **higher gain boosting demands more feedback power, which increases sensitivity to passive losses**.
+    """)
+    return
+
+
+@app.cell
+def _(go, mo, np):
+    _Gma_target = np.linspace(1.5, 50, 300)
+    _U_pf = 10.0  # fixed U for this plot
+    _Gmax_pf = (2*_U_pf - 1) + 2*np.sqrt(_U_pf*(_U_pf - 1))
+
+    # Model: Pf/Pin grows as we approach Gmax
+    # From eq 15: APD = (Gma + Pf/Pin)/(1 + Pf/Pin)
+    # Rearranging: Pf/Pin = (Gma - APD)/(APD - 1)
+    # Near Gmax, APD -> 1, so Pf/Pin -> (Gma-1)/(APD-1) -> infinity
+    # Approximate: Pf/Pin ~ (Gma_target / Gmax_pf) / (1 - Gma_target/Gmax_pf)
+    _ratio = np.clip(_Gma_target / _Gmax_pf, 0, 0.999)
+    _pf_over_pin = _ratio / (1 - _ratio + 1e-10)
+    _APD = (_Gma_target + _pf_over_pin) / (1 + _pf_over_pin)
+
+    _fig4 = go.Figure()
+    _fig4.add_trace(go.Scatter(
+        x=10*np.log10(_Gma_target), y=10*np.log10(np.clip(_pf_over_pin, 1e-3, None)),
+        name="Pf/Pin", line=dict(color="#EF553B", width=2)))
+    _fig4.add_trace(go.Scatter(
+        x=10*np.log10(_Gma_target), y=10*np.log10(np.clip(_APD, 1e-3, None)),
+        name="Device gain APD", line=dict(color="#00CC96", width=2)))
+    _fig4.add_vline(x=10*np.log10(_Gmax_pf), line=dict(color="cyan", dash="dot"),
+        annotation_text=f"Gmax={10*np.log10(_Gmax_pf):.1f} dB")
+
+    _fig4.update_layout(
+        template="plotly_dark",
+        title=f"Power Flow Trade-off (U = {_U_pf:.0f})",
+        xaxis_title="Target Gma (dB)",
+        yaxis_title="Ratio (dB)",
+        height=400,
+        legend=dict(x=0.02, y=0.98),
+    )
+    mo.ui.plotly(_fig4)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ### 15.4 Summary
+
+    | Concept | Key Result |
+    |---|---|
+    | $G_{\max}$ | $(2U-1) + 2\sqrt{U(U-1)}$, uniquely determined by Mason's $U$ |
+    | Gain-plane | Complex $(U/A)$-plane; equi-gain circles, $K=1$ parabola boundary |
+    | T-embedding | Parallel $B_{TP}$ + series $X_{TS}$ computed from Z-params; moves A2P to $G_{\max}$ point |
+    | Invariant | $U$ unchanged under any LLR embedding — only $A$ changes |
+    | Limit ($U \gg 1$) | $G_{\max} \approx 4U$ — a 6 dB gain boost over $U$ |
+    | Trade-off | Higher boost → more feedback power → more loss sensitivity |
+
+    This technique is most impactful near $f_{\max}$, where conventional amplifier gain is marginal. The analytical embedding framework replaces trial-and-error EM-simulation-based feedback design with a closed-form solution.
+    """)
+    return
+
+
+if __name__ == "__main__":
+    app.run()
 
