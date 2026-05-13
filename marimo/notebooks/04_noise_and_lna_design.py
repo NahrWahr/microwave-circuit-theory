@@ -254,23 +254,446 @@ def _(mo):
 @app.cell
 def _(mo):
     mo.md(r"""
+    ### 1.1 Thermal noise floor — derivation of $kT_0 B$
+
+    **Step 1 — Equipartition theorem.** Statistical mechanics assigns
+    average energy $\tfrac{1}{2}kT$ to every independent *quadratic* degree
+    of freedom in a system at temperature $T$. This follows from the
+    canonical partition function: for a Hamiltonian $H = \tfrac{1}{2}\alpha x^2$,
+    $$\langle H \rangle = \frac{\int_{-\infty}^\infty \tfrac{1}{2}\alpha x^2\, e^{-\alpha x^2/2kT}\,dx}{\int_{-\infty}^\infty e^{-\alpha x^2/2kT}\,dx} = \frac{1}{2}kT.$$
+    For a capacitor the stored energy is $E_C = \tfrac{1}{2}C V_C^2$ — one
+    quadratic degree of freedom — so $\langle E_C \rangle = \tfrac{1}{2}kT$,
+    giving immediately
+    $$\langle V_C^2 \rangle = \frac{kT}{C}.$$
+    This result is exact within classical statistical mechanics and holds for
+    *any* network connected to the capacitor, provided the whole system is at
+    temperature $T$.
+
+    **Step 2 — The minimal circuit model.** A noisy resistor $R$ is replaced
+    by a noiseless resistor in series with an open-circuit voltage noise
+    source $v_n(t)$ (Thevenin). Loading this source with capacitor $C$ gives
+    a first-order RC low-pass filter. The transfer function from $v_n$ to the
+    capacitor voltage $V_C$ is
+    $$H(f) = \frac{1}{1 + j 2\pi f RC},$$
+    so the PSD of $V_C$ is $S_{V_C}(f) = S_v(f)\,|H(f)|^2$. We assume
+    $v_n$ is wide-sense stationary with (unknown) flat PSD $S_v$.
+
+    **Step 3 — Noise bandwidth of an RC filter.** The total mean-square
+    voltage on $C$ integrates over all positive frequencies:
+    $$\langle V_C^2 \rangle = \int_0^\infty S_v\,\frac{df}{1+(2\pi fRC)^2} = S_v\,\frac{1}{4RC}.$$
+    The integral evaluates to $\arctan(\infty)/(2\pi RC) = 1/(4RC)$; this is
+    the **noise bandwidth** $B_n = 1/(4RC)$ of the RC filter — the bandwidth
+    of an ideal brick-wall filter that would pass the same total noise power.
+    It differs from the $-3\,\text{dB}$ bandwidth $f_{-3} = 1/(2\pi RC)$ by
+    the factor $\pi/2$.
+
+    **Step 4 — Equate to equipartition and solve for $S_v$.** From Steps 1
+    and 3:
+    $$S_v \cdot \frac{1}{4RC} = \frac{kT}{C} \;\Longrightarrow\; \boxed{S_v = 4kTR.}$$
+    The capacitance $C$ drops out completely. This is the **Nyquist formula**:
+    the one-sided voltage noise PSD of a resistor $R$ at temperature $T$ is
+    $4kTR$, independent of frequency ("white") up to the phonon scattering
+    cutoff near $10$ THz in metals.
+
+    **Why "one mode".** The RC circuit has a single energy-storing element
+    (the capacitor), hence one quadratic degree of freedom, hence one factor
+    of $\tfrac{1}{2}kT$ from equipartition. A transmission line of length $\ell$
+    supports modes spaced by $\Delta f = c/(2\ell)$; a lumped RC replaces the
+    continuum of transmission-line modes with a single averaged mode at the
+    noise bandwidth $B_n$. Both approaches give the same $S_v = 4kTR$ because
+    the total energy per mode is fixed by temperature, not by geometry.
+
+    The one-sided voltage noise PSD is therefore $S_v = 4kTR$ — the
+    **Nyquist formula**. It is flat ("white") to frequencies far beyond
+    microwave: the phonon cutoff of a metal resistor is $\sim 10$ THz.
+
+    **Available noise power.** A source $R_s$ delivering into a matched
+    load $R_L = R_s$ transfers fraction $\tfrac{1}{4}$ of the open-circuit
+    noise power:
+
+    $$P_{\mathrm{avail}} = \frac{\langle v_n^2\rangle}{4R_s}\,\Delta f
+    = \frac{4kT R_s}{4R_s}\,\Delta f = kT\,\Delta f.$$
+
+    At $T_0 = 290$ K: $N_0 \equiv kT_0 = -174$ dBm/Hz. This is a hard
+    physical floor — no passive network can beat it.
+
+    **Receiver sensitivity** in bandwidth $B$:
+
+    $$S_{\min} = k\,T_0\,B \cdot F \cdot \mathrm{SNR}_{\min}$$
+
+    where $F$ is the receiver noise factor (linear). Every dB of NF
+    directly subtracts from achievable sensitivity. At $B = 100$ MHz,
+    $\mathrm{SNR}_{\min} = 10$ dB: floor $= -174 + 80 + 10 = -84$ dBm; a
+    2 dB NF raises this to $-82$ dBm, a 6 dB NF to $-78$ dBm — already
+    four times more transmit power required to close the link.
+    """)
+    return
+
+
+@app.cell
+def _(go, make_subplots, mo, np):
+    _fig_eq = make_subplots(
+        rows=1, cols=2,
+        subplot_titles=(
+            "Boltzmann weight — equipartition theorem",
+            "RC filter: noise bandwidth B_n = (π/2)·f₋₃dB",
+        ),
+    )
+
+    # ── Boltzmann panel ──────────────────────────────────────────────────────
+    # p(x) = e^{-x²/2}/√(2π): normalised Gaussian with α=kT=1
+    # Integrand of ⟨x²⟩ is x²·p(x); its integral = 1, so ⟨H⟩ = ½αkT/α = ½kT
+    _x = np.linspace(-4.5, 4.5, 800)
+    _pdf = np.exp(-_x**2 / 2.0) / np.sqrt(2.0 * np.pi)
+    _igrand = _x**2 * _pdf                      # integrand of ⟨x²⟩; ∫ dx = 1
+
+    _fig_eq.add_trace(go.Scatter(
+        x=_x, y=_pdf, mode="lines",
+        name="p(x) = e^{−x²/2}/√(2π)",
+        line=dict(color="#5599DD", width=2)), row=1, col=1)
+    _fig_eq.add_trace(go.Scatter(
+        x=_x, y=_igrand, mode="lines",
+        name="x²·p(x)  — integrand of ⟨x²⟩",
+        line=dict(color="#EE8833", width=2)), row=1, col=1)
+    _fig_eq.add_annotation(
+        text="∫ x²p dx = 1  ⟹  ⟨H⟩ = ½kT",
+        x=2.5, y=0.28, xref="x", yref="y",
+        font=dict(color="#33CC88", size=11), showarrow=False)
+
+    # ── RC noise bandwidth panel ─────────────────────────────────────────────
+    # |H(f)|² = 1/(1+(f/f₋₃)²), noise BW: ∫|H|²df = (π/2)·f₋₃ = 1/(4RC)
+    _fn = np.linspace(0.0, 5.5, 700)
+    _H2 = 1.0 / (1.0 + _fn**2)
+    _Bn = np.pi / 2.0                           # B_n / f_{-3dB}
+
+    _fig_eq.add_trace(go.Scatter(
+        x=_fn, y=_H2, mode="lines",
+        name="|H(f)|² = 1/(1+(f/f₋₃)²)",
+        line=dict(color="#5599DD", width=2)), row=1, col=2)
+    _fig_eq.add_trace(go.Scatter(
+        x=[0.0, _Bn, _Bn], y=[1.0, 1.0, 0.0], mode="lines",
+        name="Brick-wall (equal area)",
+        line=dict(color="#33CC88", dash="dash", width=2)), row=1, col=2)
+    _fig_eq.add_vline(x=1.0, line_dash="dot", line_color="#EE8833",
+                      annotation_text="f₋₃dB", annotation_position="top right",
+                      row=1, col=2)
+    _fig_eq.add_annotation(
+        text="Bₙ = π/2 · f₋₃dB", x=_Bn + 0.4, y=0.80,
+        xref="x2", yref="y2",
+        font=dict(color="#33CC88", size=11), showarrow=False)
+
+    _fig_eq.update_layout(
+        template="plotly_dark", height=360,
+        margin=dict(l=50, r=20, t=60, b=40),
+    )
+    _fig_eq.update_xaxes(title_text="x", row=1, col=1)
+    _fig_eq.update_yaxes(title_text="amplitude", row=1, col=1)
+    _fig_eq.update_xaxes(title_text="f / f₋₃dB", row=1, col=2)
+    _fig_eq.update_yaxes(title_text="|H|²", row=1, col=2)
+
+    mo.ui.plotly(_fig_eq)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ### 1.2 How the noise budget is consumed at higher frequencies
+
+    Three mechanisms eat into the NF budget as frequency rises:
+
+    **1. Intrinsic device** $F_{\min} \propto f/f_T$.
+    Shaeffer-Lee (§16.4) gives
+
+    $$F_{\min} \approx 1 + \frac{2.4\,\gamma}{\alpha}\,\frac{f}{f_T}.$$
+
+    On 65 nm CMOS ($f_T \approx 200$ GHz, $\gamma = 1.4$, $\alpha = 0.8$):
+
+    | $f$ | $F_{\min}$ | NF |
+    |---|---|---|
+    | 10 GHz  | 1.11 | 0.46 dB |
+    | 28 GHz  | 1.29 | 1.12 dB |
+    | 60 GHz  | 1.63 | 2.12 dB |
+    | 140 GHz | 2.47 | 3.93 dB |
+
+    **2. Matching-network ohmic loss.**
+    An inductor of quality factor $Q$ has series resistance
+    $r_L = \omega L / Q$. The NF penalty from a gate inductor $L_g$ is
+
+    $$\Delta F_{L_g} \approx r_{L_g} / R_s.$$
+
+    Since $Q$ is roughly frequency-independent at mmWave,
+    $r_L \propto \omega$ and the loss penalty grows linearly with $f$.
+    The source inductor $L_s$ contributes a similar term in the feedback path.
+
+    **3. Passive interconnect and pad loss.**
+    At 60 GHz and above, transmission-line feeds, bond wires, and pad
+    capacitances add 0.2–0.5 dB of insertion loss before the transistor —
+    equivalent to a noisy attenuator cascaded ahead of the LNA, raising NF
+    by the same amount.
+
+    The interactive below shows how these contributions stack from 10 to
+    200 GHz for a representative 65 nm inductively-degenerated CS LNA.
+    The total NF (green) uses the linear sum of input-referred excess noise:
+    $F_{\mathrm{tot}} = F_{\min} + r_{L_s}/R_s + r_{L_g}/R_s + F_{\mathrm{intercon}} - 1$.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    fT_GHz_nb = mo.ui.slider(100, 400, step=10, value=200,
+                              label="f_T (GHz)", show_value=True)
+    Q_ind_nb  = mo.ui.slider(5, 25, step=1, value=12,
+                              label="Inductor Q", show_value=True)
+    gamma_nb  = mo.ui.slider(0.5, 2.0, step=0.1, value=1.4,
+                              label="γ (channel noise coeff)", show_value=True)
+
+    mo.vstack([
+        mo.md("### 1.3 Interactive — NF budget breakdown vs frequency"),
+        mo.hstack([fT_GHz_nb, Q_ind_nb, gamma_nb]),
+    ])
+    return fT_GHz_nb, Q_ind_nb, gamma_nb
+
+
+@app.cell
+def _(fT_GHz_nb, Q_ind_nb, gamma_nb, go, math, mo, np):
+    _fT    = fT_GHz_nb.value * 1e9
+    _Q_nb  = float(Q_ind_nb.value)
+    _gamma_nb = gamma_nb.value
+    _alpha_nb = 0.8
+    _Ls_H_nb  = 40e-12
+    _Lg_H_nb  = 260e-12
+    _Rs_nb    = 50.0
+
+    _freqs_nb = np.linspace(10e9, 200e9, 300)
+
+    _Fmin_dev = 1.0 + (2.4 * _gamma_nb / _alpha_nb) * (_freqs_nb / _fT)
+    _NF_dev   = 10.0 * np.log10(_Fmin_dev)
+
+    _r_Ls_nb = 2 * math.pi * _freqs_nb * _Ls_H_nb / _Q_nb
+    _r_Lg_nb = 2 * math.pi * _freqs_nb * _Lg_H_nb / _Q_nb
+    _NF_Ls_nb = 10.0 * np.log10(1.0 + _r_Ls_nb / _Rs_nb)
+    _NF_Lg_nb = 10.0 * np.log10(1.0 + _r_Lg_nb / _Rs_nb)
+
+    _NF_intercon = 0.002 * (_freqs_nb / 1e9)
+    _F_intercon  = 10**(_NF_intercon / 10)
+
+    _F_total_nb  = _Fmin_dev + _r_Ls_nb / _Rs_nb + _r_Lg_nb / _Rs_nb + _F_intercon - 1.0
+    _NF_total_nb = 10.0 * np.log10(np.maximum(_F_total_nb, 1.0))
+
+    _fig_nb = go.Figure()
+    _fig_nb.add_trace(go.Scatter(
+        x=_freqs_nb / 1e9, y=_NF_dev, mode="lines",
+        name="Device F_min", line=dict(color="#3366CC", width=2)))
+    _fig_nb.add_trace(go.Scatter(
+        x=_freqs_nb / 1e9, y=_NF_Ls_nb, mode="lines",
+        name="L_s loss (finite Q)", line=dict(color="#CC6633", dash="dash")))
+    _fig_nb.add_trace(go.Scatter(
+        x=_freqs_nb / 1e9, y=_NF_Lg_nb, mode="lines",
+        name="L_g loss (finite Q)", line=dict(color="#CC9933", dash="dot")))
+    _fig_nb.add_trace(go.Scatter(
+        x=_freqs_nb / 1e9, y=_NF_intercon, mode="lines",
+        name="Interconnect / pad", line=dict(color="#888888")))
+    _fig_nb.add_trace(go.Scatter(
+        x=_freqs_nb / 1e9, y=_NF_total_nb, mode="lines",
+        name="Total NF (approx)", line=dict(color="#33AA66", width=2.5)))
+    for _fv, _lbl in [(28, "28 GHz"), (60, "60 GHz"), (140, "140 GHz")]:
+        _fig_nb.add_vline(x=_fv, line_dash="dash", line_color="#555",
+                          annotation_text=_lbl, annotation_position="top left")
+    _fig_nb.update_layout(
+        template="plotly_dark",
+        xaxis_title="Frequency (GHz)",
+        yaxis_title="NF contribution (dB)",
+        height=420,
+        title="NF budget vs frequency — 65 nm CMOS inductively-degenerated CS LNA",
+    )
+
+    mo.ui.plotly(_fig_nb)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
     ## 2. Random processes, stationarity, ergodicity
 
-    A **random process** $X(t, \omega)$ is a family of random variables
-    indexed by time — each $\omega$ picks one sample path.
+    ### 2.0 Formal definition
 
-    **Wide-sense stationarity (WSS):** $E[X(t)]$ constant and
-    $R_X(t_1, t_2) = R_X(t_1 - t_2)$ — autocorrelation depends only on
-    time difference $\tau$.
+    A **random process** (stochastic process) is a function
+    $$X : \mathcal{T} \times \Omega \;\longrightarrow\; \mathbb{R},$$
+    where $\mathcal{T} \subseteq \mathbb{R}$ is the time index set and
+    $(\Omega, \mathcal{F}, P)$ is a probability space.
 
-    **Ergodicity:** the empirical bridge. For a WSS ergodic process
-    time averages on a *single* sample path converge to ensemble averages.
-    This is what lets an experimenter estimate $R_X(\tau)$ from one long
-    recording.
+    Two interpretations of the same object:
 
-    **Counter-example (non-ergodic):** a random DC bias
-    $X(t) = A$ where $A \sim \mathcal{N}(0, \sigma^2)$. Every sample path
-    is a constant, so time average = that constant ≠ ensemble mean 0.
+    | Fix… | Vary… | Object |
+    |---|---|---|
+    | $\omega \in \Omega$ | $t \in \mathcal{T}$ | Sample path (realization) $x(t)$ |
+    | $t \in \mathcal{T}$ | $\omega \in \Omega$ | Random variable $X(t)$ |
+
+    A **noise waveform** observed on an oscilloscope is one sample path.
+    The statistical description (mean, autocorrelation, PSD) lives in the
+    ensemble — the collection of *all* such paths weighted by $P$.
+
+    ---
+
+    ### 2.1 Strict-sense stationarity (SSS)
+
+    $X(t,\omega)$ is **strictly stationary** if for every $n$, every
+    $(t_1,\ldots,t_n)$, and every shift $s$:
+
+    $$F_{X(t_1),\ldots,X(t_n)}(x_1,\ldots,x_n)
+    = F_{X(t_1+s),\ldots,X(t_n+s)}(x_1,\ldots,x_n).$$
+
+    All finite-dimensional distributions are invariant under time shifts.
+    SSS is the strongest stationarity condition and is rarely verifiable
+    directly.
+
+    ---
+
+    ### 2.2 Wide-sense stationarity (WSS)
+
+    $X(t,\omega)$ is **WSS** (or *weakly stationary*) if and only if two
+    conditions hold:
+
+    **Condition 1 — constant mean:**
+
+    $$E[X(t)] = \mu \quad \text{for all } t.$$
+
+    **Condition 2 — autocorrelation depends only on lag:**
+
+    $$R_X(t_1, t_2) \;\triangleq\; E\bigl[X(t_1)\,X(t_2)\bigr]
+    = R_X(t_1 - t_2) \equiv R_X(\tau), \quad \tau = t_1 - t_2.$$
+
+    WSS is weaker than SSS: it constrains only the first two moments.
+    The converse implication SSS $\Rightarrow$ WSS holds whenever
+    $E[X(t)^2] < \infty$.
+
+    **Special case — Gaussian processes:** for a Gaussian process WSS
+    $\Leftrightarrow$ SSS, because Gaussian distributions are fully
+    determined by their first two moments. This is why Gaussian noise
+    models are so tractable: proving WSS is sufficient to conclude that
+    the entire joint distribution is time-shift invariant.
+
+    ---
+
+    ### 2.3 Ergodicity
+
+    **The question:** does a single, infinitely long sample path carry
+    enough information to recover ensemble statistics?
+
+    **Mean-ergodicity.** Define the time-average estimator
+
+    $$\hat{\mu}_T \;\triangleq\; \frac{1}{T}\int_0^T X(t,\omega)\,dt.$$
+
+    $X$ is **mean-ergodic** (in the mean-square sense) if
+
+    $$\lim_{T\to\infty} E\bigl[|\hat{\mu}_T - \mu|^2\bigr] = 0.$$
+
+    **Sufficient condition (mixing).** A straightforward computation gives
+
+    $$E\bigl[|\hat{\mu}_T - \mu|^2\bigr]
+    = \frac{1}{T}\int_{-T}^{T}\!\left(1 - \frac{|\tau|}{T}\right)
+    C_X(\tau)\,d\tau,$$
+
+    where $C_X(\tau) = R_X(\tau) - \mu^2$ is the autocovariance.
+    This vanishes as $T \to \infty$ whenever
+
+    $$\int_{-\infty}^{\infty} |C_X(\tau)|\,d\tau < \infty,$$
+
+    i.e. the process "forgets" its past ($C_X(\tau) \to 0$ as
+    $|\tau| \to \infty$). White noise and most thermal-noise models satisfy
+    this condition trivially.
+
+    **Autocorrelation-ergodicity.** Separately, the time-lag estimator
+
+    $$\hat{R}_X(\tau) \;=\; \frac{1}{T}\int_0^T X(t)\,X(t+\tau)\,dt$$
+
+    converges to $R_X(\tau)$ under an analogous mixing condition on the
+    fourth-order cumulant. In practice: a wider bandwidth (more decorrelated
+    samples per second) and a longer record both improve the estimate.
+
+    **Practical implication.** Ergodicity is what licenses the spectrum
+    analyser: the instrument replaces the ensemble average by a time average
+    over one long sweep. If ergodicity fails — e.g., a systematic DC offset
+    that varies slowly from device to device — the measurement is biased.
+
+    ---
+
+    ### 2.4 Counter-example: WSS but non-ergodic
+
+    Let $A \sim \mathcal{N}(0, \sigma^2)$ be drawn once and held fixed.
+    Define $X(t) = A$ for all $t$.
+
+    **Ensemble statistics:**
+
+    $$E[X(t)] = E[A] = 0, \quad
+    R_X(t_1,t_2) = E[A^2] = \sigma^2 \quad \text{(independent of $\tau$)}.$$
+
+    Both WSS conditions are satisfied — this is a WSS process.
+
+    **Time average on a single path:**
+
+    $$\hat{\mu}_T = \frac{1}{T}\int_0^T A\,dt = A.$$
+
+    This is a random variable with distribution $\mathcal{N}(0,\sigma^2)$,
+    not the constant $\mu = 0$.
+
+    $$E\bigl[|\hat{\mu}_T - \mu|^2\bigr] = E[A^2] = \sigma^2 \quad
+    \text{for all } T.$$
+
+    The mean-square error does not vanish — **mean-ergodicity fails**.
+
+    The autocovariance $C_X(\tau) = \sigma^2$ is constant and its integral
+    diverges, violating the mixing condition. Physically: the process has
+    infinite correlation time; the "noise" is just a random but static DC
+    level, and no finite record can reveal the ensemble mean.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ### 2.5 Physical content of $R_X(\tau)$ and the PSD
+
+    **Noise power from autocorrelation.** For a zero-mean process,
+    $R_X(0) = E[X(t)^2]$ is the mean-square value — the total noise power.
+    The Parseval identity for the Wiener-Khinchin pair gives
+
+    $$P_\text{noise} = R_X(0) = \int_{-\infty}^{\infty} S_X(f)\,df
+    = 2\int_0^{\infty} S_X(f)\,df.$$
+
+    This is why PSD carries units of W/Hz (or V²/Hz, A²/Hz): integrate over
+    any bandwidth $B$ to get the noise power in that band.
+
+    **Correlation time and noise "memory".** The width of $R_X(\tau)$
+    around $\tau = 0$ is the time scale over which the process is correlated
+    with itself — how long the noise "remembers" its past value. Three
+    canonical shapes:
+
+    | Process | $R_X(\tau)$ | $S_X(f)$ | Memory |
+    |---|---|---|---|
+    | White | $\sigma^2 \delta(\tau)$ | $N_0$ (flat) | Zero |
+    | Bandpass ($f_c$, BW $W$) | $\sigma^2 \,\mathrm{sinc}(W\tau)\cos(2\pi f_c\tau)$ | brick-wall at $f_c$ | $\sim 1/W$ |
+    | Flicker (1/f) | $\sim 1/(|\tau|\log|\tau|)$ | $\propto 1/f$ | Long |
+
+    **Why white noise is an idealisation.** A flat PSD $S_X = N_0$ for all
+    $f$ implies $R_X(\tau) = N_0\delta(\tau)$ and infinite total power —
+    physically impossible. Every real noise source has a cutoff: the phonon
+    scattering rate in a metal resistor sets a cutoff near 10 THz; collision
+    rates set similar cutoffs for shot noise. For any microwave frequency
+    $f \ll 10$ THz, thermal noise is indistinguishable from white, so the
+    idealisation is safe and universally used.
+
+    **Measurement consequence — ergodicity in practice.** The time-average
+    estimator $\hat{R}_X(\tau) = T^{-1}\int_0^T X(t)X(t+\tau)\,dt$ converges
+    to $R_X(\tau)$ only for an ergodic process and only as $T \to \infty$.
+    In practice this means: longer measurement sweeps give better PSD
+    estimates, and cyclostationary processes (mixers, switched-capacitor
+    circuits) need a time-averaged PSD — the standard spectrum analyser
+    overestimates or underestimates noise depending on trigger phase.
     """)
     return
 
@@ -303,6 +726,61 @@ def _(mo):
     (cyclostationary PSD, downconversion of noise bands) belongs with
     notebook 06's mixer analysis, so we flag it here and move on.
     """)
+    return
+
+
+@app.cell
+def _(go, make_subplots, mo, np):
+    # FIG 2 — Wiener-Khinchin canonical pairs (3 process types)
+    _fig_wk = make_subplots(
+        rows=2, cols=3,
+        row_titles=("Autocorrelation R(τ)", "PSD S(f)"),
+        column_titles=("White noise", "Band-limited (sinc)", "Exp-decay (Lorentzian)"),
+    )
+    _tau = np.linspace(-4.0, 4.0, 800)
+    _f   = np.linspace(0.0, 4.0, 800)
+
+    # Col 1: white noise — narrow Gaussian → flat PSD
+    _sig = 0.12
+    _R1  = np.exp(-_tau**2 / (2.0 * _sig**2))
+    _S1  = np.ones_like(_f)
+    _S1[_f > 3.0] = 0.0   # visual truncation only
+
+    # Col 2: band-limited — sinc autocorrelation → brick-wall PSD
+    _fc = 1.5
+    _R2  = np.sinc(2.0 * _fc * _tau)
+    _S2  = np.where(np.abs(_f) <= _fc, 1.0, 0.0)
+
+    # Col 3: exponential-decay — Lorentzian PSD
+    _tc = 0.6
+    _R3  = np.exp(-np.abs(_tau) / _tc)
+    _S3  = (2.0 * _tc) / (1.0 + (2.0 * np.pi * _f * _tc)**2)
+    _S3 /= _S3.max()
+
+    _col_colors = ["#5599DD", "#EE8833", "#33CC88"]
+    for _col_i, (_R, _S, _clr) in enumerate(
+        zip([_R1, _R2, _R3], [_S1, _S2, _S3], _col_colors), start=1
+    ):
+        _fig_wk.add_trace(
+            go.Scatter(x=_tau, y=_R, mode="lines",
+                       line=dict(color=_clr, width=2), showlegend=False),
+            row=1, col=_col_i)
+        _fig_wk.add_trace(
+            go.Scatter(x=_f, y=_S, mode="lines",
+                       line=dict(color=_clr, width=2), showlegend=False),
+            row=2, col=_col_i)
+
+    _fig_wk.update_layout(
+        template="plotly_dark", height=440,
+        margin=dict(l=60, r=20, t=80, b=40),
+    )
+    for _ci in range(1, 4):
+        _fig_wk.update_xaxes(title_text="τ", row=1, col=_ci)
+        _fig_wk.update_xaxes(title_text="f", row=2, col=_ci)
+    for _ri in range(1, 3):
+        _fig_wk.update_yaxes(title_text="R(τ)" if _ri == 1 else "S(f)", row=_ri, col=1)
+
+    mo.ui.plotly(_fig_wk)
     return
 
 
@@ -374,6 +852,46 @@ def _(mo):
     distribution of $\tau$'s spread over decades reproduces 1/f — the
     microscopic origin story behind §5.3.
     """)
+    return
+
+
+@app.cell
+def _(go, mo, np):
+    # FIG 3 — Physical noise PSDs, log-log (all normalised to thermal floor = 1)
+    _fv = np.logspace(-1, 7, 800)  # 0.1 Hz … 10 MHz
+    _fc = 1e6   # flicker corner (Hz)
+    _tau_trap = 1.0 / (2.0 * np.pi * 1e5)  # G-R trap at 100 kHz
+
+    _thermal  = np.ones_like(_fv)
+    _flicker  = _fc / _fv
+    _gr       = (2.0 * _tau_trap) / (1.0 + (2.0 * np.pi * _fv * _tau_trap)**2)
+    _gr      /= _gr.max() * 2.0   # peak normalised to 0.5
+    _combined = _thermal + _flicker
+
+    _fig_psd = go.Figure()
+    _fig_psd.add_trace(go.Scatter(
+        x=_fv, y=_thermal, mode="lines", name="Thermal (4kTR)",
+        line=dict(color="#5599DD", width=2)))
+    _fig_psd.add_trace(go.Scatter(
+        x=_fv, y=_flicker, mode="lines", name="Flicker K_f / f  (f_c = 1 MHz)",
+        line=dict(color="#EE8833", width=2, dash="dash")))
+    _fig_psd.add_trace(go.Scatter(
+        x=_fv, y=_gr, mode="lines", name="G-R Lorentzian (single trap, 100 kHz)",
+        line=dict(color="#CC55AA", width=2, dash="dot")))
+    _fig_psd.add_trace(go.Scatter(
+        x=_fv, y=_combined, mode="lines", name="Thermal + flicker",
+        line=dict(color="#33CC88", width=2)))
+    _fig_psd.add_vline(
+        x=_fc, line_dash="dot", line_color="#EE8833",
+        annotation_text="f_c = 1 MHz", annotation_position="top left")
+    _fig_psd.update_layout(
+        template="plotly_dark", height=360,
+        xaxis=dict(type="log", title="f (Hz)"),
+        yaxis=dict(type="log", title="S(f)  [normalised to thermal floor]"),
+        margin=dict(l=70, r=20, t=40, b=50),
+        legend=dict(x=0.01, y=0.01, bgcolor="rgba(0,0,0,0)"),
+    )
+    mo.ui.plotly(_fig_psd)
     return
 
 
@@ -472,6 +990,212 @@ def _(estimate_autocorr, estimate_psd, fs_hz, generate_band_limited,
 @app.cell
 def _(mo):
     mo.md(r"""
+    ### 6.2 Equipartition of noise into amplitude and phase quadratures
+
+    #### Quadrature decomposition
+
+    Every real bandpass process $n(t)$ with spectral support near $\pm f_0$
+    can be written uniquely as
+
+    $$n(t) = n_I(t)\cos(2\pi f_0 t) - n_Q(t)\sin(2\pi f_0 t),$$
+
+    where $n_I$ and $n_Q$ are real **lowpass** (baseband) processes obtained by
+    synchronous demodulation and low-pass filtering:
+
+    $$n_I(t) = \mathrm{LPF}\!\left\{2\,n(t)\cos(2\pi f_0 t)\right\}, \qquad
+    n_Q(t) = \mathrm{LPF}\!\left\{-2\,n(t)\sin(2\pi f_0 t)\right\}.$$
+
+    #### Derivation of the quadrature PSDs
+
+    Let the two-sided PSD of $n(t)$ be
+
+    $$S_n(f) = \frac{N_0}{2}, \quad |f \pm f_0| < \frac{B}{2}, \qquad
+    \text{zero elsewhere.}$$
+
+    This represents bandpass white noise with **one-sided PSD** $N_0$
+    (W/Hz, as measured by a spectrum analyser) in a bandwidth $B$ around $f_0$.
+    The total bandpass power is
+
+    $$\langle n^2\rangle = \int_{-\infty}^{\infty} S_n(f)\,df
+    = \frac{N_0}{2}\cdot B + \frac{N_0}{2}\cdot B = N_0 B.$$
+
+    Applying the standard frequency-shifting identity for quadrature components,
+    the PSD of the lowpass envelope is
+
+    $$S_{n_I}(f) = S_{n_Q}(f)
+    = \bigl[S_n(f - f_0) + S_n(f + f_0)\bigr]_{|f|<B/2}.$$
+
+    For $|f| < B/2$: $f - f_0$ sits inside the negative-frequency band
+    ($|(f-f_0)+f_0|=|f|<B/2$) and $f + f_0$ sits inside the positive-frequency
+    band ($|(f+f_0)-f_0|=|f|<B/2$), so both terms equal $N_0/2$:
+
+    $$S_{n_I}(f) = \frac{N_0}{2} + \frac{N_0}{2} = N_0, \quad |f| < \frac{B}{2}.$$
+
+    Integrating gives the quadrature variance:
+
+    $$\langle n_I^2\rangle = \int_{-B/2}^{B/2} N_0\,df = N_0 B,
+    \qquad \langle n_Q^2\rangle = N_0 B.$$
+
+    The cross-PSD evaluates to $S_{n_I n_Q}(f) = j[S_n(f+f_0) - S_n(f-f_0)] = 0$
+    for this symmetric bandpass spectrum, so
+
+    $$\langle n_I n_Q\rangle = 0 \quad\text{(uncorrelated, and for Gaussian noise: independent).}$$
+
+    **Power accounting:** with $n = n_I\cos - n_Q\sin$ and the $\cos/\sin$
+    time-averaging factor of $\tfrac{1}{2}$:
+
+    $$\langle n^2\rangle = \tfrac{1}{2}\langle n_I^2\rangle + \tfrac{1}{2}\langle n_Q^2\rangle
+    = \tfrac{1}{2} N_0 B + \tfrac{1}{2} N_0 B = N_0 B \;\checkmark$$
+
+    The equal variance $\langle n_I^2\rangle = \langle n_Q^2\rangle = N_0 B$
+    — each quadrature carries the same noise power — is the statement of
+    **equipartition between quadratures**.
+
+    **Why "classical"?** At microwave frequencies $f_0 \sim \text{GHz}$, the
+    quantum occupation number $\bar{n} = (e^{hf_0/kT}-1)^{-1} \approx kT/hf_0
+    \gg 1$ (at room temperature $\bar{n} \approx 6000$), so the quantum
+    zero-point term $\hbar\omega/2$ is negligible and the classical Nyquist
+    result $N_0 = kT$ holds. "Classical equipartition" simply flags that we are
+    in this regime; the quantum correction matters only above ~60 GHz at
+    cryogenic temperatures.
+
+    #### Amplitude and phase noise from the phasor picture
+
+    Place the signal phasor at $Ae^{j0}$ (along the I-axis by choice of
+    reference). Additive noise $n_I + jn_Q$ perturbs the tip:
+
+    $$A + n_I + jn_Q \approx (A + n_I)\,e^{\,j\,n_Q/A}
+    \quad\text{for } |n_Q| \ll A.$$
+
+    Reading off the polar perturbation:
+
+    $$\delta A = n_I \qquad (\text{radial, amplitude noise}),$$
+
+    $$\delta\phi = \arctan\!\frac{n_Q}{A} \approx \frac{n_Q}{A}
+    \qquad (\text{tangential, phase noise}).$$
+
+    The injected noise power is the same in both quadratures ($N_0B$);
+    the phase noise is *suppressed by the signal amplitude*:
+
+    $$\langle\delta\phi^2\rangle = \frac{\langle n_Q^2\rangle}{A^2}
+    = \frac{N_0 B}{A^2} = \frac{N_0 B}{2 P_\text{sig}}.$$
+
+    No noise is removed; the geometry of the phasor plane converts equal noise
+    in both directions into unequal *angular* and *radial* fluctuations.
+
+    **Oscillator consequence.** A sustained oscillator has a nonlinear restoring
+    force in amplitude (amplitude is clamped to the limit cycle) but no restoring
+    force in phase. Equal noise power $N_0 B$ is injected into both quadratures;
+    $\delta A$ is damped, while $\delta\phi$ accumulates as a random walk. The
+    one-sided phase-noise PSD is
+
+    $$\mathcal{L}(f_m) \approx \frac{kTF}{2 P_{\mathrm{sig}}}
+    \cdot \frac{f_0^2}{Q_L^2\,f_m^2}$$
+
+    (Leeson's formula). The $1/P_\text{sig}$ factor is exactly the $1/A^2$
+    scaling derived above. The $1/f_m^2$ roll-off is the power spectrum of a
+    phase random walk.
+
+    **Practical consequence.** Any noise reduction scheme must contend with
+    equipartition: redistributing noise from one quadrature to the other is
+    possible (§19.6), but the product
+    $\langle n_I^2\rangle\langle n_Q^2\rangle \ge (N_0 B)^2$
+    cannot be reduced by a linear passive network (Bosma's theorem, §7.2).
+    """)
+    return
+
+
+@app.cell
+def _(go, mo, np):
+    # FIG 4 — I/Q phasor diagram with amplitude and phase noise decomposition
+    _A     = 1.5          # signal amplitude
+    _sig_n = 0.30         # 1-sigma noise radius
+    _th    = np.linspace(0.0, 2.0 * np.pi, 300)
+
+    _fig_phasor = go.Figure()
+
+    # 1σ noise circle centred at phasor tip
+    _fig_phasor.add_trace(go.Scatter(
+        x=_A + _sig_n * np.cos(_th),
+        y=_sig_n * np.sin(_th),
+        mode="lines", name="1σ noise circle",
+        line=dict(color="#888888", width=1.5, dash="dot")))
+
+    # Signal phasor along I-axis
+    _fig_phasor.add_trace(go.Scatter(
+        x=[0.0, _A], y=[0.0, 0.0],
+        mode="lines", name=f"Signal phasor  A = {_A}",
+        line=dict(color="white", width=2.5)))
+    _fig_phasor.add_annotation(
+        x=_A, y=0.0, ax=_A - 0.25, ay=0.0,
+        xref="x", yref="y", axref="x", ayref="y",
+        arrowhead=2, arrowwidth=2, arrowcolor="white",
+        text="", showarrow=True)
+
+    # δA arrow — radial (along I)
+    _fig_phasor.add_annotation(
+        x=_A + _sig_n, y=0.0, ax=_A, ay=0.0,
+        xref="x", yref="y", axref="x", ayref="y",
+        arrowhead=2, arrowwidth=2, arrowcolor="#5599DD",
+        text="", showarrow=True)
+    _fig_phasor.add_annotation(
+        text="δA = n_I",
+        x=_A + _sig_n + 0.05, y=-0.13,
+        xref="x", yref="y",
+        font=dict(color="#5599DD", size=12), showarrow=False)
+
+    # δφ·A arrow — tangential (along Q)
+    _fig_phasor.add_annotation(
+        x=_A, y=_sig_n, ax=_A, ay=0.0,
+        xref="x", yref="y", axref="x", ayref="y",
+        arrowhead=2, arrowwidth=2, arrowcolor="#EE8833",
+        text="", showarrow=True)
+    _fig_phasor.add_annotation(
+        text="n_Q = A·δφ",
+        x=_A - 0.52, y=_sig_n + 0.07,
+        xref="x", yref="y",
+        font=dict(color="#EE8833", size=12), showarrow=False)
+
+    # Small arc showing angle δφ at radius A from origin
+    _arc_r = _A * 0.22
+    _arc_th = np.linspace(0.0, np.arctan2(_sig_n, _A), 60)
+    _fig_phasor.add_trace(go.Scatter(
+        x=_arc_r * np.cos(_arc_th), y=_arc_r * np.sin(_arc_th),
+        mode="lines", showlegend=False,
+        line=dict(color="#EE8833", width=1.5)))
+    _fig_phasor.add_annotation(
+        text="δφ",
+        x=_arc_r * np.cos(_arc_th[-1]) + 0.04,
+        y=_arc_r * np.sin(_arc_th[-1]) + 0.05,
+        xref="x", yref="y",
+        font=dict(color="#EE8833", size=11), showarrow=False)
+
+    # Origin dot
+    _fig_phasor.add_trace(go.Scatter(
+        x=[0.0], y=[0.0], mode="markers", showlegend=False,
+        marker=dict(size=6, color="white")))
+
+    # Equipartition label in clear space
+    _fig_phasor.add_annotation(
+        text="⟨n_I²⟩ = ⟨n_Q²⟩ = N₀B",
+        x=0.35, y=0.55, xref="x", yref="y",
+        font=dict(color="#33CC88", size=12), showarrow=False)
+
+    _fig_phasor.update_layout(
+        template="plotly_dark", width=580, height=420,
+        xaxis=dict(title="I", scaleanchor="y", scaleratio=1),
+        yaxis=dict(title="Q", range=[-0.72, 0.72]),
+        margin=dict(l=55, r=15, t=40, b=55),
+        showlegend=True,
+        legend=dict(x=0.01, y=0.99, bgcolor="rgba(0,0,0,0)"),
+    )
+    mo.ui.plotly(_fig_phasor)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
     ## 7. The Rothe-Dahlke noise two-port
 
     **Theorem (Rothe & Dahlke, 1956).** Any noisy linear two-port is
@@ -479,10 +1203,7 @@ def _(mo):
     correlated noise sources — an input-referred voltage $v_n$ and
     current $i_n$ — connected at the input port.
 
-    $$\begin{bmatrix} v_1 \\ i_1 \end{bmatrix}
-    = \underbrace{\begin{bmatrix} A & B \\ C & D \end{bmatrix}}_{\text{noiseless ABCD}}
-      \begin{bmatrix} v_2 \\ -i_2 \end{bmatrix}
-      + \begin{bmatrix} v_n \\ i_n \end{bmatrix}.$$
+    $$\begin{bmatrix} v_1 \\ i_1 \end{bmatrix} = \begin{bmatrix} A & B \\ C & D \end{bmatrix} \begin{bmatrix} v_2 \\ -i_2 \end{bmatrix} + \begin{bmatrix} v_n \\ i_n \end{bmatrix}$$
 
     Derivation: start from the Y-matrix form with internal noise
     sources $i_{n1}, i_{n2}$ at the ports; pre-multiply by the
@@ -490,15 +1211,139 @@ def _(mo):
     equivalent $(v_n, i_n)$ pair at the input.
 
     The **noise correlation matrix** in ABCD form:
-    $$\mathbf{C_A} = \overline{\begin{bmatrix} v_n \\ i_n \end{bmatrix}
-        \begin{bmatrix} v_n^* & i_n^* \end{bmatrix}}
-    = \begin{bmatrix} \overline{|v_n|^2} & \overline{v_n i_n^*} \\
-                      \overline{v_n^* i_n} & \overline{|i_n|^2} \end{bmatrix}.$$
+    $$\mathbf{C_A} = \left\langle\begin{bmatrix} v_n \\ i_n \end{bmatrix}\begin{bmatrix} v_n^* & i_n^* \end{bmatrix}\right\rangle = \begin{bmatrix} \overline{|v_n|^2} & \overline{v_n i_n^*} \\ \overline{v_n^* i_n} & \overline{|i_n|^2} \end{bmatrix}$$
 
     Hermitian, positive-semidefinite, 2×2 — exactly the matrix PSD
     of §4. Admittance form $\mathbf{C_Y}$ and impedance form
     $\mathbf{C_Z}$ are alternative representations; §10 will show the
     transformations. All derivations in §8–§9 stay in $\mathbf{C_A}$.
+
+    **n-port generalisation.** For a linear noisy n-port, the same
+    argument applies port-by-port: the noise behaviour is fully described
+    by $n$ noise sources (voltages, currents, or noise waves) at the ports
+    and their $n \times n$ correlation matrix $\mathbf{C}$. The matrix
+    is Hermitian positive-semidefinite; its diagonal entries are the
+    individual source PSDs and the off-diagonal entries carry the
+    cross-correlations. For noise-wave representations (used in
+    microwave measurement and CAD), the sources are incident noise waves
+    $b_{n,k}$ at each port and the correlation matrix
+    $\mathbf{C_b} = \overline{\mathbf{b}_n \mathbf{b}_n^\dagger}$
+    transforms under S-matrix cascading in the same way $\mathbf{C_A}$
+    transforms under ABCD cascading — enabling systematic noise analysis
+    of multi-stage, multi-port mmWave systems.
+
+    **Connection to S-parameter matrix transformations.** The signal
+    parameters of a two-port can be expressed in any basis: S, Z, Y, H, G,
+    or ABCD — related by standard bilinear matrix transformations
+    (see notebook 03, §4). The noise correlation matrix transforms with
+    the same T-matrix: if $\mathbf{P'} = \mathbf{T}\,\mathbf{P}$, then
+    $\mathbf{C_{P'}} = \mathbf{T}\,\mathbf{C_P}\,\mathbf{T}^\dagger$.
+    In practice: start from the measured S-parameters and noise figure
+    data, convert to $\mathbf{C_A}$ via the S→ABCD transformation, then
+    cascade in ABCD form, and convert back to S to read off system NF.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ### 7.1 N-port noise correlation matrix — rigorous derivation
+
+    **Setup.** A linear noisy n-port is modelled as a noiseless Y-matrix
+    $\mathbf{Y}$ with an additive column vector of Norton noise current sources
+    $\mathbf{i}_n = [i_{n1},\ldots,i_{nn}]^T$ injected at each port:
+    $$\mathbf{i} = \mathbf{Y}\,\mathbf{v} + \mathbf{i}_n.$$
+    Each $i_{nk}$ is a zero-mean WSS random process; its cross-spectral density
+    with $i_{nl}$ is the $(k,l)$ entry of the **Y-form noise correlation matrix**:
+    $$[\mathbf{C}_Y]_{kl}(f) \;\triangleq\; \frac{\langle i_{nk}(f)\,i_{nl}^*(f)\rangle}{\Delta f}.$$
+
+    **Hermitian positive-semidefiniteness.** $\mathbf{C}_Y$ is Hermitian by
+    construction ($[\mathbf{C}_Y]_{kl} = [\mathbf{C}_Y]_{lk}^*$). For any
+    $\mathbf{a} \in \mathbb{C}^n$:
+    $$\mathbf{a}^\dagger \mathbf{C}_Y \mathbf{a} = \frac{\langle|\mathbf{a}^\dagger \mathbf{i}_n|^2\rangle}{\Delta f} \ge 0,$$
+    so $\mathbf{C}_Y \succeq 0$. The diagonal entries are PSDs (non-negative);
+    the off-diagonal entries are cross-spectral densities bounded by Cauchy-Schwarz.
+
+    **Transformation law.** Suppose the network parameters transform as
+    $\mathbf{P}' = \mathbf{T}\,\mathbf{P}$ (e.g.\ Y $\to$ Z, Y $\to$ ABCD).
+    The same linear map applies to the noise sources:
+    $\mathbf{s}'_n = \mathbf{T}\,\mathbf{s}_n$. Therefore:
+    $$\boxed{\mathbf{C}_{P'} = \mathbf{T}\,\mathbf{C}_P\,\mathbf{T}^\dagger.}$$
+
+    *Proof.* $\mathbf{C}_{P'} = \langle\mathbf{s}'_n(\mathbf{s}'_n)^\dagger\rangle/\Delta f
+    = \mathbf{T}\langle\mathbf{s}_n\mathbf{s}_n^\dagger\rangle\mathbf{T}^\dagger/\Delta f
+    = \mathbf{T}\,\mathbf{C}_P\,\mathbf{T}^\dagger$. $\square$
+
+    The key T-matrices (2-port):
+    - $\mathbf{C}_Z = \mathbf{Z}\,\mathbf{C}_Y\,\mathbf{Z}^\dagger$
+      (using $\mathbf{T}_{Y\to Z} = \mathbf{Y}^{-1}$).
+    - $\mathbf{C}_A = \mathbf{T}_{Y\to A}\,\mathbf{C}_Y\,\mathbf{T}_{Y\to A}^\dagger$
+      with $\mathbf{T}_{Y\to A}$ the standard Y-to-ABCD bilinear matrix.
+
+    **Noise wave (S-parameter) representation.** Define noise waves at port $k$
+    (reference impedance $Z_0$):
+    $$b_{nk} = \tfrac{1}{2}\!\left(\sqrt{Z_0}\,i_{nk} - \frac{v_{nk}}{\sqrt{Z_0}}\right).$$
+    The map from $(v_{nk}, i_{nk})$ to $b_{nk}$ is linear; the wave correlation
+    matrix $\mathbf{C}_b = \langle\mathbf{b}_n\mathbf{b}_n^\dagger\rangle/\Delta f$
+    satisfies the same congruence rule and propagates under S-matrix cascading
+    exactly as $\mathbf{C}_A$ propagates under ABCD cascading:
+    $$\mathbf{C}_{A,\mathrm{cas}} = \mathbf{C}_{A,1} + \mathbf{A}_1\,\mathbf{C}_{A,2}\,\mathbf{A}_1^\dagger.$$
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ### 7.2 Bosma's theorem — noise of a passive n-port from thermal equilibrium
+
+    **Statement (Bosma, 1967).** A passive linear n-port at temperature $T$ has
+    noise-wave correlation matrix
+    $$\boxed{\mathbf{C}_b = kT\!\left(\mathbf{I} - \mathbf{S}\,\mathbf{S}^\dagger\right).}$$
+
+    **Derivation via detailed balance.**
+
+    *Step 1 — Thermal equilibrium.* Terminate every port in a matched load at
+    temperature $T$. The combined system is in thermal equilibrium; by the
+    Nyquist/Rayleigh-Jeans theorem (valid for $hf \ll kT$, i.e.\ $f \ll 6$ THz
+    at 290 K) each incident-wave mode carries PSD $kT$:
+    $$\langle a_k\,a_l^*\rangle/\Delta f = kT\,\delta_{kl}.$$
+
+    *Step 2 — Outgoing wave decomposition.* At port $k$ the total outgoing wave is
+    $$b_k = \sum_l S_{kl}\,a_l + b_{nk},$$
+    where $b_{nk}$ is the n-port's internally generated noise wave. For a linear
+    n-port, $b_{nk}$ is statistically independent of the incident waves $\{a_l\}$
+    (the internal noise sources are not driven by the port waves).
+
+    *Step 3 — Detailed balance.* In equilibrium the outgoing wave must have the
+    same PSD as the incoming wave:
+    $\langle b_k b_l^*\rangle/\Delta f = kT\,\delta_{kl}$.
+    Substituting Step 2 and using Step 1:
+    $$\frac{\langle b_k b_l^*\rangle}{\Delta f} = kT\,[\mathbf{S}\mathbf{S}^\dagger]_{kl} + [\mathbf{C}_b]_{kl} \stackrel{!}{=} kT\,\delta_{kl}.$$
+    Rearranging for all $(k,l)$:
+    $$\mathbf{C}_b = kT\!\left(\mathbf{I} - \mathbf{S}\mathbf{S}^\dagger\right). \qquad\square$$
+
+    **Consistency checks.**
+    - *Lossless n-port:* unitarity $\mathbf{S}^\dagger\mathbf{S}=\mathbf{I}$ implies
+      $\mathbf{S}\mathbf{S}^\dagger = \mathbf{I}$, so $\mathbf{C}_b = 0$.
+      A lossless passive network generates no noise.
+    - *Matched termination (1-port, $S_{11}=0$):* $C_b = kT$ — the load
+      emits full thermal noise, consistent with Nyquist.
+    - *Attenuator with loss $L$ ($|S_{21}|^2 = 1/L$):* $[\mathbf{C}_b]_{22} = kT(1-1/L)$,
+      exactly the noise required to set the NF of a passive attenuator at $T$
+      equal to $L$ (§14.1).
+
+    **Connection to the fluctuation-dissipation theorem.** Bosma's theorem is the
+    S-parameter statement of the FDT: wherever there is dissipation there is noise,
+    in fixed ratio $kT$. The matrix $\mathbf{I} - \mathbf{S}\mathbf{S}^\dagger \succeq 0$
+    is the n-port's **dissipation matrix** — zero for lossless networks,
+    positive-definite for dissipative ones.
+
+    **Bound on noise redistribution.** Because $\mathbf{C}_b \succeq 0$ for any
+    passive component, no passive linear network can reduce the total noise power
+    below the Bosma bound. Squeezing noise from one quadrature into another is
+    possible (§19.6), but requires an active or nonlinear element.
     """)
     return
 
@@ -791,6 +1636,54 @@ def _(mo, noise_circle, np):
 
 
 @app.cell
+def _(go, mo, noise_circle, np):
+    # FIG 5 — Static noise circles in Γ-plane
+    _Fmin  = 1.3
+    _Rn    = 0.08
+    _Gopt  = 0.4 * np.exp(1j * np.radians(50.0))
+    _th_c  = np.linspace(0.0, 2.0 * np.pi, 360)
+
+    _circle_colors = ["#33CC88", "#5599DD", "#EE8833", "#CC55AA", "#FF6644"]
+    _F_targets_dB  = [0.3, 0.6, 1.0, 2.0, 4.0]
+
+    _fig_nc = go.Figure()
+
+    # Unit circle
+    _fig_nc.add_trace(go.Scatter(
+        x=np.cos(_th_c), y=np.sin(_th_c),
+        mode="lines", name="|Γ| = 1",
+        line=dict(color="#555555", width=1.5, dash="dot")))
+
+    # Noise circles
+    for _dF_dB, _clr in zip(_F_targets_dB, _circle_colors):
+        _Ft = _Fmin * 10.0**(_dF_dB / 10.0)
+        _c, _r = noise_circle(_Ft, _Fmin, _Rn, _Gopt)
+        _fig_nc.add_trace(go.Scatter(
+            x=_c.real + _r * np.cos(_th_c),
+            y=_c.imag + _r * np.sin(_th_c),
+            mode="lines",
+            name=f"F_min + {_dF_dB} dB",
+            line=dict(color=_clr, width=2)))
+
+    # Γ_opt marker
+    _fig_nc.add_trace(go.Scatter(
+        x=[_Gopt.real], y=[_Gopt.imag],
+        mode="markers", name="Γ_opt",
+        marker=dict(symbol="star", size=12, color="white")))
+
+    _fig_nc.update_layout(
+        template="plotly_dark", height=420,
+        xaxis=dict(title="Re(Γ)", range=[-1.1, 1.1],
+                   scaleanchor="y", scaleratio=1),
+        yaxis=dict(title="Im(Γ)", range=[-1.1, 1.1]),
+        margin=dict(l=50, r=20, t=40, b=50),
+        legend=dict(x=0.01, y=0.99, bgcolor="rgba(0,0,0,0)"),
+    )
+    mo.ui.plotly(_fig_nc)
+    return
+
+
+@app.cell
 def _(mo):
     mo.md(r"""
     ## 13. The gain-noise tradeoff
@@ -853,6 +1746,202 @@ def _(mo):
     toward $S_{11}^*$ **without adding a resistor**. This is why the
     inductively-degenerated common-source is the canonical mmWave CMOS
     LNA topology.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ## 14.1 NF of a passive two-port equals its insertion loss
+
+    **Statement.** A passive, reciprocal, lossy two-port at the standard
+    reference temperature $T_0 = 290$ K has noise factor
+
+    $$F = L,$$
+
+    where $L = 1/G_A \ge 1$ is the insertion loss (linear) of the two-port.
+
+    **Derivation.** Let the two-port have available power gain $G_A = 1/L$.
+    At $T_0$ the input noise power spectral density is $kT_0$. Since the
+    network is passive and at $T_0$, its output is a thermally equilibrated
+    load: the total output noise PSD is $kT_0$ regardless of the signal path.
+    The signal, however, is reduced by $G_A = 1/L$. Hence
+
+    $$F = \frac{\mathrm{SNR}_{\mathrm{in}}}{\mathrm{SNR}_{\mathrm{out}}}
+    = \frac{P_{\mathrm{sig,in}} / (kT_0)}{G_A\,P_{\mathrm{sig,in}} / (kT_0)}
+    = \frac{1}{G_A} = L.$$
+
+    Alternatively: the network adds $(L-1)kT_0$ of noise referred to its input
+    (since its output noise $kT_0$ maps back to $kT_0 / G_A = L\,kT_0$, and
+    the source already contributes $kT_0$), giving $F = 1 + (L-1) = L$.
+
+    **Practical consequences:**
+
+    - Any lossy passive element (matching network, switch, transmission line)
+      placed **before** the LNA raises the system NF by its insertion loss.
+      An interconnect with 1 dB loss adds 1 dB to NF before the transistor
+      noise even enters — this loss cannot be recovered by the LNA.
+    - A lossy matching network with IL $= L$ placed **after** the LNA
+      contributes $F_{\mathrm{match}} = L$ to the Friis sum, but divided by
+      $G_{A,\mathrm{LNA}} \gg 1$, so its effect on system NF is negligible.
+      **Lossy elements must go after the LNA, not before it.**
+    - The same result applies to switches, phase shifters, and diplexers in
+      the receive path — a phased-array front end with 3 dB of switch loss
+      before the LNA has at least 3 dB of NF degradation, independent of LNA quality.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ## 14.2 Feedback and noise — lossy vs lossless
+
+    Feedback changes $Y_{\mathrm{opt}}$, $R_n$, and (for lossy feedback) $F_{\min}$.
+    The key distinction:
+
+    ### Lossy feedback raises $F_{\min}$
+
+    A feedback element with series resistance $r_F$ (e.g., a resistive
+    shunt-feedback resistor $R_F$ at the input) contributes thermal noise
+    $\overline{v_{n,F}^2}/\Delta f = 4kT r_F$ at the input. This excess
+    noise is irreducible: it raises $F_{\min}$ by approximately
+
+    $$\Delta F_{\min} \approx \frac{r_F}{R_s} \cdot \frac{1}{|1 - \beta A|^2},$$
+
+    where $\beta A$ is the loop gain. No retuning of the source impedance
+    removes this penalty because $F_{\min}$ is the minimum over all sources —
+    a floor set by the device and its noise sources.
+
+    **Example:** a transimpedance amplifier with a $200\,\Omega$ shunt-feedback
+    resistor $R_F$ at 50 $\Omega$ source has a noise contribution
+    $\Delta F \approx 4kT/R_F \cdot R_s \approx 1$ at low frequency —
+    roughly doubling the noise figure. This is unavoidable for resistive feedback.
+
+    ### Lossless (purely reactive) feedback preserves $F_{\min}$
+
+    **Theorem (Haus and Adler, 1958).** $F_{\min}$ is invariant under any
+    lossless, reciprocal embedding of a two-port. That is, adding reactive
+    elements (inductors, capacitors, transmission-line stubs, ideal transformers)
+    around the transistor cannot change $F_{\min}$.
+
+    **Proof sketch.** The noise measure $M = (F-1)/(1-1/G_A)$ is invariant
+    under lossless embedding (Haus-Adler). At the noise-optimal source,
+    $F = F_{\min}$, and in the limit $G_A \to \infty$ (which is approached by
+    choosing a lossless feedback that maximises available gain), $M \to F_{\min} - 1$.
+    Since $M$ is invariant, $F_{\min}$ cannot change.
+
+    **What lossless feedback does change:**
+
+    - $\Gamma_{\mathrm{opt}}$ rotates to a new location on the Smith chart.
+    - $R_n$ may decrease — tightening or loosening noise circles.
+    - The imaginary part $B_{s,\mathrm{opt}}$ shifts; the real part $G_{s,\mathrm{opt}}$
+      changes very little under purely reactive feedback.
+
+    **Inductive source degeneration as the canonical example.**
+    $L_s$ in the source path creates lossless series-series feedback:
+    - $\Gamma_{\mathrm{opt}}$ rotates toward $S_{11}^*$ (§14).
+    - $F_{\min}$ is unchanged (no resistor in the feedback path).
+    - Once $L_s$ has a finite series resistance $r_{L_s} = \omega L_s / Q$,
+      the feedback is no longer lossless and $F_{\min}$ rises by
+      $\Delta F_{\min} \approx r_{L_s} / R_s$. This is why inductor Q is
+      a hard constraint in mmWave LNA design.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ## 14.3 Noise sensitivity — minimizing $R_n$
+
+    The noise figure formula
+
+    $$F(\Gamma_s) = F_{\min} + \frac{4\,R_n/Z_0}{|1+\Gamma_{\mathrm{opt}}|^2}
+    \frac{|\Gamma_s - \Gamma_{\mathrm{opt}}|^2}{1 - |\Gamma_s|^2}$$
+
+    has two distinct roles for $R_n$:
+
+    1. **Sensitivity:** for a fixed source mismatch $|\Gamma_s - \Gamma_{\mathrm{opt}}|$,
+       $F - F_{\min} \propto R_n$. Large $R_n$ means steep noise circles — a small
+       departure from $\Gamma_{\mathrm{opt}}$ incurs a large NF penalty.
+
+    2. **Circle radii:** the noise circle for target $F_{\mathrm{target}}$ has
+       $N \propto (F_{\mathrm{target}} - F_{\min})/R_n$. Small $R_n$ gives large $N$
+       and therefore larger circles — more source impedance choices are within
+       the same NF contour.
+
+    **Design goal:** minimise $R_n$ (and its dual $G_n^0 = R_n G_{s,\mathrm{opt}}^2$,
+    the noise conductance at the optimum point).
+
+    **At the device level** (Shaeffer-Lee, §16.4):
+    $$R_n \approx \frac{\gamma}{\alpha\,g_m\,Z_0}.$$
+
+    Increasing $g_m$ (wider device, higher bias current $I_D$) reduces $R_n$
+    at the cost of power. This is the fundamental power–noise-sensitivity tradeoff:
+    a low-$R_n$ LNA requires high $g_m$, which demands high $I_D$.
+
+    **At the circuit level:** series feedback (inductive degeneration) also
+    modifies the effective $R_n$ seen from the input by changing the reflection
+    between $\Gamma_s$ and the actual transistor gate. Specifically, source
+    degeneration reduces the effective $R_n$ seen by the source, spreading the
+    noise circles and relaxing the matching precision required.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ## 14.4 Wideband noise matching
+
+    Single-frequency noise matching is straightforward: set $\Gamma_s(f_0) = \Gamma_{\mathrm{opt}}(f_0)$.
+    Over a bandwidth, both $\Gamma_s(f)$ and $\Gamma_{\mathrm{opt}}(f)$ move, and
+    the noise figure degrades away from $f_0$.
+
+    **What determines the bandwidth of the noise match?**
+    The rate at which $Y_{s,\mathrm{opt}}(f) = G_{s,\mathrm{opt}} + jB_{s,\mathrm{opt}}$
+    moves with frequency is set by the Q of the optimum source admittance:
+
+    $$Q_{\mathrm{opt}} \;=\; \left|\frac{B_{s,\mathrm{opt}}}{G_{s,\mathrm{opt}}}\right|
+    \quad\text{or equivalently}\quad
+    \left|\frac{X_{s,\mathrm{opt}}}{R_{s,\mathrm{opt}}}\right|.$$
+
+    A high $Q_{\mathrm{opt}}$ means $Y_{\mathrm{opt}}$ has a large reactive component
+    that sweeps rapidly across the Smith chart with frequency — the noise match is
+    inherently narrowband. A low $Q_{\mathrm{opt}}$ (optimum source near the real axis)
+    varies slowly — broadband noise match is achievable.
+
+    **Three strategies:**
+
+    1. **Minimize** $|B_{s,\mathrm{opt}} / G_{s,\mathrm{opt}}|$.
+       Make $Y_{\mathrm{opt}}$ look like a near-real conductance. Inductive source
+       degeneration does this: it shifts $B_{s,\mathrm{opt}}$ toward zero while
+       leaving $G_{s,\mathrm{opt}}$ roughly unchanged, reducing $Q_{\mathrm{opt}}$.
+       This is a second benefit of source degeneration, independent of input matching.
+
+    2. **Reactive feedback to rotate $\Gamma_{\mathrm{opt}}$ toward the real axis.**
+       Since $F_{\min}$ is invariant, the designer can choose feedback reactances
+       to place $\Gamma_{\mathrm{opt}}$ on or near the real $\Gamma$ axis (i.e.,
+       real $Y_{\mathrm{opt}}$) at the design frequency, minimizing
+       $|B_{s,\mathrm{opt}} / G_{s,\mathrm{opt}}|$ and the rate of $\Gamma_{\mathrm{opt}}$
+       variation with frequency.
+
+    3. **Minimize $R_n$ (§14.3).**
+       Even if $\Gamma_{\mathrm{opt}}$ moves, a small $R_n$ keeps the noise circles
+       wide — the designer can accept a moderate $\Gamma_s \neq \Gamma_{\mathrm{opt}}$
+       without incurring large NF penalty. This trades noise-match bandwidth against
+       power consumption.
+
+    **Bode-Fano limit analogy.** Just as there is a fundamental limit to the
+    bandwidth over which a reactive network can match a complex load (Bode-Fano),
+    there is an analogous bound on noise-match bandwidth set by the
+    $Q_{\mathrm{opt}}$ of the device. It is derived from the same causality and
+    analyticity constraints on the noise parameters. At 28 GHz, a 65 nm CMOS
+    transistor with $Q_{\mathrm{opt}} \approx 1$ after source degeneration can
+    achieve $F < F_{\min} + 0.5$ dB over roughly 20–25% relative bandwidth —
+    consistent with the $\sim 6$ GHz 5G NR FR2 channel aggregation window.
     """)
     return
 
@@ -1397,6 +2486,78 @@ def _(go, mo, np):
     )
 
     mo.ui.plotly(_fig_rg)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ## 19.6 Noise squeezing — redistribution between quadratures
+
+    Equipartition (§6.2) distributes thermal noise equally between the I and Q
+    quadratures: $\langle n_I^2\rangle = \langle n_Q^2\rangle = kTB$. The
+    question of noise squeezing is whether a circuit can create an asymmetric
+    split — reducing noise in one quadrature below $kTB$ at the cost of
+    amplifying the other — analogous to squeezed light in quantum optics.
+
+    ### Classical squeezing via phase-sensitive amplification
+
+    A parametric amplifier pumped at $2\omega_0$ (degenerate operation) acts
+    phase-sensitively: it amplifies the I-quadrature by $\sqrt{G}$ and
+    attenuates the Q-quadrature by $1/\sqrt{G}$. For thermal input noise:
+    $$\langle n_I^2\rangle \to G\,kTB, \qquad
+    \langle n_Q^2\rangle \to \frac{kTB}{G}.$$
+    The product $\langle n_I^2\rangle\langle n_Q^2\rangle = (kTB)^2$ is
+    preserved; total noise power is unchanged. This is **classical noise
+    squeezing** — redistribution without destruction.
+
+    At microwave frequencies this is implemented in Josephson Travelling-Wave
+    Parametric Amplifiers (JTWPAs), which achieve $\sim 3$–5 dB of classical
+    squeezing while adding near-quantum-limited noise to the amplified quadrature.
+
+    **Bosma's constraint (§7.2).** For any passive network,
+    $\mathbf{C}_b \succeq 0$ and the total noise power (trace of $\mathbf{C}_b$)
+    cannot decrease. Squeezing requires an active (pumped) element: the pump
+    supplies energy that redistributes quantum fluctuations between quadratures.
+
+    ### Quantum noise squeezing
+
+    The quantum floor per quadrature is set by zero-point fluctuations:
+    $\langle n_k^2\rangle_\text{vac} = \hbar\omega/2$. Below the **standard
+    quantum limit (SQL)**, squeezing one quadrature below $\hbar\omega/2$
+    violates no physical law, provided the conjugate quadrature satisfies the
+    Heisenberg-Robertson uncertainty relation:
+    $$\Delta n_I \cdot \Delta n_Q \ge \frac{\hbar\omega}{2}.$$
+
+    Reaching the quantum regime at microwave frequencies requires
+    $kT \lesssim \hbar\omega$, i.e.\ $T \lesssim T^* = \hbar\omega/k$.
+    At $\omega/2\pi = 10$ GHz: $T^* \approx 0.5$ K. The thermal photon
+    occupation number is
+    $$\bar{n} = \frac{kT}{\hbar\omega} \approx \frac{4.0\times10^{-21}\,\mathrm{J}}{6.6\times10^{-24}\,\mathrm{J}} \approx 600 \quad \text{at } T = 290\text{ K},$$
+    so room-temperature microwave fields are deeply classical. At dilution-fridge
+    temperatures ($T \lesssim 20$ mK, $\bar{n} \lesssim 0.04$), quantum
+    squeezing below the SQL has been demonstrated with Josephson Parametric
+    Amplifiers (JPAs): $\sim 10$ dB of squeezing in one quadrature.
+
+    ### Comparison with optical squeezing
+
+    In optics ($\lambda = 1\,\mu$m), $h\nu/kT \approx 50$ at 300 K — the
+    field is near vacuum even without cooling. Optical parametric oscillators
+    (OPOs) and four-wave mixing achieve quantum squeezing from the outset.
+
+    | Domain | $kT/\hbar\omega$ at 300 K | Mechanism | Demonstrated squeezing |
+    |---|---|---|---|
+    | Optical ($\lambda = 1\,\mu$m) | $\approx 0.02$ | OPO, FWM | 15 dB (quantum) |
+    | Microwave (10 GHz, 300 K) | $\approx 600$ | JTWPA (parametric) | 3–5 dB (classical) |
+    | Microwave (10 GHz, 20 mK) | $\approx 0.04$ | JPA | $\sim 10$ dB (quantum) |
+
+    **Implication for receiver design.** At room temperature the LNA noise floor
+    is set by $kT$, not by quantum fluctuations. No passive or linear active
+    circuit can beat this floor — only physical cooling of the front end can
+    approach the quantum limit. This is why radio-telescope front ends use
+    cryogenic LNAs ($T_e \approx 5$–20 K) and superconducting-qubit readout
+    chains operate at dilution-fridge temperatures.
+    """)
     return
 
 
