@@ -13,3 +13,6 @@ dependencies = [
     "matplotlib>=3.10.8",
     "pyqt5>=5.15.11",
 ]
+
+[tool.marimo.display]
+custom_css = ["marimo/theme.css"]

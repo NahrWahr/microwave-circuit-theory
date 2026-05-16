@@ -1,0 +1,217 @@
+/* Solarized Light/Dark Theme for marimo
+   Ethan Schoonover's Solarized palette (https://ethanschoonover.com/solarized/)
+
+   Light base tones (background → text):
+     Base3  #fdf6e3  warm cream background
+     Base2  #eee8d5  background highlights / cards
+     Base1  #93a1a1  comments / secondary text
+     Base00 #657b83  body text
+     Base01 #586e75  optional emphasis text
+
+   Dark base tones:
+     Base03 #002b36  background
+     Base02 #073642  background highlights / cards
+     Base01 #586e75  comments / secondary text
+     Base0  #839496  body text
+     Base1  #93a1a1  optional emphasis text
+
+   Accent colors (same in both modes):
+     Yellow  #b58900   Orange  #cb4b16   Red     #dc322f
+     Magenta #d33682   Violet  #6c71c4   Blue    #268bd2
+     Cyan    #2aa198   Green   #859900
+*/
+
+/* Font and radius */
+:root {
+    --monospace-font: var(--marimo-monospace-font, "Fira Mono", monospace);
+    --text-font: var(--marimo-text-font, "PT Sans", sans-serif);
+    --heading-font: var(--marimo-heading-font, "Lora", serif);
+    --radius: 6px;
+}
+
+/* Surface and text */
+:root {
+    --background: light-dark(
+        #fdf6e3,   /* Sol Light Base3:  warm cream page background */
+        #002b36    /* Sol Dark  Base03: deep teal background */
+    );
+
+    --foreground: light-dark(
+        #5c4a2a,   /* warm dark brown body text */
+        #c4a870    /* warm honey tan body text */
+    );
+
+    --muted: light-dark(
+        #eee8d5,   /* Sol Light Base2:  slightly darker cream */
+        #073642    /* Sol Dark  Base02: slightly lighter teal */
+    );
+
+    --muted-foreground: light-dark(
+        #8a7050,   /* warm tan secondary text */
+        #9a8060    /* warm muted secondary text */
+    );
+
+    --card: light-dark(
+        #eee8d5,   /* Sol Light Base2:  card background (distinct from page) */
+        #073642    /* Sol Dark  Base02 */
+    );
+
+    --card-foreground: light-dark(
+        #4a3820,   /* deep warm brown card text */
+        #c8a870    /* warm tan card text */
+    );
+
+    --popover: light-dark(
+        #fdf6e3,   /* Sol Light Base3 */
+        #002b36    /* Sol Dark  Base03 */
+    );
+
+    --popover-foreground: light-dark(
+        #5c4a2a,   /* warm dark brown (mirrors --foreground) */
+        #c4a870    /* warm honey tan (mirrors --foreground) */
+    );
+}
+
+/* Borders and inputs */
+:root {
+    --border: light-dark(
+        #cfc9b5,   /* warm tan, between Base2 and Base1 */
+        #586e75    /* Sol Dark  Base01 */
+    );
+
+    --input: light-dark(
+        #eee8d5,   /* Sol Light Base2 */
+        #073642    /* Sol Dark  Base02 */
+    );
+}
+
+/* Interactive colors */
+:root {
+    /* Primary: Solarized Blue — main action color */
+    --primary: #268bd2;
+    --primary-foreground: light-dark(#fdf6e3, #002b36);
+
+    /* Secondary: warm neutral surface — secondary buttons, badges */
+    --secondary: light-dark(
+        #eee8d5,   /* Sol Light Base2: warm cream secondary */
+        #073642    /* Sol Dark  Base02 */
+    );
+    --secondary-foreground: light-dark(
+        #586e75,   /* Sol Light Base01 */
+        #93a1a1    /* Sol Dark  Base1 */
+    );
+
+    /* Accent: warm hover / interactive highlight */
+    --accent: light-dark(
+        #e4deca,   /* Sol Light: warm tan hover (darker than Base2) */
+        #586e75    /* Sol Dark  Base01 */
+    );
+    --accent-foreground: light-dark(
+        #073642,   /* Sol Light Base02: dark text on warm accent */
+        #eee8d5    /* Sol Dark  Base2 */
+    );
+
+    /* Focus ring */
+    --ring: #268bd2;   /* Sol Blue */
+}
+
+/* Semantic status colors */
+:root {
+    --destructive:          #dc322f;   /* Sol Red */
+    --destructive-foreground: #fdf6e3;
+
+    --error:                #dc322f;   /* Sol Red */
+    --error-foreground:     #fdf6e3;
+
+    --success:              #859900;   /* Sol Green */
+    --success-foreground:   #fdf6e3;
+
+    /* Action buttons: warm yellow-tinted surface */
+    --action: light-dark(
+        #e8e0ca,             /* Sol Light: warm gold-cream */
+        #073642              /* Sol Dark  Base02 */
+    );
+    --action-hover: light-dark(
+        #dbd2b8,             /* Sol Light: slightly darker warm gold */
+        #586e75              /* Sol Dark  Base01 */
+    );
+    --action-foreground: light-dark(
+        #586e75,             /* Sol Light Base01: warm dark text */
+        #93a1a1              /* Sol Dark  Base1 */
+    );
+
+    /* Links */
+    --link: light-dark(
+        #268bd2,             /* Sol Blue */
+        #2aa198              /* Sol Cyan (more visible on dark) */
+    );
+    --link-visited: light-dark(
+        #6c71c4,             /* Sol Violet */
+        #d33682              /* Sol Magenta */
+    );
+
+    --stale: light-dark(
+        hsl(44 40% 60% / 20%),   /* warm beige stale tint */
+        hsl(192 40% 30% / 25%)   /* cool teal stale tint */
+    );
+}
+
+/* Shadows — warm-tinted in light mode */
+:root {
+    --base-shadow: light-dark(
+        hsl(44 25% 40% / 10%),   /* warm beige shadow */
+        hsl(0 0% 0% / 50%)
+    );
+    --base-shadow-darker: light-dark(
+        hsl(44 25% 30% / 18%),   /* deeper warm shadow */
+        hsl(0 0% 0% / 70%)
+    );
+    --base-shadow-opacity: 5%;
+}
+
+/* Heading palette — warm gold / amber / sienna */
+:root {
+    --heading-title-from: light-dark(#b58900, #f0c040);   /* Sol Yellow → bright gold */
+    --heading-title-to:   light-dark(#c8681a, #e8960a);   /* warm sienna → deep amber */
+    --heading-2:          light-dark(#9b6914, #d4a030);   /* amber brown → warm gold */
+    --heading-3:          light-dark(#7a5520, #c09050);   /* medium brown → warm tan */
+    --heading-minor:      light-dark(#6b4e22, #a87840);   /* deep brown → muted gold */
+    --heading-rule:       light-dark(
+        hsl(44 70% 55% / 35%),
+        hsl(44 60% 45% / 25%)
+    );
+}
+
+/* ── Titles and headings ──────────────────────────────────────── */
+
+/* H1: gold→sienna gradient, generous tracking */
+h1 {
+    background: linear-gradient(
+        115deg,
+        var(--heading-title-from) 0%,
+        var(--heading-title-to)  100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 0.03em;
+}
+
+/* H2: warm amber, gold rule below */
+h2 {
+    color: var(--heading-2);
+    border-bottom: 1.5px solid var(--heading-rule);
+    padding-bottom: 0.2em;
+    letter-spacing: 0.015em;
+}
+
+/* H3: warm brown with slight tracking */
+h3 {
+    color: var(--heading-3);
+    letter-spacing: 0.01em;
+}
+
+/* H4 H5 H6: progressively lighter warm brown */
+h4, h5, h6 {
+    color: var(--heading-minor);
+}

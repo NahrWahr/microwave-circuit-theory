@@ -10,8 +10,8 @@
 
 import marimo
 
-__generated_with = "0.23.0"
-app = marimo.App(width="full")
+__generated_with = "0.23.2"
+app = marimo.App(width="full", css_file="")
 
 
 @app.cell
@@ -20,7 +20,8 @@ def _():
     import numpy as np
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots
-    return go, make_subplots, mo, np
+
+    return go, mo, np
 
 
 @app.cell
@@ -483,13 +484,22 @@ def _(np):
             psd += Sn * np.exp(-0.5 * ((freqs - f_center) / sigma) ** 2)
         return psd
 
-    return (abcd_series_Z, abcd_shunt_Y, abcd_to_S, bode_fano_gamma_max,
-            chebyshev_bandpass_elements, chebyshev_prototype, cyclo_time_avg_psd,
-            friis_cascade, ktc_noise_voltage, l_network, l_network_S,
-            mixer_NF_DSB, mixer_NF_SSB, noise_folding_penalty_dB, pi_network,
-            pi_network_S, qw_transformer, qw_transformer_S11,
-            sampler_settling_requirement, single_stub_tuner, t_network,
-            t_network_S)
+    return (
+        bode_fano_gamma_max,
+        chebyshev_prototype,
+        friis_cascade,
+        l_network,
+        l_network_S,
+        mixer_NF_DSB,
+        mixer_NF_SSB,
+        noise_folding_penalty_dB,
+        pi_network,
+        pi_network_S,
+        qw_transformer,
+        single_stub_tuner,
+        t_network,
+        t_network_S,
+    )
 
 
 @app.cell
@@ -512,15 +522,15 @@ def _(mo):
 
     Consider a source characterized by a Thevenin equivalent voltage $V_S$ and internal impedance $Z_S = R_S + jX_S$. It drives a load impedance $Z_L = R_L + jX_L$.
     The current flowing through the circuit is:
-    
+
     $$I = \frac{V_S}{Z_S + Z_L} = \frac{V_S}{(R_S + R_L) + j(X_S + X_L)}$$
 
     The time-average power delivered to the load is given by $P_L = \frac{1}{2} |I|^2 R_L$:
-    
+
     $$P_L = \frac{1}{2} \frac{|V_S|^2 R_L}{(R_S + R_L)^2 + (X_S + X_L)^2}$$
 
     To maximize $P_L$ with respect to $X_L$, we set $X_L = -X_S$. Substituting this condition yields:
-    
+
     $$P_L = \frac{1}{2} \frac{|V_S|^2 R_L}{(R_S + R_L)^2}$$
 
     Maximizing with respect to $R_L$ by setting $\partial P_L / \partial R_L = 0$ gives $R_L = R_S$. Therefore, maximum power transfer occurs when $Z_L = Z_S^*$. Under this conjugate match condition, the **available power** is:
@@ -665,7 +675,7 @@ def _(mo):
 
 
 @app.cell
-def _(np, go, mo):
+def _(go, mo, np):
     _theta_bl = np.linspace(0, 2 * np.pi, 300)
     _r_vals_bl = [0, 0.2, 0.5, 1.0, 2.0, 5.0]
     _r_colors_bl = ["#636EFA", "#EF553B", "#00CC96", "#AB63FA", "#FFA15A", "#FF6692"]
@@ -769,7 +779,7 @@ def _(mo):
 
 
 @app.cell
-def _(smith_overlay_dd, smith_r_select, smith_x_select, np, go, mo):
+def _(go, mo, np, smith_overlay_dd, smith_r_select, smith_x_select):
     _th2 = np.linspace(0, 2 * np.pi, 500)
     _mode = smith_overlay_dd.value
     _r_vals_sc = [float(v) for v in smith_r_select.value]
@@ -863,11 +873,11 @@ def _(mo):
     get_synth_chain, set_synth_chain = mo.state([])
     # Load impedance state
     get_synth_load, set_synth_load = mo.state((0.5, 1.0))
-    return get_synth_chain, set_synth_chain, get_synth_load, set_synth_load
+    return get_synth_chain, get_synth_load, set_synth_chain, set_synth_load
 
 
 @app.cell
-def _(mo, set_synth_chain, set_synth_load, get_synth_chain):
+def _(mo, set_synth_chain, set_synth_load):
     synth_step_val = mo.ui.slider(0.1, 5.0, value=0.5, step=0.1, label="Step size (normalized)")
     synth_load_r = mo.ui.slider(0.1, 5.0, value=0.5, step=0.1, label="Load r")
     synth_load_x = mo.ui.slider(-4.0, 4.0, value=1.0, step=0.1, label="Load x")
@@ -894,17 +904,38 @@ def _(mo, set_synth_chain, set_synth_load, get_synth_chain):
     btn_undo = mo.ui.button(label="Undo last", on_click=_undo)
     btn_reset = mo.ui.button(label="Reset all", on_click=_reset)
     btn_set_load = mo.ui.button(label="Set load", on_click=_update_load)
-    return (synth_step_val, synth_load_r, synth_load_x,
-            btn_series_L, btn_series_C, btn_shunt_C, btn_shunt_L,
-            btn_undo, btn_reset, btn_set_load)
+    return (
+        btn_reset,
+        btn_series_C,
+        btn_series_L,
+        btn_set_load,
+        btn_shunt_C,
+        btn_shunt_L,
+        btn_undo,
+        synth_load_r,
+        synth_load_x,
+        synth_step_val,
+    )
 
 
 @app.cell
-def _(get_synth_chain, get_synth_load,
-      synth_step_val, synth_load_r, synth_load_x,
-      btn_series_L, btn_series_C, btn_shunt_C, btn_shunt_L,
-      btn_undo, btn_reset, btn_set_load,
-      np, go, mo):
+def _(
+    btn_reset,
+    btn_series_C,
+    btn_series_L,
+    btn_set_load,
+    btn_shunt_C,
+    btn_shunt_L,
+    btn_undo,
+    get_synth_chain,
+    get_synth_load,
+    go,
+    mo,
+    np,
+    synth_load_r,
+    synth_load_x,
+    synth_step_val,
+):
     _chain = get_synth_chain()
     _load_r, _load_x = get_synth_load()
     _th = np.linspace(0, 2 * np.pi, 500)
@@ -1053,22 +1084,22 @@ def _(get_synth_chain, get_synth_load,
         _chain_rows = "| -- | No elements | -- |\n"
 
     _status_md = mo.md(f"""
-**Network State**
+    **Network State**
 
-| Property | Value |
-|---|---|
-| z (normalized) | {_z_cur.real:.4f} {_z_cur.imag:+.4f}j |
-| y (normalized) | {_y_cur.real:.4f} {_y_cur.imag:+.4f}j |
-| Gamma | {_gamma_cur.real:.4f} {_gamma_cur.imag:+.4f}j |
-| |Gamma| | {_gamma_mag:.4f} |
-| Mismatch loss | {_ml_dB:.2f} dB |
+    | Property | Value |
+    |---|---|
+    | z (normalized) | {_z_cur.real:.4f} {_z_cur.imag:+.4f}j |
+    | y (normalized) | {_y_cur.real:.4f} {_y_cur.imag:+.4f}j |
+    | Gamma | {_gamma_cur.real:.4f} {_gamma_cur.imag:+.4f}j |
+    | |Gamma| | {_gamma_mag:.4f} |
+    | Mismatch loss | {_ml_dB:.2f} dB |
 
-**Element Chain**
+    **Element Chain**
 
-| Step | Element | Value |
-|---|---|---|
-{_chain_rows}
-""")
+    | Step | Element | Value |
+    |---|---|---|
+    {_chain_rows}
+    """)
 
     _controls = mo.vstack([
         mo.md("**Add element:**"),
@@ -1101,26 +1132,26 @@ def _(mo):
     **Derivation of Q and element values:**
     Consider the load $R_H$ in parallel with a shunt reactance $X_p$. The admittance is $Y_p = 1/R_H + 1/(jX_p)$.
     The equivalent series impedance is $Z_s = 1/Y_p$:
-    
+
     $$Z_s = \frac{R_H (jX_p)}{R_H + jX_p} = \frac{R_H X_p^2 + j R_H^2 X_p}{R_H^2 + X_p^2}$$
-    
+
     We require the real part to equal $R_{Lo}$:
-    
+
     $$R_{Lo} = \frac{R_H X_p^2}{R_H^2 + X_p^2} \implies R_{Lo} R_H^2 + R_{Lo} X_p^2 = R_H X_p^2 \implies X_p^2 (R_H - R_{Lo}) = R_{Lo} R_H^2$$
-    
+
     $$X_p = \pm R_H \sqrt{\frac{R_{Lo}}{R_H - R_{Lo}}} = \pm \frac{R_H}{Q}$$
-    
+
     where we define the network quality factor $Q$:
-    
+
     $$Q = \sqrt{\frac{R_H}{R_{Lo}} - 1}$$
-    
+
     The imaginary part of the parallel combination is $\frac{R_H^2 X_p}{R_H^2 + X_p^2} = \frac{R_H Q}{1 + Q^2} = R_{Lo} Q$.
     To cancel this reactance and achieve a purely real impedance $R_{Lo}$, the series arm must provide the opposite reactance $X_s$:
-    
+
     $$X_s = \mp R_{Lo} Q$$
-    
+
     **Low-pass topology** (shunt $C$ at high-impedance port, series $L$ in series arm):
-    
+
     $$X_p = -1/(\omega_0 C_p) \implies C_p = \frac{Q}{\omega_0 R_H}$$
     $$X_s = \omega_0 L_s \implies L_s = \frac{Q R_{Lo}}{\omega_0}$$
 
@@ -1140,15 +1171,15 @@ def _(mo):
     Higher $Q$ leads to a narrower bandwidth (useful for harmonic suppression); lower $Q$ gives wider bandwidth (down to $Q_{\min}$, which recovers the L-network).
 
     A π-network can be modeled as two cascaded L-networks with a virtual intermediate resistance $R_v < R_{Lo}$.
-    
+
     The condition is:
-    
+
     $$R_v = \frac{R_H}{1 + Q_1^2} = \frac{R_{Lo}}{1 + Q_2^2}$$
-    
+
     where $Q_1 = \sqrt{R_H/R_v - 1}$ and $Q_2 = \sqrt{R_{Lo}/R_v - 1}$. The overall network $Q$ is approximately $Q \approx Q_1 + Q_2$, but traditionally we specify $Q_1$ (the larger of the two) as the design $Q$, meaning $R_v = R_H / (1 + Q^2)$.
 
     For the low-pass version:
-    
+
     $$C_1 = \frac{Q_1}{\omega_0 R_S}, \quad
       L   = \frac{(Q_1 + Q_2) R_v}{\omega_0}, \quad
       C_2 = \frac{Q_2}{\omega_0 R_L}$$
@@ -1180,7 +1211,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, np, go, make_subplots):
+def _(mo):
 
     topo_m = mo.ui.dropdown(
         options=["L (lowpass)", "L (highpass)", "pi", "T"],
@@ -1192,16 +1223,26 @@ def _(mo, np, go, make_subplots):
     Q_m  = mo.ui.slider(1.1, 20.0, value=3.0, step=0.1, label="Q (π/T only)")
 
     mo.md("### §7. Interactive I — L/π/T Network Explorer")
-    return (topo_m, Rs_m, Rl_m, f0_m, Q_m,
-            l_network, pi_network, t_network,
-            l_network_S, pi_network_S, t_network_S)
+    return Q_m, Rl_m, Rs_m, f0_m, topo_m
 
 
 @app.cell
-def _(topo_m, Rs_m, Rl_m, f0_m, Q_m,
-      l_network, pi_network, t_network,
-      l_network_S, pi_network_S, t_network_S,
-      mo, np, go, make_subplots):
+def _(
+    Q_m,
+    Rl_m,
+    Rs_m,
+    f0_m,
+    go,
+    l_network,
+    l_network_S,
+    mo,
+    np,
+    pi_network,
+    pi_network_S,
+    t_network,
+    t_network_S,
+    topo_m,
+):
     _Rs = float(Rs_m.value)
     _Rl = float(Rl_m.value)
     _f0 = float(f0_m.value)
@@ -1260,23 +1301,112 @@ def _(mo):
     mo.md(r"""
     ## Part III — Broadband Matching
 
-    ### §8. Bode-Fano Criterion
+    ### §8. Bode-Fano Criterion: Bandwidth-Match Tradeoff
 
-    For a **parallel-RC load** ($R_L \| C_L$), the reflection coefficient $\Gamma(\omega)$ of any lossless matching network must satisfy the integral constraint:
+    #### 8.1 Passivity, causality, and bounded real functions
 
-    $$\int_0^\infty \ln\frac{1}{|\Gamma(\omega)|}\,d\omega \;\leq\; \frac{\pi}{R_L C_L}$$
+    $$\Gamma_L(s) = \frac{Z_L(s) - Z_0}{Z_L(s) + Z_0} \qquad \text{[Definition]}$$
 
-    **Derivation:** This originates from Cauchy's integral theorem applied to the complex function $\ln(1/\Gamma(s))$. Because the load limits the number of right-half-plane zeros of $\Gamma$, the contour integral along the $j\omega$-axis is bounded by the pole contributed by the RC time constant.
+    A passive load cannot supply net average energy:
+    $$\mathrm{Re}[Z_L(j\omega)] \geq 0 \quad \text{for all } \omega \geq 0. \qquad \text{[Axiom: Passivity]}$$
 
-    For an ideal equal-ripple design that holds $|\Gamma| = |\Gamma_{\max}|$ over bandwidth $\Delta\omega$ and $|\Gamma| = 1$ outside:
+    A causal load has no response before excitation, which requires $Z_L(s)$ to be analytic in $\mathrm{Re}(s) > 0$.
 
-    $$\int_{\Delta\omega} \ln\frac{1}{|\Gamma_{\max}|}\,d\omega \leq \frac{\pi}{R_L C_L}$$
-    $$\Delta\omega \cdot \ln\frac{1}{|\Gamma_{\max}|} \;\leq\; \frac{\pi}{R_L C_L}$$
+    Together these make $Z_L$ a **positive real (PR)** function.
 
-    **Key insight:** The product of bandwidth and the depth of the match (in Nepers) is strictly bounded by the load's time constant $R_L C_L$. To double the bandwidth, one must accept a shallower match (a $|\Gamma_{\max}|$ closer to 1). A higher-order network (larger $N$) fills this rectangular integration bound more perfectly, but cannot exceed it.
+    [**Theorem (PR $\to$ BR):**] If $Z_L(s)$ is PR, then $\Gamma_L(s)$ is **bounded real (BR)**: analytic in $\mathrm{Re}(s)>0$ with $|\Gamma_L(j\omega)| \leq 1$ for all $\omega$.
 
-    Dual result for a **series-RL load**:
-    $$\int_0^\infty \frac{\ln(1/|\Gamma(\omega)|)}{\omega^2}\,d\omega \;\leq\; \frac{\pi L}{R_L}$$
+    *Proof.* On $s = j\omega$:
+    $$|\Gamma_L(j\omega)|^2 = 1 - \frac{4Z_0\,\mathrm{Re}[Z_L(j\omega)]}{|Z_L(j\omega)+Z_0|^2} \leq 1$$
+    since $\mathrm{Re}[Z_L] \geq 0$. Analyticity in the RHP follows from that of $Z_L$. $\square$
+
+    For a lossless matching network, $|\Gamma_{\rm in}(j\omega)|^2 + |T(j\omega)|^2 = 1$ (energy conservation), so the input reflection $\Gamma_{\rm in}$ is also BR.
+
+    #### 8.2 Parallel-RC load: poles, zeros, and high-frequency limit
+
+    $$Z_L(s) = R_L \,\|\, \frac{1}{sC_L} = \frac{R_L}{1 + s R_L C_L} \qquad \text{[Definition]}$$
+
+    Multiplying numerator and denominator of $\Gamma_L = (Z_L - Z_0)/(Z_L + Z_0)$ by $(1 + sR_LC_L)$:
+
+    $$\Gamma_L(s) = \frac{(R_L - Z_0) - s\,Z_0 R_L C_L}{(R_L + Z_0) + s\,Z_0 R_L C_L}$$
+
+    Setting numerator and denominator to zero identifies all singularities:
+
+    $$s_z = \frac{R_L - Z_0}{Z_0 R_L C_L} \;\begin{cases} > 0\;\text{(RHP)} & R_L > Z_0 \\ < 0\;\text{(LHP)} & R_L < Z_0 \end{cases}, \qquad s_p = -\frac{R_L + Z_0}{Z_0 R_L C_L} < 0\;\text{(LHP always)}$$
+
+    For the typical matching problem $R_L > Z_0$, the zero $s_z$ lies in the open RHP. As $\omega \to \infty$ the capacitor becomes a short circuit:
+    $$\Gamma_L(j\omega) \xrightarrow{\;\omega\to\infty\;} \frac{-j\omega Z_0 R_L C_L}{+j\omega Z_0 R_L C_L} = -1 \qquad \text{[capacitor short-circuits load at high frequency]}$$
+
+    #### 8.3 The fundamental integral: direct computation for the unmatched load
+
+    On the imaginary axis with $\tau \equiv Z_0 R_L C_L$:
+    $$|\Gamma_L(j\omega)|^2 = \frac{(R_L - Z_0)^2 + \omega^2\tau^2}{(R_L + Z_0)^2 + \omega^2\tau^2}$$
+
+    To evaluate $\int_0^\infty \ln(1/|\Gamma_L|)\,d\omega$, we first establish a key lemma.
+
+    [**Lemma (Frullani log-integral):**] For real $b > a \geq 0$:
+    $$\int_0^\infty \ln\frac{b^2 + \omega^2}{a^2 + \omega^2}\,d\omega = \pi(b - a) \qquad \text{[Theorem]}$$
+
+    *Proof.* Let $I(b) = \int_0^\infty \ln\frac{b^2+\omega^2}{a^2+\omega^2}\,d\omega$. Differentiate under the integral sign:
+    $$I'(b) = \int_0^\infty \frac{2b}{b^2 + \omega^2}\,d\omega = 2b\cdot\frac{\pi}{2b} = \pi.$$
+    Since $I(a) = 0$, integrating from $a$ to $b$ gives $I(b) = \pi(b - a)$. $\square$
+
+    Now apply this with $u = \omega\tau$, $a = R_L - Z_0$, $b = R_L + Z_0$ (both positive for $R_L > Z_0$):
+
+    $$\int_0^\infty \ln\frac{1}{|\Gamma_L(j\omega)|}\,d\omega
+    = \frac{1}{2}\int_0^\infty \ln\frac{(R_L+Z_0)^2 + \omega^2\tau^2}{(R_L-Z_0)^2 + \omega^2\tau^2}\,d\omega
+    = \frac{1}{2\tau}\int_0^\infty \ln\frac{(R_L+Z_0)^2 + u^2}{(R_L-Z_0)^2 + u^2}\,du$$
+
+    Applying the lemma with $b = R_L + Z_0$, $a = R_L - Z_0$:
+    $$= \frac{\pi\bigl[(R_L + Z_0) - (R_L - Z_0)\bigr]}{2\tau} = \frac{\pi \cdot 2Z_0}{2\,Z_0 R_L C_L}$$
+
+    $$\boxed{\int_0^\infty \ln\frac{1}{|\Gamma_L(j\omega)|}\,d\omega = \frac{\pi}{R_L C_L}} \qquad \text{[unmatched parallel-RC load]}$$
+
+    This quantity measures the total matching capacity of the load. It is large when $R_LC_L$ is small (high pole frequency, easy to match broadband), and small when the time constant is large.
+
+    #### 8.4 The Poisson-Jensen principle: how a lossless network affects the integral
+
+    [**Theorem (Poisson-Jensen for the RHP):**] Let $\Gamma(s)$ be BR with zeros at $\{z_k\}$ in the open RHP. Then:
+    $$\int_{-\infty}^{\infty} \ln\frac{1}{|\Gamma(j\omega)|}\,d\omega = \pi\lim_{\sigma\to\infty}\sigma\,\ln\frac{1}{|\Gamma(\sigma)|} - 2\pi\sum_k \mathrm{Re}(z_k) \qquad \text{[Theorem]}$$
+
+    *Origin.* Write $\Gamma(s) = F(s)\prod_k B_k(s)$ where $B_k(s) = (s - z_k)/(s + \bar{z}_k)$ are Blaschke factors (with $|B_k(j\omega)| = 1$ on the imaginary axis). Then $F$ is zero-free in the RHP, so $\ln(1/|F|)$ is harmonic there. Applying the Poisson integral formula at $s = \sigma_0$ and letting $\sigma_0\to\infty$ (where the Poisson kernel $\sigma_0/[\pi(\sigma_0^2+\omega^2)]$ flattens to $1/(\pi\sigma_0)$) gives the identity, with the Blaschke factors contributing the $-2\pi\sum_k\mathrm{Re}(z_k)$ correction. $\square$
+
+    **Applied to the lossless MN + parallel-RC system.** For any finite-order lossless matching network terminated in the parallel-RC load, the high-frequency behavior of $|\Gamma_{\rm in}(\sigma)|$ tracks $|\Gamma_L(\sigma)|$ as $\sigma\to\infty$ (all reactive elements open or short, leaving the capacitor as the last element). Therefore:
+    $$\lim_{\sigma\to\infty}\sigma\,\ln\frac{1}{|\Gamma_{\rm in}(\sigma)|} = \lim_{\sigma\to\infty}\sigma\,\ln\frac{1}{|\Gamma_L(\sigma)|} = \frac{2}{Z_0 C_L}$$
+    which is fixed by the load capacitor and the reference impedance, not by the network.
+
+    The RHP zeros of $\Gamma_{\rm in}$ split into: (i) the load's natural zero $s_z = (R_L - Z_0)/(Z_0 R_L C_L)$, and (ii) additional zeros $\{z_k^{\rm net}\}$ placed by the matching network, each with $\mathrm{Re}(z_k^{\rm net}) > 0$. Substituting into the Poisson-Jensen identity:
+    $$\int_0^\infty \ln\frac{1}{|\Gamma_{\rm in}(j\omega)|}\,d\omega = \frac{\pi}{Z_0 C_L} - \pi s_z - \pi\sum_k\mathrm{Re}(z_k^{\rm net}) = \frac{\pi}{R_L C_L} - \pi\sum_k\mathrm{Re}(z_k^{\rm net})$$
+
+    Since every additional network zero removes a positive term:
+
+    $$\boxed{\int_0^\infty \ln\frac{1}{|\Gamma(\omega)|}\,d\omega \leq \frac{\pi}{R_L C_L}} \qquad \text{[Theorem: Bode-Fano, parallel-RC]}$$
+
+    Equality is approached only as the number of network zeros $\to 0$, which corresponds to the infinite-order Chebyshev limit. Every finite-order design achieves strictly less.
+
+    #### 8.5 Equal-ripple corollary: the bandwidth-match tradeoff
+
+    For an idealized equiripple response with $|\Gamma(\omega)| = |\Gamma_{\max}|$ over bandwidth $\Delta\omega$ and $|\Gamma| = 1$ outside:
+    $$\int_0^\infty \ln\frac{1}{|\Gamma(\omega)|}\,d\omega = \Delta\omega\cdot\ln\frac{1}{|\Gamma_{\max}|}$$
+
+    Substituting into the Bode-Fano bound:
+
+    $$\boxed{\Delta\omega\cdot\ln\frac{1}{|\Gamma_{\max}|} \leq \frac{\pi}{R_L C_L}} \qquad \text{[Corollary]}$$
+
+    [**Corollary (fundamental tradeoffs):**]
+    - Fixed $\Delta\omega$: minimum achievable $|\Gamma_{\max}| \geq \exp\!\bigl(-\pi/(R_L C_L\,\Delta\omega)\bigr)$.
+    - Fixed $|\Gamma_{\max}|$: maximum bandwidth $\Delta\omega \leq \pi/\bigl(R_L C_L\ln(1/|\Gamma_{\max}|)\bigr)$.
+    - No network topology or order can exceed this limit; only the load time constant $R_L C_L$ appears on the right.
+
+    An $N$th-order Chebyshev network distributes the available $\pi/(R_L C_L)$ area over $N$ equiripple lobes, approaching the bound as $N\to\infty$ while achieving $\Delta\omega \approx \sqrt{N}\,\Delta\omega_{\rm single}$ for finite $N$.
+
+    #### 8.6 Dual: series-RL load
+
+    For a **series-RL load** $Z_L(s) = R_L + sL$, the inductor dominates at high frequency so $\Gamma_L \to +1$ (open circuit) rather than $-1$. The Poisson-Jensen argument applied via a $1/s^2$ integrating factor yields the dual bound:
+
+    $$\boxed{\int_0^\infty \frac{\ln\bigl(1/|\Gamma(\omega)|\bigr)}{\omega^2}\,d\omega \leq \frac{\pi L}{2R_L}} \qquad \text{[Theorem: Bode-Fano, series-RL]}$$
+
+    The $1/\omega^2$ weighting concentrates the constraint at low frequencies, consistent with the fact that the RL load is hardest to match at DC (inductor appears as a short, leaving only $R_L$) and naturally approaches a perfect mismatch at high frequency. The bound is controlled by the inductive time constant $L/R_L$.
     """)
     return
 
@@ -1328,7 +1458,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, np, go):
+def _(mo):
 
     N_bw      = mo.ui.slider(2, 6, value=3, step=1, label="N (order)")
     ripple_bw = mo.ui.slider(0.01, 3.0, value=0.1, step=0.01, label="Ripple (dB)")
@@ -1338,13 +1468,23 @@ def _(mo, np, go):
     bw_frac   = mo.ui.slider(0.01, 0.5, value=0.1, step=0.01, label="BW / f₀")
 
     mo.md("### §11. Interactive II — Broadband Chebyshev Explorer")
-    return (N_bw, ripple_bw, Rs_bw, Rl_bw, f0_bw, bw_frac,
-            chebyshev_prototype, bode_fano_gamma_max)
+    return N_bw, Rl_bw, Rs_bw, bw_frac, f0_bw, ripple_bw
 
 
 @app.cell
-def _(N_bw, ripple_bw, Rs_bw, Rl_bw, f0_bw, bw_frac,
-      chebyshev_prototype, bode_fano_gamma_max, mo, np, go):
+def _(
+    N_bw,
+    Rl_bw,
+    Rs_bw,
+    bode_fano_gamma_max,
+    bw_frac,
+    chebyshev_prototype,
+    f0_bw,
+    go,
+    mo,
+    np,
+    ripple_bw,
+):
     _N       = int(N_bw.value)
     _rip     = float(ripple_bw.value)
     _Rs      = float(Rs_bw.value)
@@ -1410,12 +1550,12 @@ def _(mo):
 
     A transmission line section of length $\ell = \lambda/4$ with characteristic impedance $Z_1$ transforms a real load $R_L$ into an input impedance $Z_{\text{in}}$ at $f_0$.
     By substituting $\theta = \beta\ell = \pi/2$ into the standard lossless transmission line impedance equation:
-    
+
     $$Z_{\text{in}} = Z_1 \frac{R_L + j Z_1 \tan(\theta)}{Z_1 + j R_L \tan(\theta)}$$
-    
+
     Taking the limit as $\theta \to \pi/2$, we find $Z_{\text{in}} = Z_1^2 / R_L$.
     To match to source $R_S$, we set $Z_{\text{in}} = R_S$, giving the required line impedance:
-    
+
     $$Z_1 = \sqrt{R_S R_L}$$
 
     Bandwidth to maximum reflection $|\Gamma_{\max}|$ (Pozar eq. 5.47):
@@ -1444,29 +1584,28 @@ def _(mo):
 
     **Derivation of position $d$:**
     The load admittance is $Y_L = G_L + jB_L$. The admittance seen at distance $d$ (electrical length $\theta = \beta d$) is:
-    
+
     $$Y_{\text{in}} = Y_0 \frac{Y_L + j Y_0 t}{Y_0 + j Y_L t}$$
-    
+
     where $t = \tan(\beta d)$. Equating $\text{Re}(Y_{\text{in}})$ to $Y_0$ and solving the resulting quadratic equation for $t$ yields:
 
     $$t = \frac{B_L \pm \sqrt{G_L(Y_0 - G_L) + B_L^2}}{G_L - Y_0}$$
 
     From $t$, we find $d = \frac{1}{2\pi}\arctan(t)$ wavelengths.
-    
+
     **Derivation of stub length $\ell$:**
     Once $d$ is known, evaluate $B_{\text{in}} = \text{Im}(Y_{\text{in}})$. The stub must provide $B_{\text{stub}} = -B_{\text{in}}$.
     For a **short-circuit** stub, the input admittance is $Y_{\text{sc}} = -j Y_0 \cot(\beta\ell)$.
-    
+
     $$-Y_0 \cot(\beta\ell) = -B_{\text{in}} \implies \ell = \frac{1}{2\pi}\arctan\left(\frac{Y_0}{B_{\text{in}}}\right) \text{ wavelengths}$$
-    
+
     For an **open-circuit** stub, the input admittance is $Y_{\text{oc}} = j Y_0 \tan(\beta\ell)$.
-    
+
     $$Y_0 \tan(\beta\ell) = -B_{\text{in}} \implies \ell = \frac{1}{2\pi}\arctan\left(\frac{-B_{\text{in}}}{Y_0}\right) \text{ wavelengths}$$
 
     If $G_L > Y_0$, the discriminant can be negative → no real solution at this frequency
     (the load is in the "forbidden conductance region" for single-stub matching).
     """)
-    
     return
 
 
@@ -1494,16 +1633,16 @@ def _(mo):
 
     A coupled-inductor pair with mutual inductance $M = k\sqrt{L_1 L_2}$ and turns ratio $n = \sqrt{L_1/L_2}$ transforms impedances.
     The impedance matrix of the two-port is:
-    
+
     $$\begin{bmatrix}V_1\\V_2\end{bmatrix} = \begin{bmatrix}j\omega L_1 & j\omega M \\ j\omega M & j\omega L_2\end{bmatrix} \begin{bmatrix}I_1\\I_2\end{bmatrix}$$
-    
+
     Connecting a load $Z_L$ to port 2 ($V_2 = -I_2 Z_L$) gives $I_2 = \frac{-j\omega M}{Z_L + j\omega L_2} I_1$.
     The input impedance is $Z_{\text{in}} = V_1/I_1$:
-    
+
     $$Z_{\text{in}} = j\omega L_1 + \frac{(\omega M)^2}{Z_L + j\omega L_2} = j\omega L_1(1 - k^2) + \frac{k^2 L_1/L_2}{1/(j\omega L_2) + 1/Z_L}$$
-    
+
     In the limit of strong coupling ($k \to 1$) and large inductance ($\omega L_2 \gg |Z_L|$):
-    
+
     $$Z_{\text{in}} \approx n^2 Z_L$$
 
     **Q penalty.** Winding resistance $r_1 = \omega L_1/Q_1$ adds series noise.
@@ -1522,7 +1661,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, np, go):
+def _(mo):
 
     GammaL_mag_s = mo.ui.slider(0.0, 0.99, value=0.5, step=0.01, label="|Γ_L|")
     GammaL_ang_s = mo.ui.slider(-180, 180, value=45, step=5, label="∠Γ_L (°)")
@@ -1534,13 +1673,22 @@ def _(mo, np, go):
     )
 
     mo.md("### §16. Interactive III — Distributed Matching Explorer")
-    return (GammaL_mag_s, GammaL_ang_s, Z0_s, f0_s, method_s,
-            single_stub_tuner, qw_transformer)
+    return GammaL_ang_s, GammaL_mag_s, Z0_s, f0_s, method_s
 
 
 @app.cell
-def _(GammaL_mag_s, GammaL_ang_s, Z0_s, f0_s, method_s,
-      single_stub_tuner, qw_transformer, mo, np, go):
+def _(
+    GammaL_ang_s,
+    GammaL_mag_s,
+    Z0_s,
+    f0_s,
+    go,
+    method_s,
+    mo,
+    np,
+    qw_transformer,
+    single_stub_tuner,
+):
     _Gamma_L_s = GammaL_mag_s.value * np.exp(1j * np.radians(GammaL_ang_s.value))
     _Z0 = float(Z0_s.value)
     _f0 = float(f0_s.value)
@@ -1673,7 +1821,6 @@ def _(mo):
     For $G_{A,\text{LNA}} = 15\,\text{dB}$ (32×) and $F_{\text{mixer}} = 10$ (10 dB SSB):
     $(10 - 1)/32 = 0.28$ linear → negligible vs. $F_{\text{LNA}} - 1 \approx 0.78$ for 3.5 dB NF.
     """)
-    
     return
 
 
@@ -1683,7 +1830,7 @@ def _(mo):
     ### §20. Switched-Capacitor (Sampler) Noise
 
     A track-and-hold circuit samples an input voltage with switch resistance $R_{\text{sw}}$ and hold capacitor $C_h$. During track phase, it forms an RC low-pass filter with noise bandwidth $BW_n = 1/(4R_{\text{sw}} C_h)$.
-    
+
     The total integrated noise charge on the capacitor is the integral of the filtered Johnson noise PSD:
 
     $$\langle v_n^2 \rangle = \int_0^\infty \frac{4kT R_{\text{sw}}}{1 + (\omega R_{\text{sw}} C_h)^2}\,\frac{d\omega}{2\pi} = \frac{kT}{C_h}$$
@@ -1709,7 +1856,7 @@ def _(mo):
 
 
 @app.cell
-def _(mo, np, go):
+def _(mo):
 
     Lc_mx      = mo.ui.slider(3.0, 15.0, value=7.0, step=0.5, label="Conv. Loss (dB)")
     IRR_mx     = mo.ui.slider(0.0, 60.0, value=20.0, step=1.0, label="Image Reject. (dB)")
@@ -1719,14 +1866,24 @@ def _(mo, np, go):
     N_aliases  = mo.ui.slider(1, 16, value=1, step=1, label="Alias folds N")
 
     mo.md("### §21. Interactive IV — Mixer Noise Explorer")
-    return (Lc_mx, IRR_mx, fLO_mx, GA_LNA_mx, NF_LNA_mx, N_aliases,
-            mixer_NF_DSB, mixer_NF_SSB, friis_cascade, noise_folding_penalty_dB)
+    return GA_LNA_mx, IRR_mx, Lc_mx, NF_LNA_mx, N_aliases, fLO_mx
 
 
 @app.cell
-def _(Lc_mx, IRR_mx, fLO_mx, GA_LNA_mx, NF_LNA_mx, N_aliases,
-      mixer_NF_DSB, mixer_NF_SSB, friis_cascade, noise_folding_penalty_dB,
-      mo, np, go):
+def _(
+    GA_LNA_mx,
+    IRR_mx,
+    Lc_mx,
+    NF_LNA_mx,
+    N_aliases,
+    fLO_mx,
+    friis_cascade,
+    go,
+    mixer_NF_DSB,
+    mixer_NF_SSB,
+    mo,
+    noise_folding_penalty_dB,
+):
     _Lc    = float(Lc_mx.value)
     _IRR   = float(IRR_mx.value)
     _GA    = float(GA_LNA_mx.value)

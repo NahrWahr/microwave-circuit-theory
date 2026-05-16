@@ -254,6 +254,95 @@ def _(mo):
 @app.cell
 def _(mo):
     mo.md(r"""
+    ### 1.0 From quantum mechanics to thermal noise
+
+    Thermal noise in resistors—the fundamental limit in every receiver—emerges from
+    statistical mechanics. We trace the logical chain: Schrödinger solutions → canonical ensemble
+    → partition function → entropy → temperature → equipartition → circuit noise.
+
+    #### From Schrödinger to energy levels
+
+    A confined electron (e.g., in an atom or potential well) obeys the time-independent
+    Schrödinger equation:
+    $$-\frac{\hbar^2}{2m}\nabla^2\psi + V(\mathbf{r})\psi = E\psi.$$
+    For any potential $V(\mathbf{r})$, solutions exist only at **discrete energy levels** $E_1, E_2, E_3, \ldots$
+    (the spectrum). This discreteness is the foundation of statistical mechanics: a system at finite
+    temperature distributes probabilistically over these levels, not continuously over all energies.
+
+    #### The canonical ensemble and thermal equilibrium
+
+    Consider an object (our resistor) weakly coupled to a heat bath at temperature $T$. Heat flows
+    until the object equilibrates. At equilibrium, the probability of finding the system in a state
+    with energy $E_n$ is the **Boltzmann weight**:
+    $$P(E_n) = \frac{e^{-E_n/kT}}{Z},$$
+    where $Z$ is the **partition function**,
+    $$Z = \sum_{n=1}^\infty e^{-E_n/kT}.$$
+    This is the cornerstone of the canonical ensemble: at temperature $T$, low-energy states are more
+    probable, and the Boltzmann factor $e^{-E_n/kT}$ weights each state's contribution.
+
+    #### Partition function and state density
+
+    For most macroscopic systems, the spectrum is dense enough to be approximated by a continuum
+    density of states $g(E)$. If $g(E)$ is the number of states per unit energy, the partition
+    function becomes
+    $$Z = \int_0^\infty g(E)\,e^{-E/kT}\,dE.$$
+    For simple systems (free particle in a box, harmonic oscillator), $g(E)$ is computable in closed form.
+    The key insight: $Z$ automatically accounts for *all accessible states* weighted by their Boltzmann probability.
+
+    #### Entropy and the meaning of temperature
+
+    The **Boltzmann entropy** is
+    $$S = k\,\ln\Omega,$$
+    where $\Omega$ is the *effective number of available microstates*. For a system in the canonical
+    ensemble (fixed $T$, allowing energy fluctuations), this generalizes to
+    $$S = -k\sum_n P(E_n)\ln P(E_n) = \frac{\langle E \rangle}{T} + k\ln Z,$$
+    where $\langle E \rangle = \sum_n P(E_n) E_n$ is the average energy. The second law requires $dS \geq 0$
+    for spontaneous processes. At equilibrium (maximum entropy), we have
+    $$\frac{\partial S}{\partial E}\bigg|_{V,N} = \frac{1}{T}.$$
+    **Temperature is the inverse of the rate at which entropy increases with energy.** High $T$: systems
+    are spread broadly over many states. Low $T$: systems huddle in the lowest-energy states.
+
+    #### Equipartition: why thermal fluctuations are universal
+
+    For a system with a quadratic degree of freedom (e.g., kinetic energy $\tfrac{1}{2}m v_x^2$ or
+    capacitor energy $\tfrac{1}{2}C V^2$), the average energy in that mode is always
+    $$\langle E_{\text{quad}} \rangle = \frac{1}{2}kT.$$
+    This is **equipartition**: each quadratic mode gets the same energy, independent of its "stiffness" (mass,
+    capacitance) or frequency. The reason: the Boltzmann partition function for a quadratic potential
+    $V(x) = \alpha x^2/2$ evaluates to a Gaussian, and $\int x^2 e^{-\alpha x^2/2kT} dx / \int e^{-\alpha x^2/2kT} dx = kT/\alpha$.
+    This universal formula follows from the definition of temperature and the structure of the Boltzmann distribution.
+
+    #### Circuit noise: fluctuations from equipartition
+
+    A resistor is a conductor with many free electrons. At temperature $T$, those electrons undergo
+    random thermal motion—their kinetic energy fluctuates around the equipartition value $\tfrac{1}{2}kT$.
+    These fluctuations couple to the electrical potential, producing a random electromotive force (EMF)
+    across the resistor terminals.
+
+    More precisely: if we model the resistor as a noisy voltage source $v_n(t)$ in series with a
+    noiseless resistance $R$, equipartition applied to the electrical energy stored across a parasitic
+    capacitance $C$ (always present) predicts
+    $$\langle V_C^2 \rangle = \frac{kT}{C}.$$
+    The noise source $v_n(t)$ must have a power spectral density (PSD) such that, when filtered by the RC
+    circuit's transfer function, the capacitor sees exactly this rms voltage. The resulting **Nyquist formula**,
+    $$S_v = 4kTR \quad \text{(one-sided PSD)},$$
+    follows uniquely from equipartition and thermodynamic stability—it cannot be lower without violating
+    the second law of thermodynamics.
+
+    **In summary**: quantum mechanics (Schrödinger) establishes discrete energy levels.
+    Statistical mechanics (canonical ensemble, partition function) tells us how likely each level is at temperature $T$.
+    Entropy and the second law define temperature.
+    Equipartition then dictates how much energy is in each degree of freedom.
+    In a resistor, one of those degrees of freedom is electrical: the random electron motion becomes electrical noise,
+    with power proportional to $T$. The proportionality constant—$4R$ per Kelvin per Hertz—is a universal
+    consequence of thermodynamics, not an empirical fit.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
     ### 1.1 Thermal noise floor — derivation of $kT_0 B$
 
     **Step 1 — Equipartition theorem.** Statistical mechanics assigns
@@ -1107,89 +1196,112 @@ def _(mo):
 
 @app.cell
 def _(go, mo, np):
-    # FIG 4 — I/Q phasor diagram with amplitude and phase noise decomposition
-    _A     = 1.5          # signal amplitude
-    _sig_n = 0.30         # 1-sigma noise radius
-    _th    = np.linspace(0.0, 2.0 * np.pi, 300)
+    # FIG 4 — Phasor decomposition: equal I/Q noise → unequal amplitude/phase noise
+    _A = 1.5
+    _sig_n = 0.28
+    _th = np.linspace(0.0, 2.0 * np.pi, 200)
 
-    _fig_phasor = go.Figure()
+    _fig = go.Figure()
 
-    # 1σ noise circle centred at phasor tip
-    _fig_phasor.add_trace(go.Scatter(
+    # ─── Grid and axes ───────────────────────────────────────────────────────
+    _fig.add_hline(y=0, line_dash="solid", line_color="#444444", line_width=0.5)
+    _fig.add_vline(x=0, line_dash="solid", line_color="#444444", line_width=0.5)
+
+    # ─── Signal phasor (dominant, along I-axis) ───────────────────────────────
+    _fig.add_trace(go.Scatter(
+        x=[0, _A], y=[0, 0],
+        mode="lines", name="Signal: A = 1.5",
+        line=dict(color="white", width=3),
+        showlegend=True))
+
+    # Large dot at phasor tip
+    _fig.add_trace(go.Scatter(
+        x=[_A], y=[0],
+        mode="markers",
+        marker=dict(size=12, color="white"),
+        showlegend=False))
+
+    # ─── Noise cloud: equal variance in I and Q ──────────────────────────────
+    # 1σ circle centered at phasor tip
+    _fig.add_trace(go.Scatter(
         x=_A + _sig_n * np.cos(_th),
         y=_sig_n * np.sin(_th),
-        mode="lines", name="1σ noise circle",
-        line=dict(color="#888888", width=1.5, dash="dot")))
+        mode="lines",
+        name="1σ noise: ⟨n_I²⟩ = ⟨n_Q²⟩ = N₀B",
+        line=dict(color="#BBBBBB", width=2, dash="solid"),
+        showlegend=True))
 
-    # Signal phasor along I-axis
-    _fig_phasor.add_trace(go.Scatter(
-        x=[0.0, _A], y=[0.0, 0.0],
-        mode="lines", name=f"Signal phasor  A = {_A}",
-        line=dict(color="white", width=2.5)))
-    _fig_phasor.add_annotation(
-        x=_A, y=0.0, ax=_A - 0.25, ay=0.0,
+    # ─── Amplitude noise: δA = n_I (radial perturbation) ──────────────────────
+    # Horizontal double-headed arrow at phasor tip
+    _fig.add_annotation(
+        x=_A + _sig_n, y=0.0,
+        ax=_A - _sig_n, ay=0.0,
         xref="x", yref="y", axref="x", ayref="y",
-        arrowhead=2, arrowwidth=2, arrowcolor="white",
+        arrowhead=3, arrowwidth=2.5, arrowcolor="#5599DD",
+        text="", showarrow=True)
+    _fig.add_annotation(
+        text="<b>Amplitude</b><br>δA = n_I<br>(radial)",
+        x=_A, y=-0.42,
+        xref="x", yref="y",
+        font=dict(color="#5599DD", size=13, family="monospace"),
+        showarrow=False, bgcolor="#1a1a1a", bordercolor="#5599DD", borderwidth=1.5,
+        borderpad=6)
+
+    # ─── Phase noise: δφ ≈ n_Q/A (angular perturbation) ────────────────────
+    # Show a sample angular displacement
+    _sample_angle = np.arctan2(_sig_n * 0.9, _A)
+    _fig.add_annotation(
+        x=_A * np.cos(_sample_angle),
+        y=_A * np.sin(_sample_angle),
+        ax=_A, ay=0.0,
+        xref="x", yref="y", axref="x", ayref="y",
+        arrowhead=3, arrowwidth=2.5, arrowcolor="#EE8833",
         text="", showarrow=True)
 
-    # δA arrow — radial (along I)
-    _fig_phasor.add_annotation(
-        x=_A + _sig_n, y=0.0, ax=_A, ay=0.0,
-        xref="x", yref="y", axref="x", ayref="y",
-        arrowhead=2, arrowwidth=2, arrowcolor="#5599DD",
-        text="", showarrow=True)
-    _fig_phasor.add_annotation(
-        text="δA = n_I",
-        x=_A + _sig_n + 0.05, y=-0.13,
+    # Angular arc
+    _arc_r = 0.35
+    _arc_th = np.linspace(0, _sample_angle, 40)
+    _fig.add_trace(go.Scatter(
+        x=_arc_r * np.cos(_arc_th),
+        y=_arc_r * np.sin(_arc_th),
+        mode="lines",
+        line=dict(color="#EE8833", width=2),
+        showlegend=False))
+
+    _fig.add_annotation(
+        text="<b>Phase</b><br>δφ = n_Q/A<br>(angular)",
+        x=0.65, y=0.25,
         xref="x", yref="y",
-        font=dict(color="#5599DD", size=12), showarrow=False)
+        font=dict(color="#EE8833", size=13, family="monospace"),
+        showarrow=False, bgcolor="#1a1a1a", bordercolor="#EE8833", borderwidth=1.5,
+        borderpad=6)
 
-    # δφ·A arrow — tangential (along Q)
-    _fig_phasor.add_annotation(
-        x=_A, y=_sig_n, ax=_A, ay=0.0,
-        xref="x", yref="y", axref="x", ayref="y",
-        arrowhead=2, arrowwidth=2, arrowcolor="#EE8833",
-        text="", showarrow=True)
-    _fig_phasor.add_annotation(
-        text="n_Q = A·δφ",
-        x=_A - 0.52, y=_sig_n + 0.07,
-        xref="x", yref="y",
-        font=dict(color="#EE8833", size=12), showarrow=False)
+    # ─── Key insight ───────────────────────────────────────────────────────
+    _fig.add_annotation(
+        text="<b>Phasor geometry:</b> Circular noise cloud (equal I/Q power)<br>"
+             "becomes unequal radial (A) and angular (φ) fluctuations",
+        x=0.5, y=1.55,
+        xref="paper", yref="y",
+        font=dict(color="#33CC88", size=11),
+        showarrow=False,
+        bgcolor="#1a2a1a", bordercolor="#33CC88", borderwidth=1,
+        borderpad=6)
 
-    # Small arc showing angle δφ at radius A from origin
-    _arc_r = _A * 0.22
-    _arc_th = np.linspace(0.0, np.arctan2(_sig_n, _A), 60)
-    _fig_phasor.add_trace(go.Scatter(
-        x=_arc_r * np.cos(_arc_th), y=_arc_r * np.sin(_arc_th),
-        mode="lines", showlegend=False,
-        line=dict(color="#EE8833", width=1.5)))
-    _fig_phasor.add_annotation(
-        text="δφ",
-        x=_arc_r * np.cos(_arc_th[-1]) + 0.04,
-        y=_arc_r * np.sin(_arc_th[-1]) + 0.05,
-        xref="x", yref="y",
-        font=dict(color="#EE8833", size=11), showarrow=False)
-
-    # Origin dot
-    _fig_phasor.add_trace(go.Scatter(
-        x=[0.0], y=[0.0], mode="markers", showlegend=False,
-        marker=dict(size=6, color="white")))
-
-    # Equipartition label in clear space
-    _fig_phasor.add_annotation(
-        text="⟨n_I²⟩ = ⟨n_Q²⟩ = N₀B",
-        x=0.35, y=0.55, xref="x", yref="y",
-        font=dict(color="#33CC88", size=12), showarrow=False)
-
-    _fig_phasor.update_layout(
-        template="plotly_dark", width=580, height=420,
-        xaxis=dict(title="I", scaleanchor="y", scaleratio=1),
-        yaxis=dict(title="Q", range=[-0.72, 0.72]),
-        margin=dict(l=55, r=15, t=40, b=55),
+    _fig.update_layout(
+        template="plotly_dark",
+        width=700, height=550,
+        xaxis=dict(
+            title="I-axis", scaleanchor="y", scaleratio=1,
+            range=[-0.3, 2.2]),
+        yaxis=dict(
+            title="Q-axis",
+            range=[-1.0, 1.75]),
+        margin=dict(l=60, r=20, t=80, b=60),
         showlegend=True,
-        legend=dict(x=0.01, y=0.99, bgcolor="rgba(0,0,0,0)"),
-    )
-    mo.ui.plotly(_fig_phasor)
+        legend=dict(x=0.02, y=0.98, bgcolor="rgba(0,0,0,0.7)", bordercolor="#666", borderwidth=1),
+        hovermode=False)
+
+    mo.ui.plotly(_fig)
     return
 
 
