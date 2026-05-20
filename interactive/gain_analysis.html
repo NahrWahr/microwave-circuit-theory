@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- v1.0 -->
+<!-- v2.0 -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -11,18 +11,13 @@
       --panel: #1a1a2e;
       --panel-2: #1e1e35;
       --border: #333355;
-      --grid: #2a3060;
-      --grid-soft: #1e2248;
       --axis: #444466;
       --rim: #6677bb;
       --label: #8899cc;
       --text: #ccccee;
       --gs-col: #ff4455;
       --gl-col: #4488ff;
-      --stab: #ff6644;
       --opt: #ffee44;
-      --gain-lo: #2244aa;
-      --gain-hi: #ff4455;
     }
     * { box-sizing: border-box; }
     html, body {
@@ -43,8 +38,7 @@
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: 4px;
-      font-weight: bold;
-      font-size: 13px;
+      font-weight: bold; font-size: 13px;
     }
     .content {
       display: grid;
@@ -53,42 +47,37 @@
       min-height: 0;
     }
     .chart-col {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      min-height: 0;
+      display: flex; flex-direction: column;
+      gap: 4px; min-height: 0;
     }
+    /* KEY FIX: chart panels must grow to fill their flex column */
+    .chart-col .panel { flex: 1; }
     .panel {
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: 4px;
-      display: flex;
-      flex-direction: column;
+      display: flex; flex-direction: column;
       min-height: 0;
     }
     .panel-title {
       padding: 4px 8px;
       border-bottom: 1px solid var(--border);
       font-size: 11px; font-weight: 600;
-      color: var(--text);
+      flex-shrink: 0;
     }
-    .canvas-wrap {
-      flex: 1;
-      position: relative;
-      min-height: 0;
-    }
+    .canvas-wrap { flex: 1; position: relative; min-height: 0; }
     canvas { display: block; width: 100%; height: 100%; }
     .right {
       display: grid;
-      grid-template-rows: auto 1fr;
-      gap: 4px;
-      min-height: 0;
+      grid-template-rows: 1fr auto;
+      gap: 4px; min-height: 0;
     }
+    .right-scroll { overflow-y: auto; min-height: 0; }
     .ctl-group {
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: 4px;
-      padding: 6px;
+      padding: 6px; margin-bottom: 4px;
     }
     .ctl-title {
       font-size: 10px; font-weight: 700;
@@ -98,54 +87,42 @@
     }
     .ctl-row {
       display: grid;
-      grid-template-columns: 60px 1fr 50px;
-      gap: 4px;
-      margin-bottom: 4px;
-      align-items: center;
-      font-size: 11px;
+      grid-template-columns: 62px 1fr 44px;
+      gap: 3px; margin-bottom: 3px;
+      align-items: center; font-size: 11px;
     }
     .ctl-label { color: var(--label); }
     .ctl-val { font-family: monospace; text-align: right; font-size: 10px; }
-    input[type=number], select {
+    input[type=number] {
       background: var(--bg);
       border: 1px solid var(--border);
       color: var(--text);
       border-radius: 3px;
-      padding: 2px 4px;
-      font-size: 10px;
+      padding: 2px 4px; font-size: 10px; width: 100%;
     }
     button {
       background: var(--panel-2);
       border: 1px solid var(--border);
       color: var(--text);
       border-radius: 3px;
-      padding: 3px 6px;
-      font-size: 10px;
-      cursor: pointer;
+      padding: 3px 6px; font-size: 10px; cursor: pointer;
     }
     button:hover { border-color: var(--opt); }
     .preset-row {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
-      gap: 3px;
-      margin-bottom: 4px;
+      gap: 3px; margin-bottom: 3px;
     }
     .preset-row button { padding: 2px 3px; font-size: 9px; }
     .metrics {
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: 4px;
-      padding: 6px;
-      font-family: monospace;
-      font-size: 9px;
-      overflow-y: auto;
-      flex: 1;
+      padding: 6px; font-family: monospace; font-size: 9px;
     }
     .metric-row {
-      display: grid;
-      grid-template-columns: 70px 1fr;
-      gap: 4px;
-      margin-bottom: 2px;
+      display: grid; grid-template-columns: 68px 1fr;
+      gap: 4px; margin-bottom: 2px;
       padding-bottom: 2px;
       border-bottom: 1px solid var(--border);
     }
@@ -161,27 +138,24 @@
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: 4px;
-      padding: 6px;
-      text-align: center;
+      padding: 4px 6px; text-align: center;
     }
     .metric-box-title {
       font-size: 9px; font-weight: 600;
-      color: var(--label);
-      margin-bottom: 3px;
+      color: var(--label); margin-bottom: 2px;
     }
     .metric-box-val {
       font-family: monospace;
-      font-size: 13px; font-weight: bold;
-      color: var(--text);
+      font-size: 12px; font-weight: bold;
     }
     .footer {
       padding: 4px 8px;
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: 4px;
-      font-size: 10px;
-      color: var(--label);
+      font-size: 10px; color: var(--label);
     }
+    label { color: var(--label); }
   </style>
 </head>
 <body>
@@ -191,26 +165,26 @@
   <div class="content">
     <div class="chart-col">
       <div class="panel">
-        <div class="panel-title">ΓS Plane (Source) — GS/GA Circles</div>
+        <div class="panel-title">ΓS Plane (Source) — GS / GA Circles</div>
         <div class="canvas-wrap"><canvas id="cv-gs"></canvas></div>
       </div>
     </div>
 
     <div class="chart-col">
       <div class="panel">
-        <div class="panel-title">ΓL Plane (Load) — GL/GP Circles</div>
+        <div class="panel-title">ΓL Plane (Load) — GL / GP Circles</div>
         <div class="canvas-wrap"><canvas id="cv-gl"></canvas></div>
       </div>
     </div>
 
     <div class="right">
-      <div style="overflow-y: auto;">
+      <div class="right-scroll">
         <div class="ctl-group">
           <div class="ctl-title">S-Parameters</div>
           <div class="ctl-row">
             <div class="ctl-label">S₁₁ mag</div>
             <input id="s11-mag" type="number" min="-60" max="40" value="-7.3" step="0.1">
-            <span class="ctl-val" style="color: var(--gs-col);">dB</span>
+            <span class="ctl-val" style="color:var(--gs-col)">dB</span>
           </div>
           <div class="ctl-row">
             <div class="ctl-label">S₁₁ ph</div>
@@ -220,7 +194,7 @@
           <div class="ctl-row">
             <div class="ctl-label">S₂₁ mag</div>
             <input id="s21-mag" type="number" min="-60" max="40" value="8.93" step="0.1">
-            <span class="ctl-val" style="color: #44ffcc;">dB</span>
+            <span class="ctl-val" style="color:#44ffcc">dB</span>
           </div>
           <div class="ctl-row">
             <div class="ctl-label">S₂₁ ph</div>
@@ -233,9 +207,14 @@
             <span class="ctl-val">dB</span>
           </div>
           <div class="ctl-row">
+            <div class="ctl-label">S₁₂ ph</div>
+            <input id="s12-ph" type="number" min="-180" max="180" value="0" step="1">
+            <span class="ctl-val">°</span>
+          </div>
+          <div class="ctl-row">
             <div class="ctl-label">S₂₂ mag</div>
             <input id="s22-mag" type="number" min="-60" max="40" value="-6" step="0.1">
-            <span class="ctl-val" style="color: var(--gl-col);">dB</span>
+            <span class="ctl-val" style="color:var(--gl-col)">dB</span>
           </div>
           <div class="ctl-row">
             <div class="ctl-label">S₂₂ ph</div>
@@ -245,10 +224,10 @@
         </div>
 
         <div class="ctl-group">
-          <div class="ctl-title">Source/Load</div>
+          <div class="ctl-title">Source / Load</div>
           <div class="ctl-row">
             <div class="ctl-label">Z₀</div>
-            <input id="z0" type="number" min="1" max="10000" value="50" step="0.1">
+            <input id="z0" type="number" min="1" max="10000" value="50" step="1">
             <span class="ctl-val">Ω</span>
           </div>
           <div class="ctl-row">
@@ -275,10 +254,12 @@
 
         <div class="ctl-group">
           <div class="ctl-title">Display</div>
-          <div style="font-size: 10px; line-height: 1.4;">
-            <label style="display: block;"><input type="checkbox" id="cb-uni" checked> Unilateral</label>
-            <label style="display: block;"><input type="checkbox" id="cb-bil" checked> Bilateral</label>
-            <label style="display: block;"><input type="checkbox" id="cb-stab"> Stability</label>
+          <div style="font-size:10px;line-height:1.7">
+            <label style="display:block"><input type="checkbox" id="cb-uni" checked> Unilateral circles</label>
+            <label style="display:block"><input type="checkbox" id="cb-bil" checked> Bilateral circles</label>
+            <label style="display:block"><input type="checkbox" id="cb-stab"> Stability circles</label>
+            <label style="display:block"><input type="checkbox" id="cb-vswr"> VSWR circles</label>
+            <label style="display:block"><input type="checkbox" id="cb-opt" checked> Opt. points (★ uni, ◆ bil)</label>
           </div>
         </div>
 
@@ -292,7 +273,7 @@
           <div class="preset-row">
             <button onclick="applyPreset('unilat')">Unilat.</button>
             <button onclick="applyPreset('matched')">Matched</button>
-            <button onclick="applyPreset('k<1')">K<1</button>
+            <button onclick="applyPreset('k<1')">K&lt;1</button>
           </div>
         </div>
       </div>
@@ -301,6 +282,10 @@
         <div class="metric-row">
           <div class="metric-label">K-factor</div>
           <div class="metric-val" id="k-val">—</div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-label">μ-factor</div>
+          <div class="metric-val" id="mu-val">—</div>
         </div>
         <div class="metric-row">
           <div class="metric-label">|Δ|</div>
@@ -331,626 +316,562 @@
   </div>
 
   <div class="metrics-row">
-    <div class="metric-box" style="border-color: var(--gs-col);">
+    <div class="metric-box" style="border-color:var(--gs-col)">
       <div class="metric-box-title">GT (Transducer)</div>
-      <div class="metric-box-val" id="gt-val">—</div>
+      <div class="metric-box-val" id="gt-val" style="color:var(--gs-col)">—</div>
     </div>
-    <div class="metric-box" style="border-color: #44ddff;">
+    <div class="metric-box" style="border-color:#44ddff">
       <div class="metric-box-title">GP (Operating)</div>
-      <div class="metric-box-val" id="gp-val">—</div>
+      <div class="metric-box-val" id="gp-val" style="color:#44ddff">—</div>
     </div>
-    <div class="metric-box" style="border-color: #44ff88;">
+    <div class="metric-box" style="border-color:#44ff88">
       <div class="metric-box-title">GA (Available)</div>
-      <div class="metric-box-val" id="ga-val">—</div>
+      <div class="metric-box-val" id="ga-val" style="color:#44ff88">—</div>
     </div>
-    <div class="metric-box" style="border-color: #ffee44;">
+    <div class="metric-box" style="border-color:#ffee44">
       <div class="metric-box-title">MAG</div>
-      <div class="metric-box-val" id="mag-val">—</div>
+      <div class="metric-box-val" id="mag-val" style="color:#ffee44">—</div>
     </div>
-    <div class="metric-box" style="border-color: #aaaacc;">
+    <div class="metric-box" style="border-color:#aaaacc">
       <div class="metric-box-title">MSG</div>
-      <div class="metric-box-val" id="msg-val">—</div>
+      <div class="metric-box-val" id="msg-val" style="color:#aaaacc">—</div>
     </div>
-    <div class="metric-box" style="border-color: #cc88ff;">
+    <div class="metric-box" style="border-color:#cc88ff">
       <div class="metric-box-title">GT (Unilateral)</div>
-      <div class="metric-box-val" id="gtu-val">—</div>
+      <div class="metric-box-val" id="gtu-val" style="color:#cc88ff">—</div>
     </div>
   </div>
 
-  <div class="footer">Drag ΓS (red) or ΓL (blue) on charts to explore gain circles. Positive gain ≈ amplifier; choose points inside the gain circles for best performance.</div>
+  <div class="footer">
+    Drag ΓS (red) or ΓL (blue) on charts. Solid = unilateral circles; dashed = bilateral circles.
+    ★ = unilateral optimum (conj S11/S22); ◆ = bilateral conjugate-match optimum.
+    Labels show gain in dB.
+  </div>
 </div>
 
 <script>
-  // v1.0
-  "use strict";
+// v2.0
+"use strict";
 
-  const PI = Math.PI;
-  const TWO_PI = 2 * PI;
-  const DRAG_THRESH = 0.08;
+const PI = Math.PI;
+const TWO_PI = 2 * PI;
+const DRAG_THRESH = 0.08;
 
-  // ─── Complex ───
-  function complex(re, im) { return { re, im }; }
-  function csum(a, b) { return { re: a.re + b.re, im: a.im + b.im }; }
-  function csub(a, b) { return { re: a.re - b.re, im: a.im - b.im }; }
-  function cmult(a, b) { return { re: a.re * b.re - a.im * b.im, im: a.re * b.im + a.im * b.re }; }
-  function cdiv(a, b) {
-    const d = b.re * b.re + b.im * b.im;
-    return { re: (a.re * b.re + a.im * b.im) / d, im: (a.im * b.re - a.re * b.im) / d };
+// ── Complex arithmetic ──────────────────────────────────────────────────────
+function cx(re, im)   { return { re, im }; }
+function csum(a, b)   { return { re: a.re + b.re, im: a.im + b.im }; }
+function csub(a, b)   { return { re: a.re - b.re, im: a.im - b.im }; }
+function cmul(a, b)   { return { re: a.re*b.re - a.im*b.im, im: a.re*b.im + a.im*b.re }; }
+function cdiv(a, b) {
+  const d = b.re*b.re + b.im*b.im;
+  return { re: (a.re*b.re + a.im*b.im)/d, im: (a.im*b.re - a.re*b.im)/d };
+}
+function conj(a)  { return { re: a.re, im: -a.im }; }
+function cabs(a)  { return Math.hypot(a.re, a.im); }
+function cang(a)  { return Math.atan2(a.im, a.re); }
+function cscale(s, a) { return { re: s*a.re, im: s*a.im }; }
+
+// ── Utilities ──────────────────────────────────────────────────────────────
+function dbToLin(db) { return Math.pow(10, db/20); }
+function pwrDb(x)    { return 10*Math.log10(Math.max(Math.abs(x), 1e-15)); }
+function fmtDb(x) {
+  if (isNaN(x))       return 'k < 1';
+  if (!isFinite(x))   return '∞ dB';
+  return pwrDb(x).toFixed(2) + ' dB';
+}
+function fmtG(g) { return `${cabs(g).toFixed(4)} ∠ ${(cang(g)*180/PI)|0}°`; }
+function fmtNum(x) { return isFinite(x) ? x.toFixed(3) : '∞'; }
+
+// ── State ───────────────────────────────────────────────────────────────────
+const state = {
+  s11: cx(0, 0), s12: cx(0, 0),
+  s21: cx(0, 0), s22: cx(0, 0),
+  gamma_S: cx(0, 0), gamma_L: cx(0, 0),
+  z0: 50,
+  show_uni: true, show_bil: true,
+  show_stab: false, show_vswr: false, show_opt: true,
+  dragging: null
+};
+
+// ── RF network functions ────────────────────────────────────────────────────
+function delta()     { return csub(cmul(state.s11, state.s22), cmul(state.s12, state.s21)); }
+function kFactor() {
+  const d = delta();
+  const num = 1 - cabs(state.s11)**2 - cabs(state.s22)**2 + cabs(d)**2;
+  const den = 2*cabs(cmul(state.s12, state.s21));
+  return den > 1e-12 ? num/den : Infinity;
+}
+function muFactor() {
+  // Edwards-Sinsky: μ = (1−|S11|²) / (|S22 − Δ*·S11| + |S12·S21|)
+  const d = delta();
+  const num = 1 - cabs(state.s11)**2;
+  const denom = cabs(csub(state.s22, cmul(conj(d), state.s11))) + cabs(cmul(state.s12, state.s21));
+  return denom > 1e-12 ? num/denom : Infinity;
+}
+function gammaIn() {
+  const d = csub(cx(1,0), cmul(state.s22, state.gamma_L));
+  return cabs(d) < 1e-10 ? state.s11
+    : csum(state.s11, cdiv(cmul(cmul(state.s12, state.s21), state.gamma_L), d));
+}
+function gammaOut() {
+  const d = csub(cx(1,0), cmul(state.s11, state.gamma_S));
+  return cabs(d) < 1e-10 ? state.s22
+    : csum(state.s22, cdiv(cmul(cmul(state.s12, state.s21), state.gamma_S), d));
+}
+function GT() {
+  const gin = gammaIn();
+  const num = (1 - cabs(state.gamma_S)**2) * cabs(state.s21)**2 * (1 - cabs(state.gamma_L)**2);
+  const den = cabs(csub(cx(1,0), cmul(gin, state.gamma_S)))**2
+            * cabs(csub(cx(1,0), cmul(state.s22, state.gamma_L)))**2;
+  return den > 1e-30 ? num/den : 0;
+}
+function GP() {
+  const gin = gammaIn();
+  const num = cabs(state.s21)**2 * (1 - cabs(state.gamma_L)**2);
+  const den = (1 - cabs(gin)**2) * cabs(csub(cx(1,0), cmul(state.s22, state.gamma_L)))**2;
+  return den > 1e-30 ? num/den : 0;
+}
+function GA() {
+  const gout = gammaOut();
+  const num = cabs(state.s21)**2 * (1 - cabs(state.gamma_S)**2);
+  const den = cabs(csub(cx(1,0), cmul(state.s11, state.gamma_S)))**2 * (1 - cabs(gout)**2);
+  return den > 1e-30 ? num/den : 0;
+}
+function GT_uni() {
+  const gs = (1 - cabs(state.gamma_S)**2) / cabs(csub(cx(1,0), cmul(state.s11, state.gamma_S)))**2;
+  const gl = (1 - cabs(state.gamma_L)**2) / cabs(csub(cx(1,0), cmul(state.s22, state.gamma_L)))**2;
+  return gs * cabs(state.s21)**2 * gl;
+}
+function MAG() {
+  const k = kFactor();
+  if (k < 1 || cabs(state.s12) < 1e-12) return NaN;
+  return cabs(cdiv(state.s21, state.s12)) * (k - Math.sqrt(k*k - 1));
+}
+function MSG() {
+  return cabs(state.s12) > 1e-12 ? cabs(cdiv(state.s21, state.s12)) : Infinity;
+}
+// Bilateral conjugate-match optimums
+function gammaSOpt() {
+  const d = delta();
+  const denom = cabs(state.s11)**2 - cabs(d)**2;
+  if (Math.abs(denom) < 1e-10) return conj(state.s11);
+  return conj(cdiv(csub(state.s11, cmul(d, conj(state.s22))), cx(denom, 0)));
+}
+function gammaLOpt() {
+  const d = delta();
+  const denom = cabs(state.s22)**2 - cabs(d)**2;
+  if (Math.abs(denom) < 1e-10) return conj(state.s22);
+  return conj(cdiv(csub(state.s22, cmul(d, conj(state.s11))), cx(denom, 0)));
+}
+// Stability circles
+function srcStabCircle() {
+  const d = delta();
+  const denom = cabs(state.s11)**2 - cabs(d)**2;
+  if (Math.abs(denom) < 1e-10) return null;
+  const c = cdiv(conj(csub(state.s11, cmul(d, conj(state.s22)))), cx(denom, 0));
+  return { gx: c.re, gy: c.im, r: cabs(cmul(state.s12, state.s21)) / Math.abs(denom) };
+}
+function ldStabCircle() {
+  const d = delta();
+  const denom = cabs(state.s22)**2 - cabs(d)**2;
+  if (Math.abs(denom) < 1e-10) return null;
+  const c = cdiv(conj(csub(state.s22, cmul(d, conj(state.s11)))), cx(denom, 0));
+  return { gx: c.re, gy: c.im, r: cabs(cmul(state.s12, state.s21)) / Math.abs(denom) };
+}
+
+// ── Gain circle geometry ────────────────────────────────────────────────────
+function uniSrcCircles(n) {
+  const s = state.s11, sq = cabs(s)**2;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const gn = (i + 0.5) / n;
+    const den = 1 - (1 - gn)*sq;
+    if (Math.abs(den) < 1e-10) continue;
+    const c = cdiv(cscale(gn, conj(s)), cx(den, 0));
+    out.push({ gx: c.re, gy: c.im, r: Math.sqrt(1 - gn)*(1 - sq)/Math.abs(den), g: gn/(1-sq) });
   }
-  function conj(a) { return { re: a.re, im: -a.im }; }
-  function cmag(a) { return Math.hypot(a.re, a.im); }
-  function cang(a) { return Math.atan2(a.im, a.re); }
+  return out;
+}
+function uniLdCircles(n) {
+  const s = state.s22, sq = cabs(s)**2;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const gn = (i + 0.5) / n;
+    const den = 1 - (1 - gn)*sq;
+    if (Math.abs(den) < 1e-10) continue;
+    const c = cdiv(cscale(gn, conj(s)), cx(den, 0));
+    out.push({ gx: c.re, gy: c.im, r: Math.sqrt(1 - gn)*(1 - sq)/Math.abs(den), g: gn/(1-sq) });
+  }
+  return out;
+}
+function bilGACircles(n) {
+  const k = kFactor(), s12s21 = cabs(cmul(state.s12, state.s21));
+  const d = delta();
+  const C1 = csub(state.s11, cmul(d, conj(state.s22)));
+  const s21sq = cabs(state.s21)**2, ds11 = cabs(state.s11)**2 - cabs(d)**2;
+  if (Math.abs(ds11) < 1e-10 || s21sq < 1e-12) return [];
+  const gmax = isFinite(MAG()) ? MAG() : MSG()*2;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const ga = (i + 0.5)/n * gmax, gan = ga/s21sq;
+    const den = 1 + gan*ds11;
+    if (Math.abs(den) < 1e-10) continue;
+    const c = cdiv(cscale(gan, conj(C1)), cx(den, 0));
+    const ra = Math.sqrt(Math.max(0, 1 - 2*k*s12s21*gan + (s12s21*gan)**2)) / Math.abs(den);
+    out.push({ gx: c.re, gy: c.im, r: ra, g: ga });
+  }
+  return out;
+}
+function bilGPCircles(n) {
+  const k = kFactor(), s12s21 = cabs(cmul(state.s12, state.s21));
+  const d = delta();
+  const C2 = csub(state.s22, cmul(d, conj(state.s11)));
+  const s21sq = cabs(state.s21)**2, ds22 = cabs(state.s22)**2 - cabs(d)**2;
+  if (Math.abs(ds22) < 1e-10 || s21sq < 1e-12) return [];
+  const gmax = isFinite(MAG()) ? MAG() : MSG()*2;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const gp = (i + 0.5)/n * gmax, gpn = gp/s21sq;
+    const den = 1 + gpn*ds22;
+    if (Math.abs(den) < 1e-10) continue;
+    const c = cdiv(cscale(gpn, conj(C2)), cx(den, 0));
+    const rp = Math.sqrt(Math.max(0, 1 - 2*k*s12s21*gpn + (s12s21*gpn)**2)) / Math.abs(den);
+    out.push({ gx: c.re, gy: c.im, r: rp, g: gp });
+  }
+  return out;
+}
 
-  // ─── Utility ───
-  function dbToLin(db) { return Math.pow(10, db / 20); }
-  function linTodb(x) { return 20 * Math.log10(Math.max(Math.abs(x), 1e-15)); }
-  function pwrDb(x) { return 10 * Math.log10(Math.max(Math.abs(x), 1e-15)); }
+// ── Canvas drawing ──────────────────────────────────────────────────────────
+function lerpColor(t, c0, c1) {
+  const p = c => [parseInt(c.slice(1,3),16), parseInt(c.slice(3,5),16), parseInt(c.slice(5,7),16)];
+  const [r0,g0,b0] = p(c0), [r1,g1,b1] = p(c1);
+  const r = Math.round(r0 + t*(r1-r0)), g = Math.round(g0 + t*(g1-g0)), b = Math.round(b0 + t*(b1-b0));
+  return '#' + [r,g,b].map(v => v.toString(16).padStart(2,'0')).join('');
+}
 
-  // ─── RF Math ───
-  function resistanceCirclePts(r, n = 300) {
-    const cx = r / (r + 1), rad = 1 / (r + 1);
-    const pts = [];
-    for (let i = 0; i < n; i++) {
-      const th = (i / n) * TWO_PI;
-      const re = cx + rad * Math.cos(th), im = rad * Math.sin(th);
-      if (re * re + im * im <= 1.001) pts.push([re, im]);
+function fitCanvas(cv) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = cv.getBoundingClientRect();
+  if (rect.width < 2 || rect.height < 2) return null;
+  cv.width  = Math.floor(rect.width  * dpr);
+  cv.height = Math.floor(rect.height * dpr);
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { ctx, w: rect.width, h: rect.height };
+}
+
+function drawGainLabel(ctx, gx, gy, r, gainDb, ox, oy, scale, col) {
+  // Place label at the point on the circle furthest from origin (outward direction)
+  const ang = Math.atan2(gy, gx);
+  const lx = gx + r * Math.cos(ang);
+  const ly = gy + r * Math.sin(ang);
+  if (lx*lx + ly*ly < 1.0) {
+    ctx.save();
+    ctx.fillStyle = col;
+    ctx.globalAlpha = 0.9;
+    ctx.font = '8px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${gainDb.toFixed(1)}`, ox + lx*scale, oy + ly*scale);
+    ctx.restore();
+  }
+}
+
+function drawSmithChart(cvId, planeType) {
+  const cv = document.getElementById(cvId);
+  const fit = fitCanvas(cv);
+  if (!fit) return;
+  const { ctx, w, h } = fit;
+  const ox = w/2, oy = h/2;
+  const sc = Math.min(w, h) / 2.3;
+
+  // Background
+  ctx.fillStyle = '#12121f';
+  ctx.fillRect(0, 0, w, h);
+
+  // Unit circle rim (drawn before clip)
+  ctx.strokeStyle = '#6677bb';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.arc(ox, oy, sc, 0, TWO_PI);
+  ctx.stroke();
+
+  // Clip all chart content to unit disk
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(ox, oy, sc * 1.001, 0, TWO_PI);
+  ctx.clip();
+
+  // Real axis
+  ctx.strokeStyle = '#444466';
+  ctx.lineWidth = 0.7;
+  ctx.beginPath();
+  ctx.moveTo(ox - sc, oy);
+  ctx.lineTo(ox + sc, oy);
+  ctx.stroke();
+
+  // Resistance circles:  centre (r/(r+1), 0), radius 1/(r+1)
+  const RV = [0, 0.2, 0.5, 1, 2, 5, 10];
+  ctx.strokeStyle = '#2a3060';
+  ctx.lineWidth = 0.75;
+  for (const r of RV) {
+    ctx.beginPath();
+    ctx.arc(ox + sc*r/(r+1), oy, sc/(r+1), 0, TWO_PI);
+    ctx.stroke();
+  }
+
+  // Reactance arcs: centre (1, 1/x), radius 1/|x|
+  const XV = [0.2, 0.5, 1, 2, 5];
+  ctx.strokeStyle = '#1e2248';
+  ctx.lineWidth = 0.65;
+  for (const x of XV) {
+    for (const s of [1, -1]) {
+      ctx.beginPath();
+      ctx.arc(ox + sc, oy + sc*(1/(s*x)), sc/x, 0, TWO_PI);
+      ctx.stroke();
     }
-    return pts;
   }
 
-  function reactanceArcPts(x, n = 400) {
-    if (Math.abs(x) < 1e-9) return [];
-    const cy = 1 / x, rad = 1 / Math.abs(x);
-    const pts = [];
-    for (let i = 0; i < n; i++) {
-      const th = (i / n) * TWO_PI;
-      const re = 1 + rad * Math.cos(th), im = cy + rad * Math.sin(th);
-      if (re * re + im * im <= 1.001) pts.push([re, im, th]);
+  // VSWR circles (centred at origin)
+  if (state.show_vswr) {
+    const VSWR = [[1.5,'#444466'],[2.0,'#555577'],[3.0,'#666688'],[5.0,'#777799']];
+    for (const [v, col] of VSWR) {
+      const rv = (v-1)/(v+1);
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 0.9;
+      ctx.setLineDash([3, 4]);
+      ctx.beginPath();
+      ctx.arc(ox, oy, rv*sc, 0, TWO_PI);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = col;
+      ctx.font = '8px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`S${v}`, ox, oy - rv*sc + 9);
     }
-    if (pts.length < 2) return [];
-    pts.sort((a, b) => a[2] - b[2]);
-    return pts.map(p => [p[0], p[1]]);
   }
 
-  function circlePts(cx, cy, r, n = 300) {
-    const pts = [];
-    for (let i = 0; i < n; i++) {
-      const th = (i / n) * TWO_PI;
-      const x = cx + r * Math.cos(th), y = cy + r * Math.sin(th);
-      if (x * x + y * y <= 1.001) pts.push([x, y]);
+  // Gain and stability circles
+  const N = 6;
+  let uni, bil, stab;
+  if (planeType === 'source') {
+    uni  = state.show_uni  ? uniSrcCircles(N) : [];
+    bil  = state.show_bil  ? bilGACircles(N)  : [];
+    stab = state.show_stab ? srcStabCircle()  : null;
+  } else {
+    uni  = state.show_uni  ? uniLdCircles(N)  : [];
+    bil  = state.show_bil  ? bilGPCircles(N)  : [];
+    stab = state.show_stab ? ldStabCircle()   : null;
+  }
+
+  // Unilateral circles (solid, blue→red gradient)
+  for (let i = 0; i < uni.length; i++) {
+    const t = uni.length > 1 ? i/(uni.length-1) : 0;
+    const col = lerpColor(t, '#2244aa', '#ff4455');
+    const { gx, gy, r, g } = uni[i];
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.arc(ox + gx*sc, oy + gy*sc, r*sc, 0, TWO_PI);
+    ctx.stroke();
+    drawGainLabel(ctx, gx, gy, r, pwrDb(g), ox, oy, sc, col);
+  }
+
+  // Bilateral circles (dashed, teal gradient)
+  for (let i = 0; i < bil.length; i++) {
+    const t = bil.length > 1 ? i/(bil.length-1) : 0;
+    const col = lerpColor(t, '#006688', '#44ffcc');
+    const { gx, gy, r, g } = bil[i];
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 0.9;
+    ctx.setLineDash([2, 3]);
+    ctx.beginPath();
+    ctx.arc(ox + gx*sc, oy + gy*sc, r*sc, 0, TWO_PI);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    drawGainLabel(ctx, gx, gy, r, pwrDb(g), ox, oy, sc, col);
+  }
+
+  // Stability circle (dotted orange)
+  if (stab) {
+    const { gx, gy, r } = stab;
+    ctx.strokeStyle = '#ff6644';
+    ctx.lineWidth = 1.4;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.arc(ox + gx*sc, oy + gy*sc, r*sc, 0, TWO_PI);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Optimal points: ★ = unilateral (conj S11/S22), ◆ = bilateral conjugate match
+  if (state.show_opt) {
+    const optUni = planeType === 'source' ? conj(state.s11) : conj(state.s22);
+    const optBil = planeType === 'source' ? gammaSOpt()     : gammaLOpt();
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    if (cabs(optUni) < 1.0) {
+      ctx.font = 'bold 13px sans-serif';
+      ctx.fillStyle = '#ffee44';
+      ctx.fillText('★', ox + optUni.re*sc, oy + optUni.im*sc);
     }
-    return pts;
+    if (cabs(optBil) < 1.0) {
+      ctx.font = 'bold 13px sans-serif';
+      ctx.fillStyle = '#aaffaa';
+      ctx.fillText('◆', ox + optBil.re*sc, oy + optBil.im*sc);
+    }
   }
 
-  // ─── State ───
-  const state = {
-    s11: complex(0.447, -0.239),
-    s12: complex(0.04, 0.012),
-    s21: complex(2.8, 0.4),
-    s22: complex(0.5, -0.436),
-    gamma_S: complex(0, 0),
-    gamma_L: complex(0, 0),
-    z0: 50,
-    show_uni: true,
-    show_bil: true,
-    show_stab: false,
-    dragging: null
+  // Current Γ point (drawn last so it's on top)
+  const g = planeType === 'source' ? state.gamma_S : state.gamma_L;
+  const col = planeType === 'source' ? '#ff4455' : '#4488ff';
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  ctx.arc(ox + g.re*sc, oy + g.im*sc, 5.5, 0, TWO_PI);
+  ctx.fill();
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = 1.0;
+  ctx.stroke();
+
+  ctx.restore(); // end clip
+}
+
+// ── UI updates ──────────────────────────────────────────────────────────────
+function updateUI() {
+  const k = kFactor(), mu = muFactor(), dlt = delta();
+  const stable = k >= 1 && cabs(dlt) < 1;
+
+  document.getElementById('k-val').textContent      = fmtNum(k);
+  document.getElementById('mu-val').textContent     = fmtNum(mu);
+  document.getElementById('delta-val').textContent  = cabs(dlt).toFixed(3);
+  document.getElementById('stab-val').textContent   = stable ? '✓ Stable' : '✗ Cond.';
+  document.getElementById('gin-val').textContent    = fmtG(gammaIn());
+  document.getElementById('gout-val').textContent   = fmtG(gammaOut());
+  document.getElementById('gs-opt-val').textContent = fmtG(gammaSOpt());
+  document.getElementById('gl-opt-val').textContent = fmtG(gammaLOpt());
+
+  document.getElementById('gt-val').textContent  = fmtDb(GT());
+  document.getElementById('gp-val').textContent  = fmtDb(GP());
+  document.getElementById('ga-val').textContent  = fmtDb(GA());
+  document.getElementById('mag-val').textContent = fmtDb(MAG());
+  document.getElementById('msg-val').textContent = fmtDb(MSG());
+  document.getElementById('gtu-val').textContent = fmtDb(GT_uni());
+}
+
+function readSParam(magId, phId) {
+  const m  = dbToLin(parseFloat(document.getElementById(magId).value));
+  const ph = parseFloat(document.getElementById(phId).value) * PI / 180;
+  return cx(m*Math.cos(ph), m*Math.sin(ph));
+}
+
+function onInputChange() {
+  state.s11 = readSParam('s11-mag', 's11-ph');
+  state.s21 = readSParam('s21-mag', 's21-ph');
+  state.s12 = readSParam('s12-mag', 's12-ph');
+  state.s22 = readSParam('s22-mag', 's22-ph');
+
+  const gsm = parseFloat(document.getElementById('gs-mag').value);
+  const gsp = parseFloat(document.getElementById('gs-ph').value) * PI/180;
+  state.gamma_S = cx(gsm*Math.cos(gsp), gsm*Math.sin(gsp));
+
+  const glm = parseFloat(document.getElementById('gl-mag').value);
+  const glp = parseFloat(document.getElementById('gl-ph').value) * PI/180;
+  state.gamma_L = cx(glm*Math.cos(glp), glm*Math.sin(glp));
+
+  state.z0       = parseFloat(document.getElementById('z0').value) || 50;
+  state.show_uni  = document.getElementById('cb-uni').checked;
+  state.show_bil  = document.getElementById('cb-bil').checked;
+  state.show_stab = document.getElementById('cb-stab').checked;
+  state.show_vswr = document.getElementById('cb-vswr').checked;
+  state.show_opt  = document.getElementById('cb-opt').checked;
+
+  updateUI();
+  drawSmithChart('cv-gs', 'source');
+  drawSmithChart('cv-gl', 'load');
+}
+
+// Presets: [s11_dB, s11_ph°, s12_dB, s12_ph°, s21_dB, s21_ph°, s22_dB, s22_ph°]
+function applyPreset(name) {
+  const presets = {
+    lna:     [-4.4, -170, -26.0,  16, 7.96,  30,  -6.0,  -95],
+    pa:      [-3.1,  -60, -20.0,  45, 9.54, 120,  -8.0,  -40],
+    wba:     [-10.5, -90, -34.0,  10, 5.11,  90, -10.5,  -80],
+    unilat:  [-8.0,  -90, -60.0,   0, 6.02,  80, -10.5,  -70],
+    matched: [-60.0,   0, -26.0,   0, 8.93, 11.3, -60.0,   0],
+    'k<1':   [-6.0,  -60,  -8.0,  60, 3.52,  90,  -6.0,  -60],
   };
+  if (!presets[name]) return;
+  const [s11m,s11p, s12m,s12p, s21m,s21p, s22m,s22p] = presets[name];
+  document.getElementById('s11-mag').value = s11m;
+  document.getElementById('s11-ph').value  = s11p;
+  document.getElementById('s12-mag').value = s12m;
+  document.getElementById('s12-ph').value  = s12p;
+  document.getElementById('s21-mag').value = s21m;
+  document.getElementById('s21-ph').value  = s21p;
+  document.getElementById('s22-mag').value = s22m;
+  document.getElementById('s22-ph').value  = s22p;
+  onInputChange();
+}
 
-  // ─── Getters ───
-  function getDelta() {
-    return csub(cmult(state.s11, state.s22), cmult(state.s12, state.s21));
-  }
+// ── Mouse interaction ────────────────────────────────────────────────────────
+['cv-gs', 'cv-gl'].forEach(cvId => {
+  const cv = document.getElementById(cvId);
+  const isSrc = cvId === 'cv-gs';
 
-  function getK() {
-    const delta = getDelta();
-    const num = 1 - cmag(state.s11) ** 2 - cmag(state.s22) ** 2 + cmag(delta) ** 2;
-    const den = 2 * cmag(cmult(state.s12, state.s21));
-    return den > 1e-12 ? num / den : Infinity;
-  }
+  cv.addEventListener('mousedown', e => {
+    const rect = cv.getBoundingClientRect();
+    const ox = rect.width/2, oy = rect.height/2, sc = Math.min(rect.width, rect.height)/2.3;
+    const gx = (e.clientX - rect.left - ox)/sc;
+    const gy = (e.clientY - rect.top  - oy)/sc;
+    const g = isSrc ? state.gamma_S : state.gamma_L;
+    if (Math.hypot(gx - g.re, gy - g.im) < DRAG_THRESH)
+      state.dragging = isSrc ? 'gs' : 'gl';
+  });
 
-  function getGammaIn() {
-    const d = csub(complex(1, 0), cmult(state.s22, state.gamma_L));
-    if (cmag(d) < 1e-10) return state.s11;
-    return csum(state.s11, cdiv(cmult(cmult(state.s12, state.s21), state.gamma_L), d));
-  }
-
-  function getGammaOut() {
-    const d = csub(complex(1, 0), cmult(state.s11, state.gamma_S));
-    if (cmag(d) < 1e-10) return state.s22;
-    return csum(state.s22, cdiv(cmult(cmult(state.s12, state.s21), state.gamma_S), d));
-  }
-
-  function getGT() {
-    const gin = getGammaIn();
-    const num = (1 - cmag(state.gamma_S) ** 2) * cmag(state.s21) ** 2 * (1 - cmag(state.gamma_L) ** 2);
-    const d1 = csub(complex(1, 0), cmult(gin, state.gamma_S));
-    const d2 = csub(complex(1, 0), cmult(state.s22, state.gamma_L));
-    const den = cmag(d1) ** 2 * cmag(d2) ** 2;
-    return den > 1e-30 ? num / den : 0;
-  }
-
-  function getGP() {
-    const gin = getGammaIn();
-    const num = cmag(state.s21) ** 2 * (1 - cmag(state.gamma_L) ** 2);
-    const den = (1 - cmag(gin) ** 2) * cmag(csub(complex(1, 0), cmult(state.s22, state.gamma_L))) ** 2;
-    return den > 1e-30 ? num / den : 0;
-  }
-
-  function getGA() {
-    const gout = getGammaOut();
-    const num = cmag(state.s21) ** 2 * (1 - cmag(state.gamma_S) ** 2);
-    const den = cmag(csub(complex(1, 0), cmult(state.s11, state.gamma_S))) ** 2 * (1 - cmag(gout) ** 2);
-    return den > 1e-30 ? num / den : 0;
-  }
-
-  function getGTUnilateral() {
-    const num1 = (1 - cmag(state.gamma_S) ** 2) / cmag(csub(complex(1, 0), cmult(state.s11, state.gamma_S))) ** 2;
-    const num2 = cmag(state.s21) ** 2;
-    const num3 = (1 - cmag(state.gamma_L) ** 2) / cmag(csub(complex(1, 0), cmult(state.s22, state.gamma_L))) ** 2;
-    return num1 * num2 * num3;
-  }
-
-  function getMAG() {
-    const k = getK();
-    if (k < 1 || cmag(state.s12) < 1e-12) return NaN;
-    return cmag(cdiv(state.s21, state.s12)) * (k - Math.sqrt(k * k - 1));
-  }
-
-  function getMSG() {
-    return cmag(state.s12) > 1e-12 ? cmag(cdiv(state.s21, state.s12)) : Infinity;
-  }
-
-  function getGammaSOpt() {
-    const delta = getDelta();
-    const d = cmag(state.s11) ** 2 - cmag(delta) ** 2;
-    if (Math.abs(d) < 1e-10) return conj(state.s11);
-    const num = csub(state.s11, cmult(delta, conj(state.s22)));
-    return conj(cdiv(num, complex(d, 0)));
-  }
-
-  function getGammaLOpt() {
-    const delta = getDelta();
-    const d = cmag(state.s22) ** 2 - cmag(delta) ** 2;
-    if (Math.abs(d) < 1e-10) return conj(state.s22);
-    const num = csub(state.s22, cmult(delta, conj(state.s11)));
-    return conj(cdiv(num, complex(d, 0)));
-  }
-
-  function getSourceStabilityCircle() {
-    const delta = getDelta();
-    const d = cmag(state.s11) ** 2 - cmag(delta) ** 2;
-    if (Math.abs(d) < 1e-10) return null;
-    const cs = conj(csub(state.s11, cmult(delta, conj(state.s22))));
-    const cs_norm = cdiv(cs, complex(d, 0));
-    const rs = cmag(cmult(state.s12, state.s21)) / Math.abs(d);
-    return { cx: cs_norm.re, cy: cs_norm.im, r: rs };
-  }
-
-  function getLoadStabilityCircle() {
-    const delta = getDelta();
-    const d = cmag(state.s22) ** 2 - cmag(delta) ** 2;
-    if (Math.abs(d) < 1e-10) return null;
-    const cl = conj(csub(state.s22, cmult(delta, conj(state.s11))));
-    const cl_norm = cdiv(cl, complex(d, 0));
-    const rl = cmag(cmult(state.s12, state.s21)) / Math.abs(d);
-    return { cx: cl_norm.re, cy: cl_norm.im, r: rl };
-  }
-
-  function getUniSourceCircles(nsteps) {
-    const s11 = state.s11;
-    const s11_sq = cmag(s11) ** 2;
-    const gs_max = s11_sq < 0.9999 ? 1 / (1 - s11_sq) : 1e6;
-    const circles = [];
-    for (let i = 0; i < nsteps; i++) {
-      const g_norm = (i + 0.5) / nsteps;
-      const denom = 1 - (1 - g_norm) * s11_sq;
-      if (Math.abs(denom) < 1e-10) continue;
-      const cx_c = cdiv(cmult(complex(g_norm, 0), conj(s11)), complex(denom, 0));
-      const r_c = (Math.sqrt(1 - g_norm) * (1 - s11_sq)) / Math.abs(denom);
-      const gain = g_norm / (1 - s11_sq);
-      circles.push({ cx: cx_c.re, cy: cx_c.im, r: r_c, g: gain });
-    }
-    return circles;
-  }
-
-  function getUniLoadCircles(nsteps) {
-    const s22 = state.s22;
-    const s22_sq = cmag(s22) ** 2;
-    const circles = [];
-    for (let i = 0; i < nsteps; i++) {
-      const g_norm = (i + 0.5) / nsteps;
-      const denom = 1 - (1 - g_norm) * s22_sq;
-      if (Math.abs(denom) < 1e-10) continue;
-      const cx_c = cdiv(cmult(complex(g_norm, 0), conj(s22)), complex(denom, 0));
-      const r_c = (Math.sqrt(1 - g_norm) * (1 - s22_sq)) / Math.abs(denom);
-      const gain = g_norm / (1 - s22_sq);
-      circles.push({ cx: cx_c.re, cy: cx_c.im, r: r_c, g: gain });
-    }
-    return circles;
-  }
-
-  function getBilGACircles(nsteps) {
-    const C1 = csub(state.s11, cmult(getDelta(), conj(state.s22)));
-    const s21_sq = cmag(state.s21) ** 2;
-    const k = getK();
-    const s12s21 = cmag(cmult(state.s12, state.s21));
-    const d_s11 = cmag(state.s11) ** 2 - cmag(getDelta()) ** 2;
-    if (Math.abs(d_s11) < 1e-10 || s21_sq < 1e-12) return [];
-    const mag = !isFinite(getMAG()) ? getMSG() * 2 : getMAG();
-    const circles = [];
-    for (let i = 0; i < nsteps; i++) {
-      const frac = (i + 0.5) / nsteps;
-      const ga = frac * mag;
-      const ga_n = ga / s21_sq;
-      const denom = 1 + ga_n * d_s11;
-      if (Math.abs(denom) < 1e-10) continue;
-      const da = cdiv(cmult(complex(ga_n, 0), conj(C1)), complex(denom, 0));
-      const disc = 1 - 2 * k * s12s21 * ga_n + (s12s21 * ga_n) ** 2;
-      const ra = Math.sqrt(Math.max(0, disc)) / Math.abs(denom);
-      circles.push({ cx: da.re, cy: da.im, r: ra, g: ga });
-    }
-    return circles;
-  }
-
-  function getBilGPCircles(nsteps) {
-    const C2 = csub(state.s22, cmult(getDelta(), conj(state.s11)));
-    const s21_sq = cmag(state.s21) ** 2;
-    const k = getK();
-    const s12s21 = cmag(cmult(state.s12, state.s21));
-    const d_s22 = cmag(state.s22) ** 2 - cmag(getDelta()) ** 2;
-    if (Math.abs(d_s22) < 1e-10 || s21_sq < 1e-12) return [];
-    const mag = !isFinite(getMAG()) ? getMSG() * 2 : getMAG();
-    const circles = [];
-    for (let i = 0; i < nsteps; i++) {
-      const frac = (i + 0.5) / nsteps;
-      const gp = frac * mag;
-      const gp_n = gp / s21_sq;
-      const denom = 1 + gp_n * d_s22;
-      if (Math.abs(denom) < 1e-10) continue;
-      const dp = cdiv(cmult(complex(gp_n, 0), conj(C2)), complex(denom, 0));
-      const disc = 1 - 2 * k * s12s21 * gp_n + (s12s21 * gp_n) ** 2;
-      const rp = Math.sqrt(Math.max(0, disc)) / Math.abs(denom);
-      circles.push({ cx: dp.re, cy: dp.im, r: rp, g: gp });
-    }
-    return circles;
-  }
-
-  // ─── Canvas ───
-  function fitCanvas(cv) {
-    const dpr = window.devicePixelRatio || 1;
-    const r = cv.getBoundingClientRect();
-    cv.width = Math.max(2, Math.floor(r.width * dpr));
-    cv.height = Math.max(2, Math.floor(r.height * dpr));
-    const ctx = cv.getContext('2d');
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    return { ctx, w: r.width, h: r.height };
-  }
-
-  function drawSmithChart(cvId, planeType) {
-    const cv = document.getElementById(cvId);
-    const { ctx, w, h } = fitCanvas(cv);
-    const cx = w / 2, cy = h / 2;
-    const scale = Math.min(w, h) / 2.3;
-
-    ctx.fillStyle = '#1a1a2e';
-    ctx.fillRect(0, 0, w, h);
-
-    // Unit circle
-    ctx.strokeStyle = '#6677bb';
-    ctx.lineWidth = 1.6;
-    ctx.beginPath();
-    ctx.arc(cx, cy, scale, 0, TWO_PI);
-    ctx.stroke();
-
-    // Real axis
-    ctx.strokeStyle = '#444466';
-    ctx.lineWidth = 0.6;
-    ctx.beginPath();
-    ctx.moveTo(cx - scale, cy);
-    ctx.lineTo(cx + scale, cy);
-    ctx.stroke();
-
-    // Grid
-    const R_VALUES = [0, 0.2, 0.5, 1, 2, 5, 10];
-    ctx.strokeStyle = '#2a3060';
-    ctx.lineWidth = 0.75;
-    for (const r of R_VALUES) {
-      const pts = resistanceCirclePts(r);
-      if (pts.length > 0) {
-        ctx.beginPath();
-        ctx.moveTo(cx + pts[0][0] * scale, cy + pts[0][1] * scale);
-        for (let i = 1; i < pts.length; i++)
-          ctx.lineTo(cx + pts[i][0] * scale, cy + pts[i][1] * scale);
-        ctx.stroke();
-      }
-    }
-
-    const X_VALUES = [0.2, 0.5, 1, 2, 5];
-    ctx.strokeStyle = '#1e2248';
-    ctx.lineWidth = 0.65;
-    for (const x of X_VALUES) {
-      for (const sign of [1, -1]) {
-        const pts = reactanceArcPts(sign * x);
-        if (pts.length > 1) {
-          ctx.beginPath();
-          ctx.moveTo(cx + pts[0][0] * scale, cy + pts[0][1] * scale);
-          for (let i = 1; i < pts.length; i++)
-            ctx.lineTo(cx + pts[i][0] * scale, cy + pts[i][1] * scale);
-          ctx.stroke();
-        }
-      }
-    }
-
-    // Draw circles
-    const nsteps = 6;
-    if (planeType === 'source') {
-      const uni = state.show_uni ? getUniSourceCircles(nsteps) : [];
-      const bil = state.show_bil ? getBilGACircles(nsteps) : [];
-      const stab = state.show_stab ? getSourceStabilityCircle() : null;
-      const optUni = getGammaSOpt(), optBil = getGammaLOpt();
-
-      // Unilateral circles
-      for (let i = 0; i < uni.length; i++) {
-        const t = uni.length > 1 ? i / (uni.length - 1) : 0;
-        const col = lerpColor(t, '#2244aa', '#ff4455');
-        const { cx: cx_c, cy: cy_c, r } = uni[i];
-        const pts = circlePts(cx_c, cy_c, r);
-        if (pts.length > 0) {
-          ctx.strokeStyle = col;
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(cx + pts[0][0] * scale, cy + pts[0][1] * scale);
-          for (let j = 1; j < pts.length; j++)
-            ctx.lineTo(cx + pts[j][0] * scale, cy + pts[j][1] * scale);
-          ctx.stroke();
-        }
-      }
-
-      // Bilateral circles
-      for (let i = 0; i < bil.length; i++) {
-        const t = bil.length > 1 ? i / (bil.length - 1) : 0;
-        const col = lerpColor(t, '#006688', '#44ffcc');
-        const { cx: cx_c, cy: cy_c, r } = bil[i];
-        const pts = circlePts(cx_c, cy_c, r);
-        if (pts.length > 0) {
-          ctx.strokeStyle = col;
-          ctx.lineWidth = 0.9;
-          ctx.setLineDash([2, 3]);
-          ctx.beginPath();
-          ctx.moveTo(cx + pts[0][0] * scale, cy + pts[0][1] * scale);
-          for (let j = 1; j < pts.length; j++)
-            ctx.lineTo(cx + pts[j][0] * scale, cy + pts[j][1] * scale);
-          ctx.stroke();
-          ctx.setLineDash([]);
-        }
-      }
-
-      // Stability circle
-      if (stab) {
-        const pts = circlePts(stab.cx, stab.cy, stab.r);
-        ctx.strokeStyle = '#ff6644';
-        ctx.lineWidth = 1.3;
-        ctx.setLineDash([3, 3]);
-        ctx.beginPath();
-        ctx.moveTo(cx + pts[0][0] * scale, cy + pts[0][1] * scale);
-        for (let i = 1; i < pts.length; i++)
-          ctx.lineTo(cx + pts[i][0] * scale, cy + pts[i][1] * scale);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-
-      // Points
-      ctx.fillStyle = '#ff4455';
-      ctx.beginPath();
-      ctx.arc(cx + state.gamma_S.re * scale, cy + state.gamma_S.im * scale, 5.5, 0, TWO_PI);
-      ctx.fill();
-      ctx.strokeStyle = 'white';
-      ctx.lineWidth = 0.8;
-      ctx.stroke();
+  cv.addEventListener('mousemove', e => {
+    if (!state.dragging) return;
+    const rect = cv.getBoundingClientRect();
+    const ox = rect.width/2, oy = rect.height/2, sc = Math.min(rect.width, rect.height)/2.3;
+    let gx = (e.clientX - rect.left - ox)/sc;
+    let gy = (e.clientY - rect.top  - oy)/sc;
+    const m = Math.hypot(gx, gy);
+    if (m > 0.9999) { gx = gx/m*0.9999; gy = gy/m*0.9999; }
+    if (state.dragging === 'gs') {
+      state.gamma_S = { re: gx, im: gy };
+      document.getElementById('gs-mag').value = m.toFixed(4);
+      document.getElementById('gs-ph').value  = (Math.atan2(gy, gx)*180/PI).toFixed(0);
     } else {
-      const uni = state.show_uni ? getUniLoadCircles(nsteps) : [];
-      const bil = state.show_bil ? getBilGPCircles(nsteps) : [];
-      const stab = state.show_stab ? getLoadStabilityCircle() : null;
-
-      // Unilateral circles
-      for (let i = 0; i < uni.length; i++) {
-        const t = uni.length > 1 ? i / (uni.length - 1) : 0;
-        const col = lerpColor(t, '#2244aa', '#ff4455');
-        const { cx: cx_c, cy: cy_c, r } = uni[i];
-        const pts = circlePts(cx_c, cy_c, r);
-        if (pts.length > 0) {
-          ctx.strokeStyle = col;
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(cx + pts[0][0] * scale, cy + pts[0][1] * scale);
-          for (let j = 1; j < pts.length; j++)
-            ctx.lineTo(cx + pts[j][0] * scale, cy + pts[j][1] * scale);
-          ctx.stroke();
-        }
-      }
-
-      // Bilateral circles
-      for (let i = 0; i < bil.length; i++) {
-        const t = bil.length > 1 ? i / (bil.length - 1) : 0;
-        const col = lerpColor(t, '#006688', '#44ffcc');
-        const { cx: cx_c, cy: cy_c, r } = bil[i];
-        const pts = circlePts(cx_c, cy_c, r);
-        if (pts.length > 0) {
-          ctx.strokeStyle = col;
-          ctx.lineWidth = 0.9;
-          ctx.setLineDash([2, 3]);
-          ctx.beginPath();
-          ctx.moveTo(cx + pts[0][0] * scale, cy + pts[0][1] * scale);
-          for (let j = 1; j < pts.length; j++)
-            ctx.lineTo(cx + pts[j][0] * scale, cy + pts[j][1] * scale);
-          ctx.stroke();
-          ctx.setLineDash([]);
-        }
-      }
-
-      // Stability circle
-      if (stab) {
-        const pts = circlePts(stab.cx, stab.cy, stab.r);
-        ctx.strokeStyle = '#ff6644';
-        ctx.lineWidth = 1.3;
-        ctx.setLineDash([3, 3]);
-        ctx.beginPath();
-        ctx.moveTo(cx + pts[0][0] * scale, cy + pts[0][1] * scale);
-        for (let i = 1; i < pts.length; i++)
-          ctx.lineTo(cx + pts[i][0] * scale, cy + pts[i][1] * scale);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-
-      // Point
-      ctx.fillStyle = '#4488ff';
-      ctx.beginPath();
-      ctx.arc(cx + state.gamma_L.re * scale, cy + state.gamma_L.im * scale, 5.5, 0, TWO_PI);
-      ctx.fill();
-      ctx.strokeStyle = 'white';
-      ctx.lineWidth = 0.8;
-      ctx.stroke();
+      state.gamma_L = { re: gx, im: gy };
+      document.getElementById('gl-mag').value = m.toFixed(4);
+      document.getElementById('gl-ph').value  = (Math.atan2(gy, gx)*180/PI).toFixed(0);
     }
-  }
-
-  function lerpColor(t, c0, c1) {
-    const parse = (c) => {
-      c = c.slice(1);
-      return [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)];
-    };
-    const [r0, g0, b0] = parse(c0);
-    const [r1, g1, b1] = parse(c1);
-    const r = Math.round(r0 + t * (r1 - r0));
-    const g = Math.round(g0 + t * (g1 - g0));
-    const b = Math.round(b0 + t * (b1 - b0));
-    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
-  }
-
-  // ─── UI ───
-  function updateUI() {
-    const fmtG = (g) => `${cmag(g).toFixed(4)} ∠ ${cang(g) * 180 / PI | 0}°`;
-    const fmt = (x) => x.toFixed(2);
-
-    document.getElementById('k-val').textContent = isFinite(getK()) ? fmt(getK()) : '∞';
-    document.getElementById('delta-val').textContent = fmt(cmag(getDelta()));
-    const unconditional = getK() >= 1 && cmag(getDelta()) < 1;
-    document.getElementById('stab-val').textContent = unconditional ? '✓ Stable' : '✗ Unstable';
-    document.getElementById('gin-val').textContent = fmtG(getGammaIn());
-    document.getElementById('gout-val').textContent = fmtG(getGammaOut());
-    document.getElementById('gs-opt-val').textContent = fmtG(getGammaSOpt());
-    document.getElementById('gl-opt-val').textContent = fmtG(getGammaLOpt());
-
-    const fmtDb = (x) => {
-      if (!isFinite(x) || x === Infinity) return '∞ dB';
-      if (isNaN(x)) return 'k<1';
-      return pwrDb(x).toFixed(2) + ' dB';
-    };
-
-    document.getElementById('gt-val').textContent = fmtDb(getGT());
-    document.getElementById('gp-val').textContent = fmtDb(getGP());
-    document.getElementById('ga-val').textContent = fmtDb(getGA());
-    document.getElementById('mag-val').textContent = fmtDb(getMAG());
-    document.getElementById('msg-val').textContent = fmtDb(getMSG());
-    document.getElementById('gtu-val').textContent = fmtDb(getGTUnilateral());
-  }
-
-  function onInputChange() {
-    state.s11 = complex(dbToLin(parseFloat(document.getElementById('s11-mag').value)) * Math.cos(parseFloat(document.getElementById('s11-ph').value) * PI / 180), dbToLin(parseFloat(document.getElementById('s11-mag').value)) * Math.sin(parseFloat(document.getElementById('s11-ph').value) * PI / 180));
-    state.s21 = complex(dbToLin(parseFloat(document.getElementById('s21-mag').value)) * Math.cos(parseFloat(document.getElementById('s21-ph').value) * PI / 180), dbToLin(parseFloat(document.getElementById('s21-mag').value)) * Math.sin(parseFloat(document.getElementById('s21-ph').value) * PI / 180));
-    state.s12 = complex(dbToLin(parseFloat(document.getElementById('s12-mag').value)), 0);
-    state.s22 = complex(dbToLin(parseFloat(document.getElementById('s22-mag').value)) * Math.cos(parseFloat(document.getElementById('s22-ph').value) * PI / 180), dbToLin(parseFloat(document.getElementById('s22-mag').value)) * Math.sin(parseFloat(document.getElementById('s22-ph').value) * PI / 180));
-
-    const gs_mag = parseFloat(document.getElementById('gs-mag').value);
-    const gs_ph = parseFloat(document.getElementById('gs-ph').value) * PI / 180;
-    state.gamma_S = complex(gs_mag * Math.cos(gs_ph), gs_mag * Math.sin(gs_ph));
-
-    const gl_mag = parseFloat(document.getElementById('gl-mag').value);
-    const gl_ph = parseFloat(document.getElementById('gl-ph').value) * PI / 180;
-    state.gamma_L = complex(gl_mag * Math.cos(gl_ph), gl_mag * Math.sin(gl_ph));
-
-    state.z0 = parseFloat(document.getElementById('z0').value) || 50;
-    state.show_uni = document.getElementById('cb-uni').checked;
-    state.show_bil = document.getElementById('cb-bil').checked;
-    state.show_stab = document.getElementById('cb-stab').checked;
-
     updateUI();
     drawSmithChart('cv-gs', 'source');
     drawSmithChart('cv-gl', 'load');
-  }
-
-  function applyPreset(name) {
-    const presets = {
-      lna: [0.447, -140, 0.04, 2.8, 11.3, 0.5, -139],
-      pa: [0.7, -60, 0.1, 3, 120, 0.4, -40],
-      wba: [0.3, -90, 0.02, 1.8, 90, 0.3, -80],
-      unilat: [0.4, -90, 0, 2, 80, 0.3, -70],
-      matched: [0, 0, 0.04, 2.8, 11.3, 0, 0],
-      'k<1': [0.5, -60, 0.4, 1.5, 90, 0.5, -60]
-    };
-    if (!presets[name]) return;
-    const [s11m, s11p, s12m, s21m, s21p, s22m, s22p] = presets[name];
-    document.getElementById('s11-mag').value = s11m;
-    document.getElementById('s11-ph').value = s11p;
-    document.getElementById('s12-mag').value = s12m;
-    document.getElementById('s21-mag').value = s21m;
-    document.getElementById('s21-ph').value = s21p;
-    document.getElementById('s22-mag').value = s22m;
-    document.getElementById('s22-ph').value = s22p;
-    onInputChange();
-  }
-
-  // ─── Mouse ───
-  ['cv-gs', 'cv-gl'].forEach(cvId => {
-    const cv = document.getElementById(cvId);
-    const isSource = cvId === 'cv-gs';
-    cv.addEventListener('mousedown', (e) => {
-      const r = cv.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      const cx = r.width / 2, cy = r.height / 2;
-      const scale = Math.min(r.width, r.height) / 2.3;
-      const px = (e.clientX - r.left) / dpr, py = (e.clientY - r.top) / dpr;
-      const gx = (px - cx) / scale, gy = (py - cy) / scale;
-      const g = isSource ? state.gamma_S : state.gamma_L;
-      const d = Math.hypot(gx - g.re, gy - g.im);
-      if (d < DRAG_THRESH) state.dragging = isSource ? 'gs' : 'gl';
-    });
-
-    cv.addEventListener('mousemove', (e) => {
-      if (!state.dragging) return;
-      const r = cv.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      const cx = r.width / 2, cy = r.height / 2;
-      const scale = Math.min(r.width, r.height) / 2.3;
-      const px = (e.clientX - r.left) / dpr, py = (e.clientY - r.top) / dpr;
-      let gx = (px - cx) / scale, gy = (py - cy) / scale;
-      const mag = Math.hypot(gx, gy);
-      if (mag > 0.9999) { gx /= mag; gy /= mag; gx *= 0.9999; gy *= 0.9999; }
-      if (state.dragging === 'gs') {
-        state.gamma_S = { re: gx, im: gy };
-        document.getElementById('gs-mag').value = mag.toFixed(4);
-        document.getElementById('gs-ph').value = (Math.atan2(gy, gx) * 180 / PI).toFixed(0);
-      } else {
-        state.gamma_L = { re: gx, im: gy };
-        document.getElementById('gl-mag').value = mag.toFixed(4);
-        document.getElementById('gl-ph').value = (Math.atan2(gy, gx) * 180 / PI).toFixed(0);
-      }
-      updateUI();
-      drawSmithChart('cv-gs', 'source');
-      drawSmithChart('cv-gl', 'load');
-    });
   });
+});
 
-  window.addEventListener('mouseup', () => { state.dragging = null; });
+window.addEventListener('mouseup', () => { state.dragging = null; });
 
-  // ─── Event wiring ───
-  ['s11-mag', 's11-ph', 's21-mag', 's21-ph', 's12-mag', 's22-mag', 's22-ph', 'z0', 'gs-mag', 'gs-ph', 'gl-mag', 'gl-ph', 'cb-uni', 'cb-bil', 'cb-stab'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('change', onInputChange);
-  });
+// ── Event wiring ─────────────────────────────────────────────────────────────
+['s11-mag','s11-ph','s21-mag','s21-ph','s12-mag','s12-ph',
+ 's22-mag','s22-ph','z0','gs-mag','gs-ph','gl-mag','gl-ph',
+ 'cb-uni','cb-bil','cb-stab','cb-vswr','cb-opt'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('change', onInputChange);
+});
 
-  // ─── Init ───
-  onInputChange();
+// ResizeObserver: redraw on canvas resize
+const ro = new ResizeObserver(() => {
+  drawSmithChart('cv-gs', 'source');
+  drawSmithChart('cv-gl', 'load');
+});
+['cv-gs', 'cv-gl'].forEach(id => ro.observe(document.getElementById(id).parentElement));
+
+// Initial draw after layout is computed
+requestAnimationFrame(() => onInputChange());
 </script>
 </body>
 </html>
