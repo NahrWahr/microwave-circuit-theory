@@ -1,0 +1,956 @@
+<!doctype html>
+<!-- v1.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RF Amplifier Gain Analysis</title>
+  <style>
+    :root {
+      --bg: #12121f;
+      --panel: #1a1a2e;
+      --panel-2: #1e1e35;
+      --border: #333355;
+      --grid: #2a3060;
+      --grid-soft: #1e2248;
+      --axis: #444466;
+      --rim: #6677bb;
+      --label: #8899cc;
+      --text: #ccccee;
+      --gs-col: #ff4455;
+      --gl-col: #4488ff;
+      --stab: #ff6644;
+      --opt: #ffee44;
+      --gain-lo: #2244aa;
+      --gain-hi: #ff4455;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%; margin: 0;
+      background: var(--bg); color: var(--text);
+      font-family: 'Segoe UI', sans-serif; font-size: 11px;
+      overflow: hidden;
+    }
+    .app {
+      display: grid;
+      grid-template-rows: auto 1fr auto auto;
+      gap: 4px;
+      height: 100vh;
+      padding: 6px;
+    }
+    .header {
+      padding: 6px 12px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 13px;
+    }
+    .content {
+      display: grid;
+      grid-template-columns: 1fr 1fr 280px;
+      gap: 4px;
+      min-height: 0;
+    }
+    .chart-col {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-height: 0;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .panel-title {
+      padding: 4px 8px;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px; font-weight: 600;
+      color: var(--text);
+    }
+    .canvas-wrap {
+      flex: 1;
+      position: relative;
+      min-height: 0;
+    }
+    canvas { display: block; width: 100%; height: 100%; }
+    .right {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 4px;
+      min-height: 0;
+    }
+    .ctl-group {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 6px;
+    }
+    .ctl-title {
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.3px;
+      color: var(--label); text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .ctl-row {
+      display: grid;
+      grid-template-columns: 60px 1fr 50px;
+      gap: 4px;
+      margin-bottom: 4px;
+      align-items: center;
+      font-size: 11px;
+    }
+    .ctl-label { color: var(--label); }
+    .ctl-val { font-family: monospace; text-align: right; font-size: 10px; }
+    input[type=number], select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 3px;
+      padding: 2px 4px;
+      font-size: 10px;
+    }
+    button {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 3px;
+      padding: 3px 6px;
+      font-size: 10px;
+      cursor: pointer;
+    }
+    button:hover { border-color: var(--opt); }
+    .preset-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 3px;
+      margin-bottom: 4px;
+    }
+    .preset-row button { padding: 2px 3px; font-size: 9px; }
+    .metrics {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 6px;
+      font-family: monospace;
+      font-size: 9px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .metric-row {
+      display: grid;
+      grid-template-columns: 70px 1fr;
+      gap: 4px;
+      margin-bottom: 2px;
+      padding-bottom: 2px;
+      border-bottom: 1px solid var(--border);
+    }
+    .metric-row:last-child { border: none; margin-bottom: 0; }
+    .metric-label { color: var(--label); }
+    .metric-val { color: var(--text); text-align: right; }
+    .metrics-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 4px;
+    }
+    .metric-box {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 6px;
+      text-align: center;
+    }
+    .metric-box-title {
+      font-size: 9px; font-weight: 600;
+      color: var(--label);
+      margin-bottom: 3px;
+    }
+    .metric-box-val {
+      font-family: monospace;
+      font-size: 13px; font-weight: bold;
+      color: var(--text);
+    }
+    .footer {
+      padding: 4px 8px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 10px;
+      color: var(--label);
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="header">RF Amplifier Gain Analysis — 2-Port Network with Gain Circles</div>
+
+  <div class="content">
+    <div class="chart-col">
+      <div class="panel">
+        <div class="panel-title">ΓS Plane (Source) — GS/GA Circles</div>
+        <div class="canvas-wrap"><canvas id="cv-gs"></canvas></div>
+      </div>
+    </div>
+
+    <div class="chart-col">
+      <div class="panel">
+        <div class="panel-title">ΓL Plane (Load) — GL/GP Circles</div>
+        <div class="canvas-wrap"><canvas id="cv-gl"></canvas></div>
+      </div>
+    </div>
+
+    <div class="right">
+      <div style="overflow-y: auto;">
+        <div class="ctl-group">
+          <div class="ctl-title">S-Parameters</div>
+          <div class="ctl-row">
+            <div class="ctl-label">S₁₁ mag</div>
+            <input id="s11-mag" type="number" min="-60" max="40" value="-7.3" step="0.1">
+            <span class="ctl-val" style="color: var(--gs-col);">dB</span>
+          </div>
+          <div class="ctl-row">
+            <div class="ctl-label">S₁₁ ph</div>
+            <input id="s11-ph" type="number" min="-180" max="180" value="-140" step="1">
+            <span class="ctl-val">°</span>
+          </div>
+          <div class="ctl-row">
+            <div class="ctl-label">S₂₁ mag</div>
+            <input id="s21-mag" type="number" min="-60" max="40" value="8.93" step="0.1">
+            <span class="ctl-val" style="color: #44ffcc;">dB</span>
+          </div>
+          <div class="ctl-row">
+            <div class="ctl-label">S₂₁ ph</div>
+            <input id="s21-ph" type="number" min="-180" max="180" value="11.3" step="1">
+            <span class="ctl-val">°</span>
+          </div>
+          <div class="ctl-row">
+            <div class="ctl-label">S₁₂ mag</div>
+            <input id="s12-mag" type="number" min="-60" max="40" value="-26" step="0.1">
+            <span class="ctl-val">dB</span>
+          </div>
+          <div class="ctl-row">
+            <div class="ctl-label">S₂₂ mag</div>
+            <input id="s22-mag" type="number" min="-60" max="40" value="-6" step="0.1">
+            <span class="ctl-val" style="color: var(--gl-col);">dB</span>
+          </div>
+          <div class="ctl-row">
+            <div class="ctl-label">S₂₂ ph</div>
+            <input id="s22-ph" type="number" min="-180" max="180" value="-139" step="1">
+            <span class="ctl-val">°</span>
+          </div>
+        </div>
+
+        <div class="ctl-group">
+          <div class="ctl-title">Source/Load</div>
+          <div class="ctl-row">
+            <div class="ctl-label">Z₀</div>
+            <input id="z0" type="number" min="1" max="10000" value="50" step="0.1">
+            <span class="ctl-val">Ω</span>
+          </div>
+          <div class="ctl-row">
+            <div class="ctl-label">ΓS mag</div>
+            <input id="gs-mag" type="number" min="0" max="0.999" value="0" step="0.01">
+            <span class="ctl-val"></span>
+          </div>
+          <div class="ctl-row">
+            <div class="ctl-label">ΓS ph</div>
+            <input id="gs-ph" type="number" min="-180" max="180" value="0" step="1">
+            <span class="ctl-val">°</span>
+          </div>
+          <div class="ctl-row">
+            <div class="ctl-label">ΓL mag</div>
+            <input id="gl-mag" type="number" min="0" max="0.999" value="0" step="0.01">
+            <span class="ctl-val"></span>
+          </div>
+          <div class="ctl-row">
+            <div class="ctl-label">ΓL ph</div>
+            <input id="gl-ph" type="number" min="-180" max="180" value="0" step="1">
+            <span class="ctl-val">°</span>
+          </div>
+        </div>
+
+        <div class="ctl-group">
+          <div class="ctl-title">Display</div>
+          <div style="font-size: 10px; line-height: 1.4;">
+            <label style="display: block;"><input type="checkbox" id="cb-uni" checked> Unilateral</label>
+            <label style="display: block;"><input type="checkbox" id="cb-bil" checked> Bilateral</label>
+            <label style="display: block;"><input type="checkbox" id="cb-stab"> Stability</label>
+          </div>
+        </div>
+
+        <div class="ctl-group">
+          <div class="ctl-title">Presets</div>
+          <div class="preset-row">
+            <button onclick="applyPreset('lna')">LNA</button>
+            <button onclick="applyPreset('pa')">PA</button>
+            <button onclick="applyPreset('wba')">WB Amp</button>
+          </div>
+          <div class="preset-row">
+            <button onclick="applyPreset('unilat')">Unilat.</button>
+            <button onclick="applyPreset('matched')">Matched</button>
+            <button onclick="applyPreset('k<1')">K<1</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="metrics">
+        <div class="metric-row">
+          <div class="metric-label">K-factor</div>
+          <div class="metric-val" id="k-val">—</div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-label">|Δ|</div>
+          <div class="metric-val" id="delta-val">—</div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-label">Status</div>
+          <div class="metric-val" id="stab-val">—</div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-label">Γin</div>
+          <div class="metric-val" id="gin-val">—</div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-label">Γout</div>
+          <div class="metric-val" id="gout-val">—</div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-label">ΓS_opt</div>
+          <div class="metric-val" id="gs-opt-val">—</div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-label">ΓL_opt</div>
+          <div class="metric-val" id="gl-opt-val">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="metrics-row">
+    <div class="metric-box" style="border-color: var(--gs-col);">
+      <div class="metric-box-title">GT (Transducer)</div>
+      <div class="metric-box-val" id="gt-val">—</div>
+    </div>
+    <div class="metric-box" style="border-color: #44ddff;">
+      <div class="metric-box-title">GP (Operating)</div>
+      <div class="metric-box-val" id="gp-val">—</div>
+    </div>
+    <div class="metric-box" style="border-color: #44ff88;">
+      <div class="metric-box-title">GA (Available)</div>
+      <div class="metric-box-val" id="ga-val">—</div>
+    </div>
+    <div class="metric-box" style="border-color: #ffee44;">
+      <div class="metric-box-title">MAG</div>
+      <div class="metric-box-val" id="mag-val">—</div>
+    </div>
+    <div class="metric-box" style="border-color: #aaaacc;">
+      <div class="metric-box-title">MSG</div>
+      <div class="metric-box-val" id="msg-val">—</div>
+    </div>
+    <div class="metric-box" style="border-color: #cc88ff;">
+      <div class="metric-box-title">GT (Unilateral)</div>
+      <div class="metric-box-val" id="gtu-val">—</div>
+    </div>
+  </div>
+
+  <div class="footer">Drag ΓS (red) or ΓL (blue) on charts to explore gain circles. Positive gain ≈ amplifier; choose points inside the gain circles for best performance.</div>
+</div>
+
+<script>
+  // v1.0
+  "use strict";
+
+  const PI = Math.PI;
+  const TWO_PI = 2 * PI;
+  const DRAG_THRESH = 0.08;
+
+  // ─── Complex ───
+  function complex(re, im) { return { re, im }; }
+  function csum(a, b) { return { re: a.re + b.re, im: a.im + b.im }; }
+  function csub(a, b) { return { re: a.re - b.re, im: a.im - b.im }; }
+  function cmult(a, b) { return { re: a.re * b.re - a.im * b.im, im: a.re * b.im + a.im * b.re }; }
+  function cdiv(a, b) {
+    const d = b.re * b.re + b.im * b.im;
+    return { re: (a.re * b.re + a.im * b.im) / d, im: (a.im * b.re - a.re * b.im) / d };
+  }
+  function conj(a) { return { re: a.re, im: -a.im }; }
+  function cmag(a) { return Math.hypot(a.re, a.im); }
+  function cang(a) { return Math.atan2(a.im, a.re); }
+
+  // ─── Utility ───
+  function dbToLin(db) { return Math.pow(10, db / 20); }
+  function linTodb(x) { return 20 * Math.log10(Math.max(Math.abs(x), 1e-15)); }
+  function pwrDb(x) { return 10 * Math.log10(Math.max(Math.abs(x), 1e-15)); }
+
+  // ─── RF Math ───
+  function resistanceCirclePts(r, n = 300) {
+    const cx = r / (r + 1), rad = 1 / (r + 1);
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      const th = (i / n) * TWO_PI;
+      const re = cx + rad * Math.cos(th), im = rad * Math.sin(th);
+      if (re * re + im * im <= 1.001) pts.push([re, im]);
+    }
+    return pts;
+  }
+
+  function reactanceArcPts(x, n = 400) {
+    if (Math.abs(x) < 1e-9) return [];
+    const cy = 1 / x, rad = 1 / Math.abs(x);
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      const th = (i / n) * TWO_PI;
+      const re = 1 + rad * Math.cos(th), im = cy + rad * Math.sin(th);
+      if (re * re + im * im <= 1.001) pts.push([re, im, th]);
+    }
+    if (pts.length < 2) return [];
+    pts.sort((a, b) => a[2] - b[2]);
+    return pts.map(p => [p[0], p[1]]);
+  }
+
+  function circlePts(cx, cy, r, n = 300) {
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      const th = (i / n) * TWO_PI;
+      const x = cx + r * Math.cos(th), y = cy + r * Math.sin(th);
+      if (x * x + y * y <= 1.001) pts.push([x, y]);
+    }
+    return pts;
+  }
+
+  // ─── State ───
+  const state = {
+    s11: complex(0.447, -0.239),
+    s12: complex(0.04, 0.012),
+    s21: complex(2.8, 0.4),
+    s22: complex(0.5, -0.436),
+    gamma_S: complex(0, 0),
+    gamma_L: complex(0, 0),
+    z0: 50,
+    show_uni: true,
+    show_bil: true,
+    show_stab: false,
+    dragging: null
+  };
+
+  // ─── Getters ───
+  function getDelta() {
+    return csub(cmult(state.s11, state.s22), cmult(state.s12, state.s21));
+  }
+
+  function getK() {
+    const delta = getDelta();
+    const num = 1 - cmag(state.s11) ** 2 - cmag(state.s22) ** 2 + cmag(delta) ** 2;
+    const den = 2 * cmag(cmult(state.s12, state.s21));
+    return den > 1e-12 ? num / den : Infinity;
+  }
+
+  function getGammaIn() {
+    const d = csub(complex(1, 0), cmult(state.s22, state.gamma_L));
+    if (cmag(d) < 1e-10) return state.s11;
+    return csum(state.s11, cdiv(cmult(cmult(state.s12, state.s21), state.gamma_L), d));
+  }
+
+  function getGammaOut() {
+    const d = csub(complex(1, 0), cmult(state.s11, state.gamma_S));
+    if (cmag(d) < 1e-10) return state.s22;
+    return csum(state.s22, cdiv(cmult(cmult(state.s12, state.s21), state.gamma_S), d));
+  }
+
+  function getGT() {
+    const gin = getGammaIn();
+    const num = (1 - cmag(state.gamma_S) ** 2) * cmag(state.s21) ** 2 * (1 - cmag(state.gamma_L) ** 2);
+    const d1 = csub(complex(1, 0), cmult(gin, state.gamma_S));
+    const d2 = csub(complex(1, 0), cmult(state.s22, state.gamma_L));
+    const den = cmag(d1) ** 2 * cmag(d2) ** 2;
+    return den > 1e-30 ? num / den : 0;
+  }
+
+  function getGP() {
+    const gin = getGammaIn();
+    const num = cmag(state.s21) ** 2 * (1 - cmag(state.gamma_L) ** 2);
+    const den = (1 - cmag(gin) ** 2) * cmag(csub(complex(1, 0), cmult(state.s22, state.gamma_L))) ** 2;
+    return den > 1e-30 ? num / den : 0;
+  }
+
+  function getGA() {
+    const gout = getGammaOut();
+    const num = cmag(state.s21) ** 2 * (1 - cmag(state.gamma_S) ** 2);
+    const den = cmag(csub(complex(1, 0), cmult(state.s11, state.gamma_S))) ** 2 * (1 - cmag(gout) ** 2);
+    return den > 1e-30 ? num / den : 0;
+  }
+
+  function getGTUnilateral() {
+    const num1 = (1 - cmag(state.gamma_S) ** 2) / cmag(csub(complex(1, 0), cmult(state.s11, state.gamma_S))) ** 2;
+    const num2 = cmag(state.s21) ** 2;
+    const num3 = (1 - cmag(state.gamma_L) ** 2) / cmag(csub(complex(1, 0), cmult(state.s22, state.gamma_L))) ** 2;
+    return num1 * num2 * num3;
+  }
+
+  function getMAG() {
+    const k = getK();
+    if (k < 1 || cmag(state.s12) < 1e-12) return NaN;
+    return cmag(cdiv(state.s21, state.s12)) * (k - Math.sqrt(k * k - 1));
+  }
+
+  function getMSG() {
+    return cmag(state.s12) > 1e-12 ? cmag(cdiv(state.s21, state.s12)) : Infinity;
+  }
+
+  function getGammaSOpt() {
+    const delta = getDelta();
+    const d = cmag(state.s11) ** 2 - cmag(delta) ** 2;
+    if (Math.abs(d) < 1e-10) return conj(state.s11);
+    const num = csub(state.s11, cmult(delta, conj(state.s22)));
+    return conj(cdiv(num, complex(d, 0)));
+  }
+
+  function getGammaLOpt() {
+    const delta = getDelta();
+    const d = cmag(state.s22) ** 2 - cmag(delta) ** 2;
+    if (Math.abs(d) < 1e-10) return conj(state.s22);
+    const num = csub(state.s22, cmult(delta, conj(state.s11)));
+    return conj(cdiv(num, complex(d, 0)));
+  }
+
+  function getSourceStabilityCircle() {
+    const delta = getDelta();
+    const d = cmag(state.s11) ** 2 - cmag(delta) ** 2;
+    if (Math.abs(d) < 1e-10) return null;
+    const cs = conj(csub(state.s11, cmult(delta, conj(state.s22))));
+    const cs_norm = cdiv(cs, complex(d, 0));
+    const rs = cmag(cmult(state.s12, state.s21)) / Math.abs(d);
+    return { cx: cs_norm.re, cy: cs_norm.im, r: rs };
+  }
+
+  function getLoadStabilityCircle() {
+    const delta = getDelta();
+    const d = cmag(state.s22) ** 2 - cmag(delta) ** 2;
+    if (Math.abs(d) < 1e-10) return null;
+    const cl = conj(csub(state.s22, cmult(delta, conj(state.s11))));
+    const cl_norm = cdiv(cl, complex(d, 0));
+    const rl = cmag(cmult(state.s12, state.s21)) / Math.abs(d);
+    return { cx: cl_norm.re, cy: cl_norm.im, r: rl };
+  }
+
+  function getUniSourceCircles(nsteps) {
+    const s11 = state.s11;
+    const s11_sq = cmag(s11) ** 2;
+    const gs_max = s11_sq < 0.9999 ? 1 / (1 - s11_sq) : 1e6;
+    const circles = [];
+    for (let i = 0; i < nsteps; i++) {
+      const g_norm = (i + 0.5) / nsteps;
+      const denom = 1 - (1 - g_norm) * s11_sq;
+      if (Math.abs(denom) < 1e-10) continue;
+      const cx_c = cdiv(cmult(complex(g_norm, 0), conj(s11)), complex(denom, 0));
+      const r_c = (Math.sqrt(1 - g_norm) * (1 - s11_sq)) / Math.abs(denom);
+      const gain = g_norm / (1 - s11_sq);
+      circles.push({ cx: cx_c.re, cy: cx_c.im, r: r_c, g: gain });
+    }
+    return circles;
+  }
+
+  function getUniLoadCircles(nsteps) {
+    const s22 = state.s22;
+    const s22_sq = cmag(s22) ** 2;
+    const circles = [];
+    for (let i = 0; i < nsteps; i++) {
+      const g_norm = (i + 0.5) / nsteps;
+      const denom = 1 - (1 - g_norm) * s22_sq;
+      if (Math.abs(denom) < 1e-10) continue;
+      const cx_c = cdiv(cmult(complex(g_norm, 0), conj(s22)), complex(denom, 0));
+      const r_c = (Math.sqrt(1 - g_norm) * (1 - s22_sq)) / Math.abs(denom);
+      const gain = g_norm / (1 - s22_sq);
+      circles.push({ cx: cx_c.re, cy: cx_c.im, r: r_c, g: gain });
+    }
+    return circles;
+  }
+
+  function getBilGACircles(nsteps) {
+    const C1 = csub(state.s11, cmult(getDelta(), conj(state.s22)));
+    const s21_sq = cmag(state.s21) ** 2;
+    const k = getK();
+    const s12s21 = cmag(cmult(state.s12, state.s21));
+    const d_s11 = cmag(state.s11) ** 2 - cmag(getDelta()) ** 2;
+    if (Math.abs(d_s11) < 1e-10 || s21_sq < 1e-12) return [];
+    const mag = !isFinite(getMAG()) ? getMSG() * 2 : getMAG();
+    const circles = [];
+    for (let i = 0; i < nsteps; i++) {
+      const frac = (i + 0.5) / nsteps;
+      const ga = frac * mag;
+      const ga_n = ga / s21_sq;
+      const denom = 1 + ga_n * d_s11;
+      if (Math.abs(denom) < 1e-10) continue;
+      const da = cdiv(cmult(complex(ga_n, 0), conj(C1)), complex(denom, 0));
+      const disc = 1 - 2 * k * s12s21 * ga_n + (s12s21 * ga_n) ** 2;
+      const ra = Math.sqrt(Math.max(0, disc)) / Math.abs(denom);
+      circles.push({ cx: da.re, cy: da.im, r: ra, g: ga });
+    }
+    return circles;
+  }
+
+  function getBilGPCircles(nsteps) {
+    const C2 = csub(state.s22, cmult(getDelta(), conj(state.s11)));
+    const s21_sq = cmag(state.s21) ** 2;
+    const k = getK();
+    const s12s21 = cmag(cmult(state.s12, state.s21));
+    const d_s22 = cmag(state.s22) ** 2 - cmag(getDelta()) ** 2;
+    if (Math.abs(d_s22) < 1e-10 || s21_sq < 1e-12) return [];
+    const mag = !isFinite(getMAG()) ? getMSG() * 2 : getMAG();
+    const circles = [];
+    for (let i = 0; i < nsteps; i++) {
+      const frac = (i + 0.5) / nsteps;
+      const gp = frac * mag;
+      const gp_n = gp / s21_sq;
+      const denom = 1 + gp_n * d_s22;
+      if (Math.abs(denom) < 1e-10) continue;
+      const dp = cdiv(cmult(complex(gp_n, 0), conj(C2)), complex(denom, 0));
+      const disc = 1 - 2 * k * s12s21 * gp_n + (s12s21 * gp_n) ** 2;
+      const rp = Math.sqrt(Math.max(0, disc)) / Math.abs(denom);
+      circles.push({ cx: dp.re, cy: dp.im, r: rp, g: gp });
+    }
+    return circles;
+  }
+
+  // ─── Canvas ───
+  function fitCanvas(cv) {
+    const dpr = window.devicePixelRatio || 1;
+    const r = cv.getBoundingClientRect();
+    cv.width = Math.max(2, Math.floor(r.width * dpr));
+    cv.height = Math.max(2, Math.floor(r.height * dpr));
+    const ctx = cv.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx, w: r.width, h: r.height };
+  }
+
+  function drawSmithChart(cvId, planeType) {
+    const cv = document.getElementById(cvId);
+    const { ctx, w, h } = fitCanvas(cv);
+    const cx = w / 2, cy = h / 2;
+    const scale = Math.min(w, h) / 2.3;
+
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, w, h);
+
+    // Unit circle
+    ctx.strokeStyle = '#6677bb';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.arc(cx, cy, scale, 0, TWO_PI);
+    ctx.stroke();
+
+    // Real axis
+    ctx.strokeStyle = '#444466';
+    ctx.lineWidth = 0.6;
+    ctx.beginPath();
+    ctx.moveTo(cx - scale, cy);
+    ctx.lineTo(cx + scale, cy);
+    ctx.stroke();
+
+    // Grid
+    const R_VALUES = [0, 0.2, 0.5, 1, 2, 5, 10];
+    ctx.strokeStyle = '#2a3060';
+    ctx.lineWidth = 0.75;
+    for (const r of R_VALUES) {
+      const pts = resistanceCirclePts(r);
+      if (pts.length > 0) {
+        ctx.beginPath();
+        ctx.moveTo(cx + pts[0][0] * scale, cy + pts[0][1] * scale);
+        for (let i = 1; i < pts.length; i++)
+          ctx.lineTo(cx + pts[i][0] * scale, cy + pts[i][1] * scale);
+        ctx.stroke();
+      }
+    }
+
+    const X_VALUES = [0.2, 0.5, 1, 2, 5];
+    ctx.strokeStyle = '#1e2248';
+    ctx.lineWidth = 0.65;
+    for (const x of X_VALUES) {
+      for (const sign of [1, -1]) {
+        const pts = reactanceArcPts(sign * x);
+        if (pts.length > 1) {
+          ctx.beginPath();
+          ctx.moveTo(cx + pts[0][0] * scale, cy + pts[0][1] * scale);
+          for (let i = 1; i < pts.length; i++)
+            ctx.lineTo(cx + pts[i][0] * scale, cy + pts[i][1] * scale);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Draw circles
+    const nsteps = 6;
+    if (planeType === 'source') {
+      const uni = state.show_uni ? getUniSourceCircles(nsteps) : [];
+      const bil = state.show_bil ? getBilGACircles(nsteps) : [];
+      const stab = state.show_stab ? getSourceStabilityCircle() : null;
+      const optUni = getGammaSOpt(), optBil = getGammaLOpt();
+
+      // Unilateral circles
+      for (let i = 0; i < uni.length; i++) {
+        const t = uni.length > 1 ? i / (uni.length - 1) : 0;
+        const col = lerpColor(t, '#2244aa', '#ff4455');
+        const { cx: cx_c, cy: cy_c, r } = uni[i];
+        const pts = circlePts(cx_c, cy_c, r);
+        if (pts.length > 0) {
+          ctx.strokeStyle = col;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(cx + pts[0][0] * scale, cy + pts[0][1] * scale);
+          for (let j = 1; j < pts.length; j++)
+            ctx.lineTo(cx + pts[j][0] * scale, cy + pts[j][1] * scale);
+          ctx.stroke();
+        }
+      }
+
+      // Bilateral circles
+      for (let i = 0; i < bil.length; i++) {
+        const t = bil.length > 1 ? i / (bil.length - 1) : 0;
+        const col = lerpColor(t, '#006688', '#44ffcc');
+        const { cx: cx_c, cy: cy_c, r } = bil[i];
+        const pts = circlePts(cx_c, cy_c, r);
+        if (pts.length > 0) {
+          ctx.strokeStyle = col;
+          ctx.lineWidth = 0.9;
+          ctx.setLineDash([2, 3]);
+          ctx.beginPath();
+          ctx.moveTo(cx + pts[0][0] * scale, cy + pts[0][1] * scale);
+          for (let j = 1; j < pts.length; j++)
+            ctx.lineTo(cx + pts[j][0] * scale, cy + pts[j][1] * scale);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
+
+      // Stability circle
+      if (stab) {
+        const pts = circlePts(stab.cx, stab.cy, stab.r);
+        ctx.strokeStyle = '#ff6644';
+        ctx.lineWidth = 1.3;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(cx + pts[0][0] * scale, cy + pts[0][1] * scale);
+        for (let i = 1; i < pts.length; i++)
+          ctx.lineTo(cx + pts[i][0] * scale, cy + pts[i][1] * scale);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Points
+      ctx.fillStyle = '#ff4455';
+      ctx.beginPath();
+      ctx.arc(cx + state.gamma_S.re * scale, cy + state.gamma_S.im * scale, 5.5, 0, TWO_PI);
+      ctx.fill();
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    } else {
+      const uni = state.show_uni ? getUniLoadCircles(nsteps) : [];
+      const bil = state.show_bil ? getBilGPCircles(nsteps) : [];
+      const stab = state.show_stab ? getLoadStabilityCircle() : null;
+
+      // Unilateral circles
+      for (let i = 0; i < uni.length; i++) {
+        const t = uni.length > 1 ? i / (uni.length - 1) : 0;
+        const col = lerpColor(t, '#2244aa', '#ff4455');
+        const { cx: cx_c, cy: cy_c, r } = uni[i];
+        const pts = circlePts(cx_c, cy_c, r);
+        if (pts.length > 0) {
+          ctx.strokeStyle = col;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(cx + pts[0][0] * scale, cy + pts[0][1] * scale);
+          for (let j = 1; j < pts.length; j++)
+            ctx.lineTo(cx + pts[j][0] * scale, cy + pts[j][1] * scale);
+          ctx.stroke();
+        }
+      }
+
+      // Bilateral circles
+      for (let i = 0; i < bil.length; i++) {
+        const t = bil.length > 1 ? i / (bil.length - 1) : 0;
+        const col = lerpColor(t, '#006688', '#44ffcc');
+        const { cx: cx_c, cy: cy_c, r } = bil[i];
+        const pts = circlePts(cx_c, cy_c, r);
+        if (pts.length > 0) {
+          ctx.strokeStyle = col;
+          ctx.lineWidth = 0.9;
+          ctx.setLineDash([2, 3]);
+          ctx.beginPath();
+          ctx.moveTo(cx + pts[0][0] * scale, cy + pts[0][1] * scale);
+          for (let j = 1; j < pts.length; j++)
+            ctx.lineTo(cx + pts[j][0] * scale, cy + pts[j][1] * scale);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      }
+
+      // Stability circle
+      if (stab) {
+        const pts = circlePts(stab.cx, stab.cy, stab.r);
+        ctx.strokeStyle = '#ff6644';
+        ctx.lineWidth = 1.3;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(cx + pts[0][0] * scale, cy + pts[0][1] * scale);
+        for (let i = 1; i < pts.length; i++)
+          ctx.lineTo(cx + pts[i][0] * scale, cy + pts[i][1] * scale);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Point
+      ctx.fillStyle = '#4488ff';
+      ctx.beginPath();
+      ctx.arc(cx + state.gamma_L.re * scale, cy + state.gamma_L.im * scale, 5.5, 0, TWO_PI);
+      ctx.fill();
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = 0.8;
+      ctx.stroke();
+    }
+  }
+
+  function lerpColor(t, c0, c1) {
+    const parse = (c) => {
+      c = c.slice(1);
+      return [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)];
+    };
+    const [r0, g0, b0] = parse(c0);
+    const [r1, g1, b1] = parse(c1);
+    const r = Math.round(r0 + t * (r1 - r0));
+    const g = Math.round(g0 + t * (g1 - g0));
+    const b = Math.round(b0 + t * (b1 - b0));
+    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+  }
+
+  // ─── UI ───
+  function updateUI() {
+    const fmtG = (g) => `${cmag(g).toFixed(4)} ∠ ${cang(g) * 180 / PI | 0}°`;
+    const fmt = (x) => x.toFixed(2);
+
+    document.getElementById('k-val').textContent = isFinite(getK()) ? fmt(getK()) : '∞';
+    document.getElementById('delta-val').textContent = fmt(cmag(getDelta()));
+    const unconditional = getK() >= 1 && cmag(getDelta()) < 1;
+    document.getElementById('stab-val').textContent = unconditional ? '✓ Stable' : '✗ Unstable';
+    document.getElementById('gin-val').textContent = fmtG(getGammaIn());
+    document.getElementById('gout-val').textContent = fmtG(getGammaOut());
+    document.getElementById('gs-opt-val').textContent = fmtG(getGammaSOpt());
+    document.getElementById('gl-opt-val').textContent = fmtG(getGammaLOpt());
+
+    const fmtDb = (x) => {
+      if (!isFinite(x) || x === Infinity) return '∞ dB';
+      if (isNaN(x)) return 'k<1';
+      return pwrDb(x).toFixed(2) + ' dB';
+    };
+
+    document.getElementById('gt-val').textContent = fmtDb(getGT());
+    document.getElementById('gp-val').textContent = fmtDb(getGP());
+    document.getElementById('ga-val').textContent = fmtDb(getGA());
+    document.getElementById('mag-val').textContent = fmtDb(getMAG());
+    document.getElementById('msg-val').textContent = fmtDb(getMSG());
+    document.getElementById('gtu-val').textContent = fmtDb(getGTUnilateral());
+  }
+
+  function onInputChange() {
+    state.s11 = complex(dbToLin(parseFloat(document.getElementById('s11-mag').value)) * Math.cos(parseFloat(document.getElementById('s11-ph').value) * PI / 180), dbToLin(parseFloat(document.getElementById('s11-mag').value)) * Math.sin(parseFloat(document.getElementById('s11-ph').value) * PI / 180));
+    state.s21 = complex(dbToLin(parseFloat(document.getElementById('s21-mag').value)) * Math.cos(parseFloat(document.getElementById('s21-ph').value) * PI / 180), dbToLin(parseFloat(document.getElementById('s21-mag').value)) * Math.sin(parseFloat(document.getElementById('s21-ph').value) * PI / 180));
+    state.s12 = complex(dbToLin(parseFloat(document.getElementById('s12-mag').value)), 0);
+    state.s22 = complex(dbToLin(parseFloat(document.getElementById('s22-mag').value)) * Math.cos(parseFloat(document.getElementById('s22-ph').value) * PI / 180), dbToLin(parseFloat(document.getElementById('s22-mag').value)) * Math.sin(parseFloat(document.getElementById('s22-ph').value) * PI / 180));
+
+    const gs_mag = parseFloat(document.getElementById('gs-mag').value);
+    const gs_ph = parseFloat(document.getElementById('gs-ph').value) * PI / 180;
+    state.gamma_S = complex(gs_mag * Math.cos(gs_ph), gs_mag * Math.sin(gs_ph));
+
+    const gl_mag = parseFloat(document.getElementById('gl-mag').value);
+    const gl_ph = parseFloat(document.getElementById('gl-ph').value) * PI / 180;
+    state.gamma_L = complex(gl_mag * Math.cos(gl_ph), gl_mag * Math.sin(gl_ph));
+
+    state.z0 = parseFloat(document.getElementById('z0').value) || 50;
+    state.show_uni = document.getElementById('cb-uni').checked;
+    state.show_bil = document.getElementById('cb-bil').checked;
+    state.show_stab = document.getElementById('cb-stab').checked;
+
+    updateUI();
+    drawSmithChart('cv-gs', 'source');
+    drawSmithChart('cv-gl', 'load');
+  }
+
+  function applyPreset(name) {
+    const presets = {
+      lna: [0.447, -140, 0.04, 2.8, 11.3, 0.5, -139],
+      pa: [0.7, -60, 0.1, 3, 120, 0.4, -40],
+      wba: [0.3, -90, 0.02, 1.8, 90, 0.3, -80],
+      unilat: [0.4, -90, 0, 2, 80, 0.3, -70],
+      matched: [0, 0, 0.04, 2.8, 11.3, 0, 0],
+      'k<1': [0.5, -60, 0.4, 1.5, 90, 0.5, -60]
+    };
+    if (!presets[name]) return;
+    const [s11m, s11p, s12m, s21m, s21p, s22m, s22p] = presets[name];
+    document.getElementById('s11-mag').value = s11m;
+    document.getElementById('s11-ph').value = s11p;
+    document.getElementById('s12-mag').value = s12m;
+    document.getElementById('s21-mag').value = s21m;
+    document.getElementById('s21-ph').value = s21p;
+    document.getElementById('s22-mag').value = s22m;
+    document.getElementById('s22-ph').value = s22p;
+    onInputChange();
+  }
+
+  // ─── Mouse ───
+  ['cv-gs', 'cv-gl'].forEach(cvId => {
+    const cv = document.getElementById(cvId);
+    const isSource = cvId === 'cv-gs';
+    cv.addEventListener('mousedown', (e) => {
+      const r = cv.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const cx = r.width / 2, cy = r.height / 2;
+      const scale = Math.min(r.width, r.height) / 2.3;
+      const px = (e.clientX - r.left) / dpr, py = (e.clientY - r.top) / dpr;
+      const gx = (px - cx) / scale, gy = (py - cy) / scale;
+      const g = isSource ? state.gamma_S : state.gamma_L;
+      const d = Math.hypot(gx - g.re, gy - g.im);
+      if (d < DRAG_THRESH) state.dragging = isSource ? 'gs' : 'gl';
+    });
+
+    cv.addEventListener('mousemove', (e) => {
+      if (!state.dragging) return;
+      const r = cv.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const cx = r.width / 2, cy = r.height / 2;
+      const scale = Math.min(r.width, r.height) / 2.3;
+      const px = (e.clientX - r.left) / dpr, py = (e.clientY - r.top) / dpr;
+      let gx = (px - cx) / scale, gy = (py - cy) / scale;
+      const mag = Math.hypot(gx, gy);
+      if (mag > 0.9999) { gx /= mag; gy /= mag; gx *= 0.9999; gy *= 0.9999; }
+      if (state.dragging === 'gs') {
+        state.gamma_S = { re: gx, im: gy };
+        document.getElementById('gs-mag').value = mag.toFixed(4);
+        document.getElementById('gs-ph').value = (Math.atan2(gy, gx) * 180 / PI).toFixed(0);
+      } else {
+        state.gamma_L = { re: gx, im: gy };
+        document.getElementById('gl-mag').value = mag.toFixed(4);
+        document.getElementById('gl-ph').value = (Math.atan2(gy, gx) * 180 / PI).toFixed(0);
+      }
+      updateUI();
+      drawSmithChart('cv-gs', 'source');
+      drawSmithChart('cv-gl', 'load');
+    });
+  });
+
+  window.addEventListener('mouseup', () => { state.dragging = null; });
+
+  // ─── Event wiring ───
+  ['s11-mag', 's11-ph', 's21-mag', 's21-ph', 's12-mag', 's22-mag', 's22-ph', 'z0', 'gs-mag', 'gs-ph', 'gl-mag', 'gl-ph', 'cb-uni', 'cb-bil', 'cb-stab'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', onInputChange);
+  });
+
+  // ─── Init ───
+  onInputChange();
+</script>
+</body>
+</html>

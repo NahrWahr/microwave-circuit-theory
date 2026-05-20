@@ -1,0 +1,834 @@
+<!doctype html>
+<!-- v1.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Smith Chart Simulator</title>
+  <style>
+    :root {
+      --bg: #12121f;
+      --panel: #1a1a2e;
+      --panel-2: #1e1e35;
+      --border: #333355;
+      --grid-major: #2a3060;
+      --grid-minor: #1e2248;
+      --axis: #444466;
+      --rim: #6677bb;
+      --label: #8899cc;
+      --text: #ccccee;
+      --pt1: #ff4455;
+      --pt2: #4488ff;
+      --vswr: #ff8833;
+      --adm: #44ffaa;
+      --trans: #44ffcc;
+      --load: #ffcc33;
+      --load-bwd: #ff8833;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%; margin: 0;
+      background: var(--bg); color: var(--text);
+      font-family: 'Segoe UI', sans-serif; font-size: 13px;
+      overflow: hidden;
+    }
+    .app {
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 4px;
+      height: 100vh;
+      padding: 6px;
+    }
+    .header {
+      padding: 6px 12px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 14px;
+    }
+    .content {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 4px;
+      min-height: 0;
+    }
+    .left {
+      display: grid;
+      grid-template-rows: 1fr auto;
+      gap: 4px;
+      min-height: 0;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .panel-title {
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px; font-weight: 600;
+      color: var(--text);
+    }
+    .canvas-wrap {
+      flex: 1;
+      position: relative;
+      min-height: 0;
+    }
+    canvas { display: block; width: 100%; height: 100%; }
+    .right {
+      width: 280px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 4px;
+      min-height: 0;
+    }
+    .ctl-group {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 8px 10px;
+    }
+    .ctl-title {
+      font-size: 11px; font-weight: 700;
+      letter-spacing: 0.4px;
+      color: var(--label); text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .ctl-row {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      gap: 6px;
+      margin-bottom: 6px;
+      align-items: center;
+      font-size: 12px;
+    }
+    .ctl-label { color: var(--label); }
+    input[type=number], select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 3px;
+      padding: 4px 6px;
+      font-size: 12px;
+    }
+    input[type=checkbox] {
+      width: 14px; height: 14px;
+      accent-color: #4466cc;
+      cursor: pointer;
+    }
+    .ctl-check {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 6px;
+      align-items: center;
+      font-size: 12px;
+    }
+    .ctl-check label {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      cursor: pointer;
+      color: var(--label);
+    }
+    button {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 3px;
+      padding: 4px 8px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    button:hover { border-color: var(--load); }
+    .preset-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      margin-bottom: 6px;
+    }
+    .preset-row button { padding: 3px 4px; font-size: 10px; }
+    .metrics {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 8px;
+      font-family: monospace;
+      font-size: 10px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .metric-row {
+      display: grid;
+      grid-template-columns: 100px 1fr;
+      gap: 6px;
+      margin-bottom: 4px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--border);
+    }
+    .metric-row:last-child { border: none; margin-bottom: 0; }
+    .metric-label { color: var(--label); }
+    .metric-val { color: var(--text); text-align: right; }
+    .footer {
+      padding: 4px 8px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 11px;
+      color: var(--label);
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="header">Smith Chart Simulator — Interactive S11/S22/ΓL Explorer</div>
+
+  <div class="content">
+    <div class="left">
+      <div class="panel">
+        <div class="panel-title">Smith Chart</div>
+        <div class="canvas-wrap"><canvas id="cv-smith"></canvas></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Wave Analysis — Time-Domain Voltage</div>
+        <div class="canvas-wrap"><canvas id="cv-wave"></canvas></div>
+      </div>
+    </div>
+
+    <div class="right">
+      <div style="display: grid; grid-template-rows: auto auto auto auto; gap: 4px; overflow-y: auto;">
+        <div class="ctl-group">
+          <div class="ctl-title">Reference</div>
+          <div class="ctl-row">
+            <div class="ctl-label">Z₀</div>
+            <input id="z0-spin" type="number" min="1" max="10000" value="50" step="0.1">
+          </div>
+        </div>
+
+        <div class="ctl-group">
+          <div class="ctl-title">Port 1 (S₁₁)</div>
+          <div class="ctl-row">
+            <div class="ctl-label">Γ₁ mag</div>
+            <input id="g1-mag" type="number" min="0" max="0.9999" value="0" step="0.001">
+          </div>
+          <div class="ctl-row">
+            <div class="ctl-label">Γ₁ phase (°)</div>
+            <input id="g1-ph" type="number" min="-180" max="180" value="0" step="1">
+          </div>
+        </div>
+
+        <div class="ctl-group">
+          <div class="ctl-title">Port 2 (S₂₂)</div>
+          <div class="ctl-row">
+            <div class="ctl-label">Γ₂ mag</div>
+            <input id="g2-mag" type="number" min="0" max="0.9999" value="0.3" step="0.001">
+          </div>
+          <div class="ctl-row">
+            <div class="ctl-label">Γ₂ phase (°)</div>
+            <input id="g2-ph" type="number" min="-180" max="180" value="33.69" step="1">
+          </div>
+        </div>
+
+        <div class="ctl-group">
+          <div class="ctl-title">Load (Z_L)</div>
+          <div class="ctl-row">
+            <div class="ctl-label">Re(Z_L) (Ω)</div>
+            <input id="zl-re" type="number" min="-9999" max="9999" value="50" step="1">
+          </div>
+          <div class="ctl-row">
+            <div class="ctl-label">Im(Z_L) (Ω)</div>
+            <input id="zl-im" type="number" min="-9999" max="9999" value="0" step="1">
+          </div>
+        </div>
+
+        <div class="ctl-group">
+          <div class="ctl-title">Display</div>
+          <div class="ctl-check"><label><input type="checkbox" id="cb-vswr" checked> VSWR</label></div>
+          <div class="ctl-check"><label><input type="checkbox" id="cb-adm"> Admittance</label></div>
+          <div class="ctl-check"><label><input type="checkbox" id="cb-lbl" checked> Labels</label></div>
+        </div>
+
+        <div class="ctl-group">
+          <div class="ctl-title">Presets</div>
+          <div class="preset-row">
+            <button onclick="applyPreset('matched')">Matched</button>
+            <button onclick="applyPreset('short')">Short</button>
+          </div>
+          <div class="preset-row">
+            <button onclick="applyPreset('open')">Open</button>
+            <button onclick="applyPreset('inductive')">Inductive</button>
+          </div>
+          <div class="preset-row">
+            <button onclick="applyPreset('capacitive')">Capacitive</button>
+            <button style="grid-column: 1 / -1;" onclick="applyPreset('custom')">Custom</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="metrics" id="metrics">
+        <div class="metric-row">
+          <div class="metric-label">Z₁ (S₁₁)</div>
+          <div class="metric-val" id="z1-val">—</div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-label">Z₂ (S₂₂)</div>
+          <div class="metric-val" id="z2-val">—</div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-label">Z_L</div>
+          <div class="metric-val" id="zl-val">—</div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-label">Γ_L</div>
+          <div class="metric-val" id="gl-val">—</div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-label">Γ_in</div>
+          <div class="metric-val" id="gin-val">—</div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-label">VSWR_L</div>
+          <div class="metric-val" id="vswr-val">—</div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-label">Return Loss</div>
+          <div class="metric-val" id="rl-val">—</div>
+        </div>
+        <div class="metric-row">
+          <div class="metric-label">Match Quality</div>
+          <div class="metric-val" id="match-val">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">Drag S₁₁ (red), S₂₂ (blue), or Γ_L (yellow diamond) on the Smith chart to explore impedances</div>
+</div>
+
+<script>
+  // v1.0
+  "use strict";
+
+  const PI = Math.PI;
+  const TWO_PI = 2 * PI;
+  const Z0_DEFAULT = 50.0;
+  const DRAG_THRESH = 0.08;
+  const PHASE_STEP = TWO_PI / 40;
+
+  // Color palette
+  const COL = {
+    pt1: '#ff4455',
+    pt2: '#4488ff',
+    load: '#ffcc33',
+    adm: '#44ffaa',
+    vswr: '#ff8833',
+    inc: '#4488ff',
+    ref: '#ff4455',
+    tot: '#44ff88',
+    trans: '#44ffcc',
+    load_bwd: '#ff8833',
+    grid_major: '#2a3060',
+    grid_minor: '#1e2248',
+    axis: '#444466',
+    rim: '#6677bb',
+    label: '#8899cc',
+    panel_bg: '#1a1a2e'
+  };
+
+  // ─── RF Math ───
+  function gammaToZ(gamma, z0) {
+    const denom = 1.0 - gamma;
+    if (Math.abs(denom) < 1e-10) return complex(1e9, 0);
+    return cmult(complex(z0, 0), cdiv(csum(complex(1, 0), gamma), denom));
+  }
+
+  function zToGamma(z, z0) {
+    const zn = cdiv(z, complex(z0, 0));
+    const denom = csum(zn, complex(1, 0));
+    if (Math.abs(cdot(denom, denom)) < 1e-10) return complex(-1, 0);
+    return cdiv(csub(zn, complex(1, 0)), denom);
+  }
+
+  function vswr(gamma) {
+    const mag = Math.min(Math.hypot(gamma.re, gamma.im), 0.9999);
+    return (1.0 + mag) / (1.0 - mag);
+  }
+
+  function returnLossDb(gamma) {
+    const mag = Math.hypot(gamma.re, gamma.im);
+    return mag < 1e-12 ? Infinity : -20.0 * Math.log10(mag);
+  }
+
+  function resistanceCirclePts(r, n = 300) {
+    const cx = r / (r + 1.0);
+    const rad = 1.0 / (r + 1.0);
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      const th = (i / n) * TWO_PI;
+      const re = cx + rad * Math.cos(th);
+      const im = rad * Math.sin(th);
+      if (re * re + im * im <= 1.0 + 1e-6) pts.push([re, im]);
+    }
+    return pts;
+  }
+
+  function reactanceArcPts(x, n = 400) {
+    if (Math.abs(x) < 1e-9) return [];
+    const cy = 1.0 / x;
+    const rad = 1.0 / Math.abs(x);
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+      const th = (i / n) * TWO_PI;
+      const re = 1.0 + rad * Math.cos(th);
+      const im = cy + rad * Math.sin(th);
+      if (re * re + im * im <= 1.0 + 1e-6) pts.push([re, im, th]);
+    }
+    if (pts.length < 2) return [];
+    pts.sort((a, b) => a[2] - b[2]);
+    return pts.map(p => [p[0], p[1]]);
+  }
+
+  // ─── Complex ───
+  function complex(re, im) { return { re, im }; }
+  function csum(a, b) { return { re: a.re + b.re, im: a.im + b.im }; }
+  function csub(a, b) { return { re: a.re - b.re, im: a.im - b.im }; }
+  function cmult(a, b) { return { re: a.re * b.re - a.im * b.im, im: a.re * b.im + a.im * b.re }; }
+  function cdiv(a, b) {
+    const d = b.re * b.re + b.im * b.im;
+    return { re: (a.re * b.re + a.im * b.im) / d, im: (a.im * b.re - a.re * b.im) / d };
+  }
+  function conj(a) { return { re: a.re, im: -a.im }; }
+  function cdot(a, b) { return a.re * a.re + a.im * a.im; }
+
+  // ─── State ───
+  const state = {
+    z0: Z0_DEFAULT,
+    gamma1: complex(0, 0),
+    gamma2: complex(0.3, 0.2),
+    zL_re: 50.0,
+    zL_im: 0.0,
+    show_vswr: true,
+    show_adm: false,
+    show_lbl: true,
+    phase: 0.0,
+    dragging: null,
+  };
+
+  // ─── Getters ───
+  function getZ1() { return gammaToZ(state.gamma1, state.z0); }
+  function getZ2() { return gammaToZ(state.gamma2, state.z0); }
+  function getZL() { return complex(state.zL_re, state.zL_im); }
+  function getGammaL() { return zToGamma(getZL(), state.z0); }
+  function getGammaIn() {
+    const S = getSMatrix();
+    const gL = getGammaL();
+    const d = 1.0 - S[1][1] * gL;
+    if (Math.abs(cdot(d, d)) < 1e-10) return S[0][0];
+    return csum(S[0][0], cdiv(cmult(cmult(S[0][1], S[1][0]), gL), d));
+  }
+
+  function getSMatrix() {
+    const s11 = state.gamma1;
+    const s22 = state.gamma2;
+    const s21_mag = Math.sqrt(Math.max(0.0, 1.0 - cdot(s11, s11)));
+    const s21_phase = (Math.atan2(s11.im, s11.re) + Math.atan2(s22.im, s22.re)) / 2 - PI / 2;
+    const s21 = { re: s21_mag * Math.cos(s21_phase), im: s21_mag * Math.sin(s21_phase) };
+    return [[s11, s21], [s21, s22]];
+  }
+
+  function getB2() {
+    const S = getSMatrix();
+    const gL = getGammaL();
+    const d = 1.0 - cmult(S[1][1], gL);
+    return Math.abs(cdot(d, d)) > 1e-20 ? cdiv(S[1][0], d) : complex(0, 0);
+  }
+
+  // ─── Canvas helpers ───
+  function fitCanvas(cv) {
+    const dpr = window.devicePixelRatio || 1;
+    const r = cv.getBoundingClientRect();
+    cv.width = Math.max(2, Math.floor(r.width * dpr));
+    cv.height = Math.max(2, Math.floor(r.height * dpr));
+    const ctx = cv.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx, w: r.width, h: r.height };
+  }
+
+  // ─── Smith Chart Canvas ───
+  function drawSmith() {
+    const cv = document.getElementById('cv-smith');
+    const { ctx, w, h } = fitCanvas(cv);
+    const cx = w / 2, cy = h / 2;
+    const scale = Math.min(w, h) / 2.3;
+
+    // Clear
+    ctx.fillStyle = COL.panel_bg;
+    ctx.fillRect(0, 0, w, h);
+
+    // Unit circle rim
+    ctx.strokeStyle = COL.rim;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.arc(cx, cy, scale, 0, TWO_PI);
+    ctx.stroke();
+
+    // Real axis
+    ctx.strokeStyle = COL.axis;
+    ctx.lineWidth = 0.7;
+    ctx.beginPath();
+    ctx.moveTo(cx - scale, cy);
+    ctx.lineTo(cx + scale, cy);
+    ctx.stroke();
+
+    // Constant-R circles
+    const R_VALUES = [0, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0];
+    ctx.strokeStyle = COL.grid_major;
+    ctx.lineWidth = 0.8;
+    ctx.fillStyle = COL.label;
+    ctx.font = '5px monospace';
+    for (const r of R_VALUES) {
+      const pts = resistanceCirclePts(r);
+      if (pts.length === 0) continue;
+      ctx.beginPath();
+      ctx.moveTo(cx + pts[0][0] * scale, cy + pts[0][1] * scale);
+      for (let i = 1; i < pts.length; i++) {
+        ctx.lineTo(cx + pts[i][0] * scale, cy + pts[i][1] * scale);
+      }
+      ctx.stroke();
+      if (state.show_lbl && pts.length > 0) {
+        const idx = pts.reduce((mi, p, i) => p[0] < pts[mi][0] ? i : mi, 0);
+        ctx.fillText(r.toString(), cx + (pts[idx][0] - 0.02) * scale, cy + 0.03 * scale);
+      }
+    }
+
+    // Constant-X arcs
+    const X_VALUES = [0.2, 0.5, 1.0, 2.0, 5.0];
+    ctx.strokeStyle = COL.grid_minor;
+    ctx.lineWidth = 0.65;
+    for (const x of X_VALUES) {
+      for (const sign of [1, -1]) {
+        const pts = reactanceArcPts(sign * x);
+        if (pts.length < 2) continue;
+        ctx.beginPath();
+        ctx.moveTo(cx + pts[0][0] * scale, cy + pts[0][1] * scale);
+        for (let i = 1; i < pts.length; i++) {
+          ctx.lineTo(cx + pts[i][0] * scale, cy + pts[i][1] * scale);
+        }
+        ctx.stroke();
+      }
+    }
+
+    // VSWR circle
+    if (state.show_vswr) {
+      const r = Math.hypot(state.gamma1.re, state.gamma1.im);
+      ctx.strokeStyle = COL.vswr;
+      ctx.lineWidth = 1.0;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * scale, 0, TWO_PI);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Admittance mirrors
+    if (state.show_adm) {
+      const ag1 = complex(-state.gamma1.re, -state.gamma1.im);
+      const ag2 = complex(-state.gamma2.re, -state.gamma2.im);
+      ctx.fillStyle = COL.adm;
+      ctx.beginPath();
+      ctx.rect(cx + ag1.re * scale - 4, cy + ag1.im * scale - 4, 8, 8);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.rect(cx + ag2.re * scale - 4, cy + ag2.im * scale - 4, 8, 8);
+      ctx.fill();
+    }
+
+    // Points: S11 (red), S22 (blue), ΓL (yellow)
+    const gL = getGammaL();
+
+    ctx.fillStyle = COL.pt1;
+    ctx.beginPath();
+    ctx.arc(cx + state.gamma1.re * scale, cy + state.gamma1.im * scale, 6.5, 0, TWO_PI);
+    ctx.fill();
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.fillStyle = COL.pt2;
+    ctx.beginPath();
+    ctx.arc(cx + state.gamma2.re * scale, cy + state.gamma2.im * scale, 6.5, 0, TWO_PI);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = COL.load;
+    ctx.beginPath();
+    const lx = cx + gL.re * scale, ly = cy + gL.im * scale;
+    ctx.moveTo(lx, ly - 5.5);
+    ctx.lineTo(lx + 5.5, ly);
+    ctx.lineTo(lx, ly + 5.5);
+    ctx.lineTo(lx - 5.5, ly);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Labels
+    if (state.show_lbl) {
+      ctx.font = '9px sans-serif';
+      ctx.fillStyle = COL.pt1;
+      ctx.textAlign = 'left';
+      ctx.fillText('S₁₁', cx + state.gamma1.re * scale + 6, cy + state.gamma1.im * scale - 2);
+      ctx.fillStyle = COL.pt2;
+      ctx.fillText('S₂₂', cx + state.gamma2.re * scale + 6, cy + state.gamma2.im * scale - 2);
+      ctx.fillStyle = COL.load;
+      ctx.fillText('ΓL', cx + gL.re * scale + 6, cy + gL.im * scale + 10);
+    }
+  }
+
+  // ─── Wave Canvas ───
+  function drawWave() {
+    const cv = document.getElementById('cv-wave');
+    const { ctx, w, h } = fitCanvas(cv);
+
+    ctx.fillStyle = COL.panel_bg;
+    ctx.fillRect(0, 0, w, h);
+
+    const M = { l: 40, r: 10, t: 20, b: 20 };
+    const x0 = M.l, x1 = w - M.r, y0 = M.t, y1 = h - M.b;
+    const pos_l = Array.from({length: 260}, (_, i) => i / 260 * 0.9);
+    const pos_r = Array.from({length: 220}, (_, i) => 0.95 + i / 220 * 0.95);
+
+    const gin = getGammaIn();
+    const b2 = getB2();
+    const gL = getGammaL();
+
+    // Wave calculations
+    function waveLeft(gamma, phase, pos) {
+      const v_inc = [], v_ref = [], v_tot = [];
+      for (const p of pos) {
+        const bz = TWO_PI * p;
+        const vi = Math.cos(phase - bz);
+        const vr_re = Math.cos(phase + bz), vr_im = Math.sin(phase + bz);
+        const vr = gamma.re * vr_re - gamma.im * vr_im;
+        v_inc.push(vi);
+        v_ref.push(vr);
+        v_tot.push(vi + vr);
+      }
+      return [v_inc, v_ref, v_tot];
+    }
+
+    function waveRight(b2, gammaL, phase, pos) {
+      const v_fwd = [], v_bwd = [], v_tot = [];
+      for (const p of pos) {
+        const bz = TWO_PI * p;
+        const vf_re = Math.cos(phase - bz), vf_im = Math.sin(phase - bz);
+        const vf = b2.re * vf_re - b2.im * vf_im;
+        const vb_re = Math.cos(phase + bz), vb_im = Math.sin(phase + bz);
+        const vb_rot_re = gammaL.re * vb_re - gammaL.im * vb_im;
+        const vb_rot_im = gammaL.re * vb_im + gammaL.im * vb_re;
+        const vb = b2.re * vb_rot_re - b2.im * vb_rot_im;
+        v_fwd.push(vf);
+        v_bwd.push(vb);
+        v_tot.push(vf + vb);
+      }
+      return [v_fwd, v_bwd, v_tot];
+    }
+
+    const [vi, vr, vt] = waveLeft(gin, state.phase, pos_l);
+    const [vf, vb, vrt] = waveRight(b2, gL, state.phase, pos_r);
+
+    // Plot axes
+    ctx.strokeStyle = COL.axis;
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(x0, y1);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+
+    // Plot waves
+    const yMap = (v) => y1 - (v + 2.2) / 4.4 * (y1 - y0);
+    const xMapL = (p) => x0 + p / 0.9 * (x1 - x0) * 0.45;
+    const xMapR = (p) => x0 + (p - 0.95) / 0.95 * (x1 - x0) * 0.45 + (x1 - x0) * 0.5;
+
+    function plotLine(pts, xMap, color, alpha) {
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = alpha;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      for (let i = 0; i < pts.length; i++) {
+        const x = xMap(i < vi.length ? pos_l[i] : pos_r[i - vi.length]);
+        const y = yMap(pts[i]);
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    plotLine(vi, xMapL, COL.inc, 0.85);
+    plotLine(vr, xMapL, COL.ref, 0.85);
+    plotLine(vt, xMapL, COL.tot, 1.0);
+    plotLine(vf, xMapR, COL.trans, 0.85);
+    plotLine(vb, xMapR, COL.load_bwd, 0.85);
+    plotLine(vrt, xMapR, '#ffff66', 1.0);
+  }
+
+  // ─── UI Update ───
+  function updateMetrics() {
+    const z1 = getZ1();
+    const z2 = getZ2();
+    const zL = getZL();
+    const gL = getGammaL();
+    const gin = getGammaIn();
+
+    const fmt = (z) => {
+      const sign = z.im >= 0 ? '+' : '−';
+      return `${z.re.toFixed(2)} ${sign} j${Math.abs(z.im).toFixed(2)} Ω`;
+    };
+    const fmtG = (g) => `${Math.hypot(g.re, g.im).toFixed(4)} ∠ ${Math.atan2(g.im, g.re) * 180 / PI | 0}°`;
+
+    document.getElementById('z1-val').textContent = fmt(z1);
+    document.getElementById('z2-val').textContent = fmt(z2);
+    document.getElementById('zl-val').textContent = fmt(zL);
+    document.getElementById('gl-val').textContent = fmtG(gL);
+    document.getElementById('gin-val').textContent = fmtG(gin);
+    document.getElementById('vswr-val').textContent = vswr(gL).toFixed(3);
+
+    const rl = returnLossDb(gin);
+    document.getElementById('rl-val').textContent = isFinite(rl) ? rl.toFixed(1) + ' dB' : '∞ dB';
+
+    let match = '—';
+    if (rl > 30) match = '✓ Excellent (>30dB)';
+    else if (rl > 20) match = '✓ Good (>20dB)';
+    else if (rl > 10) match = '~ Fair (>10dB)';
+    else match = '✗ Poor (<10dB)';
+    document.getElementById('match-val').textContent = match;
+  }
+
+  function updateUI() {
+    document.getElementById('g1-mag').value = Math.hypot(state.gamma1.re, state.gamma1.im).toFixed(4);
+    document.getElementById('g1-ph').value = (Math.atan2(state.gamma1.im, state.gamma1.re) * 180 / PI).toFixed(1);
+    document.getElementById('g2-mag').value = Math.hypot(state.gamma2.re, state.gamma2.im).toFixed(4);
+    document.getElementById('g2-ph').value = (Math.atan2(state.gamma2.im, state.gamma2.re) * 180 / PI).toFixed(1);
+  }
+
+  // ─── Input handlers ───
+  function onInputChange() {
+    state.z0 = parseFloat(document.getElementById('z0-spin').value) || 50;
+
+    const g1_mag = parseFloat(document.getElementById('g1-mag').value) || 0;
+    const g1_ph = parseFloat(document.getElementById('g1-ph').value) * PI / 180;
+    state.gamma1 = { re: g1_mag * Math.cos(g1_ph), im: g1_mag * Math.sin(g1_ph) };
+
+    const g2_mag = parseFloat(document.getElementById('g2-mag').value) || 0;
+    const g2_ph = parseFloat(document.getElementById('g2-ph').value) * PI / 180;
+    state.gamma2 = { re: g2_mag * Math.cos(g2_ph), im: g2_mag * Math.sin(g2_ph) };
+
+    state.zL_re = parseFloat(document.getElementById('zl-re').value) || 50;
+    state.zL_im = parseFloat(document.getElementById('zl-im').value) || 0;
+
+    state.show_vswr = document.getElementById('cb-vswr').checked;
+    state.show_adm = document.getElementById('cb-adm').checked;
+    state.show_lbl = document.getElementById('cb-lbl').checked;
+
+    updateMetrics();
+    drawSmith();
+  }
+
+  function applyPreset(name) {
+    const presets = {
+      matched: [0, 0, 0.3, 20],
+      short: [-0.999, 0, -0.8, 10],
+      open: [0.999, 0, 0.9, 10],
+      inductive: [0, 0.5, 0, 30],
+      capacitive: [0, -0.5, 0, -30],
+      custom: [0, 0, 0.3, 33.69]
+    };
+    if (!presets[name]) return;
+    const [g1m, g1p, g2m, g2p] = presets[name];
+    document.getElementById('g1-mag').value = Math.abs(g1m);
+    document.getElementById('g1-ph').value = g1p;
+    document.getElementById('g2-mag').value = Math.abs(g2m);
+    document.getElementById('g2-ph').value = g2p;
+    onInputChange();
+  }
+
+  // ─── Mouse interaction ───
+  const cv = document.getElementById('cv-smith');
+  cv.addEventListener('mousedown', (e) => {
+    const r = cv.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const cx = r.width / 2, cy = r.height / 2;
+    const scale = Math.min(r.width, r.height) / 2.3;
+    const px = (e.clientX - r.left) / dpr, py = (e.clientY - r.top) / dpr;
+    const gx = (px - cx) / scale, gy = (py - cy) / scale;
+
+    const d1 = Math.hypot(gx - state.gamma1.re, gy - state.gamma1.im);
+    const d2 = Math.hypot(gx - state.gamma2.re, gy - state.gamma2.im);
+    const gL = getGammaL();
+    const dL = Math.hypot(gx - gL.re, gy - gL.im);
+
+    if (d1 < DRAG_THRESH) state.dragging = 'p1';
+    else if (d2 < DRAG_THRESH) state.dragging = 'p2';
+    else if (dL < DRAG_THRESH) state.dragging = 'load';
+  });
+
+  cv.addEventListener('mousemove', (e) => {
+    if (!state.dragging) return;
+    const r = cv.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const cx = r.width / 2, cy = r.height / 2;
+    const scale = Math.min(r.width, r.height) / 2.3;
+    const px = (e.clientX - r.left) / dpr, py = (e.clientY - r.top) / dpr;
+    const gx = (px - cx) / scale, gy = (py - cy) / scale;
+
+    let g = { re: gx, im: gy };
+    const mag = Math.hypot(g.re, g.im);
+    if (mag > 0.9999) g = { re: g.re / mag * 0.9999, im: g.im / mag * 0.9999 };
+
+    if (state.dragging === 'p1') {
+      state.gamma1 = g;
+      const mag = Math.hypot(state.gamma1.re, state.gamma1.im);
+      document.getElementById('g1-mag').value = mag.toFixed(4);
+      document.getElementById('g1-ph').value = (Math.atan2(state.gamma1.im, state.gamma1.re) * 180 / PI).toFixed(1);
+    } else if (state.dragging === 'p2') {
+      state.gamma2 = g;
+      const mag = Math.hypot(state.gamma2.re, state.gamma2.im);
+      document.getElementById('g2-mag').value = mag.toFixed(4);
+      document.getElementById('g2-ph').value = (Math.atan2(state.gamma2.im, state.gamma2.re) * 180 / PI).toFixed(1);
+    } else if (state.dragging === 'load') {
+      const z = gammaToZ(g, state.z0);
+      state.zL_re = z.re;
+      state.zL_im = z.im;
+      document.getElementById('zl-re').value = z.re.toFixed(1);
+      document.getElementById('zl-im').value = z.im.toFixed(1);
+    }
+
+    updateMetrics();
+    drawSmith();
+  });
+
+  window.addEventListener('mouseup', () => { state.dragging = null; });
+
+  // ─── Input event wiring ───
+  ['z0-spin', 'g1-mag', 'g1-ph', 'g2-mag', 'g2-ph', 'zl-re', 'zl-im',
+   'cb-vswr', 'cb-adm', 'cb-lbl'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', onInputChange);
+  });
+
+  // ─── Animation ───
+  function animate() {
+    state.phase = (state.phase + PHASE_STEP) % TWO_PI;
+    drawWave();
+    requestAnimationFrame(animate);
+  }
+
+  // ─── Init ───
+  onInputChange();
+  animate();
+</script>
+</body>
+</html>
