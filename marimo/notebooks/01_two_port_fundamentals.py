@@ -1,3 +1,4 @@
+# v1.1
 # /// script
 # requires-python = ">=3.14"
 # dependencies = [
@@ -280,7 +281,7 @@ def _(mo, topology_selector):
     elif t == "tee":
         topo_label = mo.md("**T-network:** Series arms $(R + j\\omega L)/2$, Shunt branch $j\\omega C$")
     elif t == "pi":
-        topo_label = mo.md("**$\pi$-network:** Series arm $R + j\\omega L$, Shunt branches $j\\omega C/2$")
+        topo_label = mo.md("**$\\pi$-network:** Series arm $R + j\\omega L$, Shunt branches $j\\omega C/2$")
     else:  # lsec
         topo_label = mo.md("**L-section:** Series $R + j\\omega L$, Shunt $j\\omega C$")
 
@@ -909,56 +910,97 @@ def _(mo):
     mo.md(r"""
     ## 3. Power Waves
 
-    ### 3.1 Why wave variables?
+    ### 3.1 Physical Motivation: From Electromagnetic Fields to Circuit Variables
 
-    At microwave frequencies, voltages and currents become **position-dependent**
-    along a transmission line: the voltage you measure depends on *where* you probe.
-    This makes them inconvenient as primary network variables.
+    At high frequencies, classical circuit theory based on lumped-element voltages and currents must be reconciled with electromagnetic field theory. The fundamental mechanism of energy propagation in any microwave medium is governed by the Poynting vector, which defines the power density of the electromagnetic field:
 
-    Instead, we decompose the voltage and current at each port into forward- and
-    backward-travelling **power waves** that are uniquely defined at any reference
-    plane.
+    $$\mathbf{S}_p = \mathbf{E} \times \mathbf{H}^* \quad (\text{definition})$$
 
-    ### 3.2 Definitions
+    where $\mathbf{E}$ is the electric field phasor and $\mathbf{H}$ is the magnetic field phasor. For a transverse electromagnetic (TEM) transmission line propagating along the $z$-direction, the total time-averaged real power $P$ crossing a given transverse plane $A$ is the surface integral of the active part of the Poynting vector:
 
-    Let $V_i$ and $I_i$ be the total voltage and current at port $i$, and let
-    $Z_0$ be a purely real reference impedance (usually 50 Ω). Define the power waves:
+    $$P(z) = \iint_{A} \frac{1}{2}\operatorname{Re}(\mathbf{E} \times \mathbf{H}^*) \cdot d\mathbf{a} = \frac{1}{2}\operatorname{Re}(V(z) I^*(z)) \quad (\text{theorem})$$
 
-    $$a_i = \frac{V_i + Z_0 I_i}{2\sqrt{Z_0}}, \qquad
-      b_i = \frac{V_i - Z_0 I_i}{2\sqrt{Z_0}}$$
+    where $V(z)$ and $I(z)$ are the equivalent line voltage and line current, respectively.
 
-    **Physical interpretation of the power carried by each wave:**
+    However, at microwave frequencies where physical dimensions are comparable to the guided wavelength ($\lambda$), voltage and current become highly **position-dependent**. Along a transmission line with propagation constant $\gamma = \alpha + j\beta$ and characteristic impedance $Z_0$, the total voltage and current phasors are superpositions of forward- and backward-traveling waves:
 
-    $$ \begin{aligned}
-    \frac{1}{2}|a_i|^2 &= \text{time-averaged power flowing \textbf{into} port } i \\
-    \frac{1}{2}|b_i|^2 &= \text{time-averaged power flowing \textbf{out of} port } i
-    \end{aligned} $$
+    $$V(z) = V^+ e^{-\gamma z} + V^- e^{\gamma z} \quad (\text{theorem})$$
 
-    *Proof.* By definition, the net time-averaged power entering port $i$ is $P_i = \frac{1}{2}\operatorname{Re}(V_i I_i^*)$.
-    We want to prove that this equals $\frac{1}{2}|a_i|^2 - \frac{1}{2}|b_i|^2$.
+    $$I(z) = \frac{V^+}{Z_0} e^{-\gamma z} - \frac{V^-}{Z_0} e^{\gamma z} \quad (\text{theorem})$$
 
-    Let's substitute the wave definitions into the right-hand side and evaluate $|a_i|^2 - |b_i|^2$.
-    Because $|x|^2 = x x^*$, we can expand the numerators using the identity $|A+B|^2 - |A-B|^2 = 4\operatorname{Re}(A B^*)$:
+    Consequently, direct measurements of the total voltage $V(z)$ and current $I(z)$ are extremely sensitive to the spatial coordinate $z$. Measuring them directly requires placing a physical probe, which introduces parasitic reactances that perturb the electric and magnetic fields, altering the very quantities we wish to measure. Furthermore, the total voltage and current do not immediately distinguish the energy flowing toward the load from the energy reflected back to the generator.
 
-    $$ \begin{aligned}
-    |a_i|^2 - |b_i|^2
-      &= \left| \frac{V_i + Z_0 I_i}{2\sqrt{Z_0}} \right|^2 - \left| \frac{V_i - Z_0 I_i}{2\sqrt{Z_0}} \right|^2 \\
-      &= \frac{1}{4Z_0}\Bigl[ |V_i + Z_0 I_i|^2 - |V_i - Z_0 I_i|^2 \Bigr] \\
-      &= \frac{1}{4Z_0} \cdot 4\operatorname{Re}(V_i (Z_0 I_i)^*) \\
-      &= \frac{1}{Z_0}\operatorname{Re}(V_i I_i^* Z_0^*)
-    \end{aligned} $$
+    To resolve these limitations, we decompose the total port voltages and currents into forward- and backward-traveling **power waves**. These wave variables relate directly to the underlying physical power flow and are invariant (up to a phase factor) along a lossless transmission line.
 
-    Since our reference impedance $Z_0$ is purely real, its complex conjugate is simply $Z_0^* = Z_0$. A real scalar can be factored out of the real-part operator, allowing it to cancel with the $1/Z_0$ term:
+    ### 3.2 Power Wave Definitions for a Real Reference Impedance
 
-    $$ \begin{aligned}
-    |a_i|^2 - |b_i|^2
-      &= \frac{1}{Z_0} \cdot Z_0 \operatorname{Re}(V_i I_i^*) \\
-      &= \operatorname{Re}(V_i I_i^*)
-    \end{aligned} $$
+    Let $V_i$ and $I_i$ denote the total voltage and current at port $i$, and let $Z_0$ be a purely real reference impedance (typically $50\ \Omega$). We define the incident power wave $a_i$ and the reflected power wave $b_i$ as:
 
-    Dividing both sides by 2, we recover the original net power equation:
+    $$a_i = \frac{V_i + Z_0 I_i}{2\sqrt{Z_0}} \quad (\text{definition})$$
 
-    $$ \frac{1}{2}|a_i|^2 - \frac{1}{2}|b_i|^2 = \frac{1}{2}\operatorname{Re}(V_i I_i^*) = P_i \quad \blacksquare $$
+    $$b_i = \frac{V_i - Z_0 I_i}{2\sqrt{Z_0}} \quad (\text{definition})$$
+
+    By expressing the terminal voltage and current in terms of their traveling wave components ($V_i = V_i^+ + V_i^-$ and $I_i = (V_i^+ - V_i^-)/Z_0$), we can see how these definitions relate to the physical waves:
+
+    $$a_i = \frac{(V_i^+ + V_i^-) + Z_0 \left(\frac{V_i^+ - V_i^-}{Z_0}\right)}{2\sqrt{Z_0}} = \frac{V_i^+}{\sqrt{Z_0}} \quad (\text{corollary})$$
+
+    $$b_i = \frac{(V_i^+ + V_i^-) - Z_0 \left(\frac{V_i^+ - V_i^-}{Z_0}\right)}{2\sqrt{Z_0}} = \frac{V_i^-}{\sqrt{Z_0}} \quad (\text{corollary})$$
+
+    Thus, the magnitudes squared of these wave variables correspond directly to the time-averaged power carried by each individual wave:
+
+    $$\frac{1}{2}|a_i|^2 = \frac{|V_i^+|^2}{2Z_0} = \text{time-averaged power flowing into port } i \quad (\text{theorem})$$
+
+    $$\frac{1}{2}|b_i|^2 = \frac{|V_i^-|^2}{2Z_0} = \text{time-averaged power flowing out of port } i \quad (\text{theorem})$$
+
+    ### 3.3 Generalization: Kurokawa's Power Waves for Complex Reference Impedance
+
+    In practical microwave applications—such as matching a transistor with complex source and load impedances—it is useful to generalize wave variables to complex reference impedances. Let $Z_i = R_i + jX_i$ (where $R_i = \operatorname{Re}(Z_i) > 0$) be the complex reference impedance at port $i$. Kurokawa defined the generalized power wave variables as:
+
+    $$a_i = \frac{V_i + Z_i I_i}{2\sqrt{R_i}} \quad (\text{definition})$$
+
+    $$b_i = \frac{V_i - Z_i^* I_i}{2\sqrt{R_i}} \quad (\text{definition})$$
+
+    We wish to prove that this general definition satisfies the net active power relation:
+
+    $$P_i = \frac{1}{2}|a_i|^2 - \frac{1}{2}|b_i|^2 \quad (\text{corollary})$$
+
+    *Proof.* Let us evaluate the quantity $|a_i|^2 - |b_i|^2$ starting from the definitions. Using the identity $|x|^2 = x x^*$ for any complex number $x$, we write:
+
+    $$|a_i|^2 - |b_i|^2 = \left( \frac{V_i + Z_i I_i}{2\sqrt{R_i}} \right) \left( \frac{V_i^* + Z_i^* I_i^*}{2\sqrt{R_i}} \right) - \left( \frac{V_i - Z_i^* I_i}{2\sqrt{R_i}} \right) \left( \frac{V_i^* - Z_i I_i^*}{2\sqrt{R_i}} \right)$$
+
+    Factoring out the denominator $4R_i$:
+
+    $$|a_i|^2 - |b_i|^2 = \frac{1}{4R_i} \left[ (V_i + Z_i I_i)(V_i^* + Z_i^* I_i^*) - (V_i - Z_i^* I_i)(V_i^* - Z_i I_i^*) \right]$$
+
+    We expand both product terms inside the bracket:
+
+    $$(V_i + Z_i I_i)(V_i^* + Z_i^* I_i^*) = |V_i|^2 + Z_i I_i V_i^* + Z_i^* I_i^* V_i + |Z_i|^2 |I_i|^2$$
+
+    $$(V_i - Z_i^* I_i)(V_i^* - Z_i I_i^*) = |V_i|^2 - Z_i^* I_i V_i^* - Z_i I_i^* V_i + |Z_i|^2 |I_i|^2$$
+
+    Subtracting the second expression from the first leads to the cancellation of the $|V_i|^2$ and $|Z_i|^2 |I_i|^2$ terms:
+
+    $$[ (V_i + Z_i I_i)(V_i^* + Z_i^* I_i^*) ] - [ (V_i - Z_i^* I_i)(V_i^* - Z_i I_i^*) ] = V_i I_i^* (Z_i^* + Z_i) + V_i^* I_i (Z_i + Z_i^*)$$
+
+    Since the complex reference impedance is $Z_i = R_i + jX_i$, the sum of the impedance and its conjugate is:
+
+    $$Z_i + Z_i^* = (R_i + jX_i) + (R_i - jX_i) = 2R_i$$
+
+    Substituting $2R_i$ back into our subtracted expression:
+
+    $$V_i I_i^* (2R_i) + V_i^* I_i (2R_i) = 2R_i (V_i I_i^* + V_i^* I_i)$$
+
+    Using the identity $x + x^* = 2\operatorname{Re}(x)$, we simplify this to:
+
+    $$2R_i (2\operatorname{Re}(V_i I_i^*)) = 4R_i \operatorname{Re}(V_i I_i^*)$$
+
+    Substituting this result back into the main equation:
+
+    $$|a_i|^2 - |b_i|^2 = \frac{1}{4R_i} \left[ 4R_i \operatorname{Re}(V_i I_i^*) \right] = \operatorname{Re}(V_i I_i^*)$$
+
+    Dividing the entire equation by 2, we recover the net active power flowing into port $i$:
+
+    $$\frac{1}{2}|a_i|^2 - \frac{1}{2}|b_i|^2 = \frac{1}{2}\operatorname{Re}(V_i I_i*) = P_i \quad \blacksquare$$
     """)
     return
 

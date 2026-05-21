@@ -109,7 +109,7 @@ def _(np):
         Q2 = np.sqrt(R_virt / R_L - 1.0)
         L1 = Q1 * R_S / w0
         L2 = Q2 * R_L / w0
-        C = (Q1 / R_S + Q2 / R_L) / w0   # two shunt caps in parallel
+        C = (Q1 + Q2) / (w0 * R_virt)   # both shunt caps sit at the R_virt node
         return {"Q_min": Q_min, "L1_H": L1, "C_F": C, "L2_H": L2}
 
 
@@ -162,20 +162,19 @@ def _(np):
         params = l_network(R_S, R_L, f0, topology)
         w = 2.0 * np.pi * freqs
         if topology == "lowpass":
-            # shunt-C at input (high-Z side), series-L in series arm
-            # Assuming R_S >= R_L (high-Z at port 1)
-            Cp, Ls = params["Cp_F"], params["Ls_H"]
-            Z_series = 1j * w * Ls
-            Y_shunt = 1j * w * Cp
-            M1 = np.stack([np.array([[1, 0], [yy, 1]]) for yy in Y_shunt])
-            M2 = np.stack([np.array([[1, zz], [0, 1]]) for zz in Z_series])
+            Z_series = 1j * w * params["Ls_H"]
+            Y_shunt = 1j * w * params["Cp_F"]
         else:
-            Lp, Cs = params["Lp_H"], params["Cs_F"]
-            Z_series = 1.0 / (1j * w * Cs)
-            Y_shunt = 1.0 / (1j * w * Lp)
-            M1 = np.stack([np.array([[1, 0], [yy, 1]]) for yy in Y_shunt])
-            M2 = np.stack([np.array([[1, zz], [0, 1]]) for zz in Z_series])
-        ABCD = np.einsum('nij,njk->nik', M1, M2)
+            Z_series = 1.0 / (1j * w * params["Cs_F"])
+            Y_shunt = 1.0 / (1j * w * params["Lp_H"])
+        M_shunt = np.stack([np.array([[1, 0], [yy, 1]]) for yy in Y_shunt])
+        M_series = np.stack([np.array([[1, zz], [0, 1]]) for zz in Z_series])
+        # The shunt element sits on the high-impedance side (Pozar §5.1):
+        # source-high-Z → shunt at port 1; load-high-Z → shunt at port 2.
+        if R_S >= R_L:
+            ABCD = np.einsum('nij,njk->nik', M_shunt, M_series)
+        else:
+            ABCD = np.einsum('nij,njk->nik', M_series, M_shunt)
         return abcd_to_S(ABCD, Z0)
 
 
@@ -1164,6 +1163,66 @@ def _(mo):
 
 @app.cell
 def _(mo):
+    mo.vstack([
+        mo.md(r"""
+    **Orientation rule (the one fact that fixes everything).** The *shunt* element
+    always sits on the **high-impedance side**; the *series* element bridges to the
+    low-impedance side. Equivalently: a shunt element first lowers $Q$ by moving onto
+    a constant-$g$ circle, then the series element walks to the centre. The decision
+    tree below picks orientation from $R_S$ vs $R_L$, then picks the type (low-pass
+    vs high-pass) from the filtering requirement.
+    """),
+        mo.mermaid(r"""
+flowchart TD
+    Start["L-network choice<br/>(need bandwidth control?<br/>use pi/T in §5-§6)"] --> Q1{"Which side is<br/>high impedance?"}
+    Q1 -->|"R_S &gt; R_L<br/>source high-Z"| HS["SHUNT element at SOURCE node<br/>SERIES element toward load"]
+    Q1 -->|"R_S &lt; R_L<br/>load high-Z"| HL["SERIES element from source<br/>SHUNT element at LOAD node"]
+    HS --> T1{"Filtering need?"}
+    HL --> T2{"Filtering need?"}
+    T1 -->|"reject harmonics"| LP1["LOW-PASS:<br/>shunt C + series L"]
+    T1 -->|"block DC / reject<br/>sub-harmonics"| HP1["HIGH-PASS:<br/>shunt L + series C"]
+    T2 -->|"reject harmonics"| LP2["LOW-PASS:<br/>series L + shunt C"]
+    T2 -->|"block DC"| HP2["HIGH-PASS:<br/>series C + shunt L"]
+""")
+    ])
+    return
+
+
+@app.cell
+def _(mo):
+    mo.vstack([
+        mo.md(r"""
+    **L-network topologies (low-pass shown).** Left: source is the high-Z side, so the
+    shunt cap sits at the source node. Right: load is the high-Z side, so the shunt cap
+    sits at the load node. The ⏚ symbol is the ground return for the shunt branch.
+    Swap each $C \leftrightarrow L$ to obtain the high-pass dual.
+    """),
+        mo.hstack([
+            mo.vstack([
+                mo.md("**Source high-Z** ($R_S > R_L$)"),
+                mo.mermaid(r"""
+flowchart LR
+    S(("R_S")) --- N1(("&middot;"))
+    N1 --- Cp["C_p shunt"] --- G1["gnd"]
+    N1 --- Ls["L_s series"] --- LD(("R_L"))
+"""),
+            ]),
+            mo.vstack([
+                mo.md("**Load high-Z** ($R_L > R_S$)"),
+                mo.mermaid(r"""
+flowchart LR
+    S(("R_S")) --- Ls["L_s series"] --- N1(("&middot;"))
+    N1 --- Cp["C_p shunt"] --- G1["gnd"]
+    N1 --- LD(("R_L"))
+"""),
+            ]),
+        ]),
+    ])
+    return
+
+
+@app.cell
+def _(mo):
     mo.md(r"""
     ### §5. π-Network Synthesis
 
@@ -1184,6 +1243,29 @@ def _(mo):
       L   = \frac{(Q_1 + Q_2) R_v}{\omega_0}, \quad
       C_2 = \frac{Q_2}{\omega_0 R_L}$$
     """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.vstack([
+        mo.md(r"""
+    **π-network topology (low-pass).** Two shunt capacitors flank a series inductor.
+    The virtual node sits at $R_v < R_{Lo}$ (lower than both ends): the left L-section
+    steps $R_S$ **down** to $R_v$, the right L-section steps $R_v$ **up** to $R_L$.
+    Because $R_v$ can be chosen freely (below $R_{Lo}$), $Q$ is a free knob — high $Q$
+    means narrow band / strong harmonic rejection. The high-pass dual swaps each
+    shunt $C$ for a shunt $L$ and the series $L$ for a series $C$.
+    """),
+        mo.mermaid(r"""
+flowchart LR
+    S(("R_S")) --- N1(( ))
+    N1 --- C1["C_1 shunt"] --- G1["gnd"]
+    N1 --- L["L series"] --- N2["R_v virtual"]
+    N2 --- C2["C_2 shunt"] --- G2["gnd"]
+    N2 --- LD(("R_L"))
+"""),
+    ])
     return
 
 
@@ -1212,86 +1294,21 @@ def _(mo):
 
 @app.cell
 def _(mo):
-
-    topo_m = mo.ui.dropdown(
-        options=["L (lowpass)", "L (highpass)", "pi", "T"],
-        value="L (lowpass)", label="Topology"
-    )
-    Rs_m = mo.ui.slider(10, 500, value=50, step=10, label="R_S (Ω)")
-    Rl_m = mo.ui.slider(10, 500, value=200, step=10, label="R_L (Ω)")
-    f0_m = mo.ui.slider(1e9, 100e9, value=28e9, step=1e9, label="f₀ (Hz)")
-    Q_m  = mo.ui.slider(1.1, 20.0, value=3.0, step=0.1, label="Q (π/T only)")
-
-    mo.md("### §7. Interactive I — L/π/T Network Explorer")
-    return Q_m, Rl_m, Rs_m, f0_m, topo_m
-
-
-@app.cell
-def _(
-    Q_m,
-    Rl_m,
-    Rs_m,
-    f0_m,
-    go,
-    l_network,
-    l_network_S,
-    mo,
-    np,
-    pi_network,
-    pi_network_S,
-    t_network,
-    t_network_S,
-    topo_m,
-):
-    _Rs = float(Rs_m.value)
-    _Rl = float(Rl_m.value)
-    _f0 = float(f0_m.value)
-    _Q  = float(Q_m.value)
-    _topo = topo_m.value
-
-    _freqs = np.linspace(_f0 / 10, _f0 * 10, 500)
-
-    # Compute element values and S-params
-    if _topo == "L (lowpass)":
-        _params = l_network(_Rs, _Rl, _f0, "lowpass")
-        _S = l_network_S(_Rs, _Rl, _f0, "lowpass", _freqs)
-        _rows = [(k, f"{v:.4g}") for k, v in _params.items()]
-    elif _topo == "L (highpass)":
-        _params = l_network(_Rs, _Rl, _f0, "highpass")
-        _S = l_network_S(_Rs, _Rl, _f0, "highpass", _freqs)
-        _rows = [(k, f"{v:.4g}") for k, v in _params.items()]
-    elif _topo == "pi":
-        _Q_min = (_params_pi := pi_network(_Rs, _Rl, _f0, max(_Q, 1.001 * (_pqm := ((_Rs/_Rl if _Rs>_Rl else _Rl/_Rs) - 1)**0.5 + 0.01))))
-        _params = pi_network(_Rs, _Rl, _f0, max(_Q, _params_pi["Q_min"] + 0.01))
-        _S = pi_network_S(_Rs, _Rl, _f0, max(_Q, _params["Q_min"] + 0.01), _freqs)
-        _rows = [(k, f"{v:.4g}") for k, v in _params.items()]
-    else:  # T
-        _params = t_network(_Rs, _Rl, _f0, max(_Q, t_network(_Rs, _Rl, _f0, 99)["Q_min"] + 0.01))
-        _S = t_network_S(_Rs, _Rl, _f0, max(_Q, _params["Q_min"] + 0.01), _freqs)
-        _rows = [(k, f"{v:.4g}") for k, v in _params.items()]
-
-    _S11_dB = 20 * np.log10(np.abs(_S[:, 0, 0]) + 1e-20)
-    _S21_dB = 20 * np.log10(np.abs(_S[:, 1, 0]) + 1e-20)
-
-    _fig = go.Figure()
-    _fig.add_trace(go.Scatter(x=_freqs/1e9, y=_S11_dB, name="|S₁₁| dB",
-                              line=dict(color="#EF553B")))
-    _fig.add_trace(go.Scatter(x=_freqs/1e9, y=_S21_dB, name="|S₂₁| dB",
-                              line=dict(color="#00CC96")))
-    _fig.update_xaxes(title_text="Frequency (GHz)")
-    _fig.update_yaxes(title_text="dB")
-
-    _fig.update_layout(template="plotly_dark", height=450,
-                       title=f"{_topo} matching: R_S={_Rs}Ω → R_L={_Rl}Ω at {_f0/1e9:.1f} GHz")
-
-    _tbl_md = "\n".join([f"| {r[0]} | {r[1]} |" for r in _rows])
-    _md_table = mo.md(f"| Parameter | Value |\n|---|---|\n{_tbl_md}")
-
     mo.vstack([
-        mo.hstack([topo_m, Rs_m, Rl_m, f0_m, Q_m]),
-        mo.ui.plotly(_fig),
-        mo.md("**Element Values**"),
-        _md_table
+        mo.md(r"""
+    **T-network topology (low-pass).** Two series inductors flank a single shunt
+    capacitor — the topological dual of the π. The virtual node now sits at
+    $R_v = R_{Lo}(1 + Q^2) > R_H$ (higher than both ends): the left L-section steps
+    $R_S$ **up** to $R_v$, the right steps $R_v$ **down** to $R_L$. As with the π,
+    $Q$ is free. T-networks are preferred when a series DC path is wanted (e.g.
+    bias feed) or when the required shunt-$C$ of a π would be impractically large.
+    """),
+        mo.mermaid(r"""
+flowchart LR
+    S(("R_S")) --- L1["L_1 series"] --- N1["R_v virtual"]
+    N1 --- C["C shunt"] --- G["gnd"]
+    N1 --- L2["L_2 series"] --- LD(("R_L"))
+"""),
     ])
     return
 
@@ -1299,114 +1316,572 @@ def _(
 @app.cell
 def _(mo):
     mo.md(r"""
+    ### §6.1 Comparison: Bandwidth and Broadband Matching
+
+    The single-resonator bandwidth $\text{BW} \approx f_0/Q$ is the recurring theme. The
+    table contrasts how each topology relates to $Q$ — and, crucially, whether it can
+    actually *broaden* a match or only narrow it.
+
+    | Topology | Reactive elements | $Q$ / degree of freedom | Fractional BW | Broadbands the match? |
+    |---|---|---|---|---|
+    | **L-network** | 2 (1 series + 1 shunt) | $Q = \sqrt{R_H/R_{Lo}-1}$ — **fixed** by the ratio | $\approx f_0/Q$ | No — $Q$ is forced; no knob |
+    | **π-network** | 3 (2 shunt + 1 series) | $Q \ge Q_{\min}$, **free upward only** | $\le$ L-net ($Q\!\ge\!Q_{\min}$) | No — only *narrows* (harmonic filtering) |
+    | **T-network** | 3 (2 series + 1 shunt) | $Q \ge Q_{\min}$, **free upward only** | $\le$ L-net | No — same; adds series DC path |
+    | **Cascaded $n$ L-sections** | $2n$ | per-section $Q$ lowered via geometric-mean intermediate $R$ | grows with $n$ | **Yes** — staged, $\sim$decade |
+    | **Multi-section $\lambda/4$ (Chebyshev)** | $N$ lines | ripple-vs-$N$ trade (§9, §12) | grows with $N$ | **Yes** — distributed, RF/mmWave |
+    | **Bridged T-coil** | 2 coupled $L$ + 1 cap | constant-$R$ for *all* $k$; $k$ sets flatness | "all-pass" match; $2.83\times$ extension | **Yes** — for a *fixed shunt $C$* |
+
+    **The decisive point.** A π or T network adds a third element, but the extra degree of
+    freedom only lets you push $Q$ *above* the L-network floor $Q_{\min}=\sqrt{R_H/R_{Lo}-1}$.
+    They trade bandwidth for selectivity — they never broaden the match below the
+    single-section limit. Genuine broadbanding requires either **multiple cascaded
+    L-sections** (each handling a smaller impedance step through geometric-mean virtual
+    resistances) or **stepped $\lambda/4$ transformers** (§9, §12). Both are bounded by the
+    **Bode-Fano integral (§8)**:
+
+    $$\int_0^\infty \ln\frac{1}{|\Gamma(\omega)|}\,d\omega \le \frac{\pi}{R_L C_L} \quad\text{[theorem]}$$
+
+    which caps the achievable bandwidth-vs-depth product for any passive match of a
+    parallel-$RC$ load. The bridged T-coil (§6.2) is the special-case escape hatch when
+    the load is a *pure parasitic capacitance* rather than a resistance to transform.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.vstack([
+        mo.md(r"""
+    ### §6.2 T-Coils for Wireline (Capacitive-Load) Matching
+
+    **The problem.** At multi-Gb/s wireline I/O, the bond pad plus ESD protection presents
+    an unavoidable shunt capacitance $C$ ($\sim 0.3$–$1\,$pF) right at the $50\,\Omega$ port.
+    A bare $R\!\parallel\!C$ termination has return-loss bandwidth limited to $\sim 1/(2\pi R C)$,
+    and a conventional LC match cannot help — Bode-Fano applies because the load is a *fixed
+    capacitance*, not a resistance to transform.
+
+    **The bridged T-coil.** A centre-tapped inductor (two coupled half-windings, coupling
+    coefficient $k$) bridges the pad to the on-chip termination $R$. The parasitic $C$ hangs
+    off the **centre tap**, and a small bridge capacitor $C_B$ spans the two ends. Solving the
+    nodal equations and demanding a frequency-independent input impedance gives the
+    constant-resistance design (derived, not quoted):
+
+    $$Z_{\text{in}}(j\omega) = R \quad \forall\,\omega \quad\text{[theorem, holds for any } k]$$
+
+    $$L_{\text{half}} = \frac{R^2 C}{2(1+k)}, \qquad M = k\,L_{\text{half}}, \qquad
+      C_B = \frac{(1-k)\,C}{4(1+k)}, \qquad L_T \equiv 2L_{\text{half}}(1+k) = R^2 C$$
+
+    The total bridged inductance $L_T = R^2 C$ is **independent of $k$** [result]; $k$ is the
+    free knob that shapes the *tap-node* (received-signal) response:
+
+    - $k = 1/3$ → **maximally flat magnitude** (Butterworth) at the tap; the $-3\,$dB
+      bandwidth is $\;2\sqrt2/(RC) \approx 2.83\times\;$ the bare-$RC$ value, with $C_B = C/8$.
+    - $k = 1/2$ → **maximally flat group delay** (Bessel); preferred for wireline because it
+      minimises ISI / eye closure.
+
+    **Why it wins.** The input match (return loss) is broadband *for any* $k$ — the parasitic
+    $C$ is fully absorbed into a constant-$R$ all-pass network, sidestepping Bode-Fano. The
+    $2.83\times$ figure applies to the through response and beats shunt-peaking ($1.7\times$)
+    and series-peaking ($1.4$–$1.6\times$), which is why T-coils are ubiquitous in SerDes
+    TX/RX front-ends.
+    """),
+        mo.mermaid(r"""
+flowchart LR
+    PAD(("pad / line<br/>Z_0 = R")) --- X(("&middot;"))
+    X --- La["L_half coil"] --- Z(("tap"))
+    Z --- Lb["L_half coil"] --- Y(("&middot;"))
+    Y --- Rt["R term"] --- G1["gnd"]
+    Z --- Cp["C  pad+ESD"] --- G2["gnd"]
+    X -. "C_B bridge" .- Y
+    La -. "k coupling" .- Lb
+"""),
+    ])
+    return
+
+
+@app.cell
+def _(mo):
+    me_topo = mo.ui.dropdown(
+        options=["L (low-pass)", "L (high-pass)", "π", "T"],
+        value="L (low-pass)", label="Topology")
+    me_rs = mo.ui.slider(5, 500, value=50, step=5, label="R_S (Ω)")
+    me_rl = mo.ui.slider(5, 500, value=200, step=5, label="R_L (Ω)")
+    me_f0 = mo.ui.slider(1, 100, value=28, step=1, label="f₀ (GHz)")
+    me_q = mo.ui.slider(1.0, 20.0, value=3.0, step=0.1, label="design Q (π / T)")
+    me_spec = mo.ui.dropdown(
+        options=["-10 dB", "-15 dB", "-20 dB"], value="-10 dB",
+        label="Return-loss target")
+    me_overlay = mo.ui.checkbox(value=True, label="Overlay all topologies")
+    me_loss = mo.ui.checkbox(value=False, label="Show delivered power")
+    mo.md(r"""
+    ### §7. Interactive I — L/π/T Network Explorer
+
+    Plots the **source-side return loss** $20\log_{10}|\Gamma_{\text{in}}|$ (port 2 terminated
+    in the real load $R_L$, referenced to $R_S$) — the true match quality, which dips to
+    $-\infty$ at $f_0$. The L-network is always drawn as the **single-section limit**: it sits
+    at $Q_{\min}=\sqrt{R_H/R_{Lo}-1}$ and gives the widest possible single-section bandwidth.
+    Watch how π and T (design $Q \ge Q_{\min}$) only *narrow* the match.
+    """)
+    return me_f0, me_loss, me_overlay, me_q, me_rl, me_rs, me_spec, me_topo
+
+
+@app.cell
+def _(go, me_f0, me_loss, me_overlay, me_q, me_rl, me_rs, me_spec, me_topo, mo, np):
+    _Rs = float(me_rs.value); _Rl = float(me_rl.value)
+    _f0 = float(me_f0.value) * 1e9; _Qd = float(me_q.value)
+    _spec = float(me_spec.value.split()[0])
+    _RH, _RLo = max(_Rs, _Rl), min(_Rs, _Rl)
+    _Qmin = float(np.sqrt(_RH / _RLo - 1.0))
+    _Quse = max(_Qd, _Qmin * 1.02 + 1e-6)          # π / T must exceed Q_min
+    _clamped = _Qd < _Quse
+
+    _fr = np.linspace(0.05 * _f0, 3.0 * _f0, 2400)
+    _w = 2 * np.pi * _fr; _w0 = 2 * np.pi * _f0
+    _i0 = int(np.argmin(np.abs(_fr - _f0)))
+
+    def _eye():
+        M = np.zeros((len(_w), 2, 2), complex); M[:, 0, 0] = 1; M[:, 1, 1] = 1; return M
+    def _Mser(Z):
+        M = _eye(); M[:, 0, 1] = Z; return M
+    def _Msh(Y):
+        M = _eye(); M[:, 1, 0] = Y; return M
+    def _chain(*Ms):
+        out = Ms[0]
+        for M in Ms[1:]:
+            out = np.einsum('nij,njk->nik', out, M)
+        return out
+
+    def _abcd(name):
+        # element values returned alongside ABCD for the table
+        if name.startswith("L"):
+            Q = _Qmin
+            if Q <= 0:
+                return _eye(), {"Q": 0.0}
+            if name == "L (low-pass)":
+                Cp = Q / (_w0 * _RH); Ls = Q * _RLo / _w0
+                Yp = 1j * _w * Cp; Zs = 1j * _w * Ls
+                ev = {"Q": Q, "C_p (pF)": Cp * 1e12, "L_s (nH)": Ls * 1e9}
+            else:
+                Lp = _RH / (_w0 * Q); Cs = 1.0 / (_w0 * Q * _RLo)
+                Yp = 1.0 / (1j * _w * Lp); Zs = 1.0 / (1j * _w * Cs)
+                ev = {"Q": Q, "L_p (nH)": Lp * 1e9, "C_s (pF)": Cs * 1e12}
+            # shunt sits on the high-Z side
+            abcd = _chain(_Msh(Yp), _Mser(Zs)) if _Rs >= _Rl else _chain(_Mser(Zs), _Msh(Yp))
+            return abcd, ev
+        if name == "π":
+            Rv = _RH / (1.0 + _Quse ** 2)
+            Q1 = np.sqrt(_Rs / Rv - 1.0); Q2 = np.sqrt(_Rl / Rv - 1.0)
+            C1 = Q1 / (_w0 * _Rs); C2 = Q2 / (_w0 * _Rl); L = (Q1 + Q2) * Rv / _w0
+            abcd = _chain(_Msh(1j * _w * C1), _Mser(1j * _w * L), _Msh(1j * _w * C2))
+            return abcd, {"Q": _Quse, "C1 (pF)": C1 * 1e12, "L (nH)": L * 1e9,
+                          "C2 (pF)": C2 * 1e12, "R_v (Ω)": Rv}
+        # T
+        Rv = _RLo * (1.0 + _Quse ** 2)
+        Q1 = np.sqrt(Rv / _Rs - 1.0); Q2 = np.sqrt(Rv / _Rl - 1.0)
+        L1 = Q1 * _Rs / _w0; L2 = Q2 * _Rl / _w0; C = (Q1 + Q2) / (_w0 * Rv)
+        abcd = _chain(_Mser(1j * _w * L1), _Msh(1j * _w * C), _Mser(1j * _w * L2))
+        return abcd, {"Q": _Quse, "L1 (nH)": L1 * 1e9, "C (pF)": C * 1e12,
+                      "L2 (nH)": L2 * 1e9, "R_v (Ω)": Rv}
+
+    def _gamma(abcd):
+        A, B, C, D = abcd[:, 0, 0], abcd[:, 0, 1], abcd[:, 1, 0], abcd[:, 1, 1]
+        Zin = (A * _Rl + B) / (C * _Rl + D)
+        return (Zin - _Rs) / (Zin + _Rs)
+    def _rl_db(abcd):
+        return 20 * np.log10(np.abs(_gamma(abcd)) + 1e-12)
+    def _band(rl):
+        if rl[_i0] >= _spec:
+            return None
+        lo = _i0
+        while lo > 0 and rl[lo] < _spec:
+            lo -= 1
+        hi = _i0
+        while hi < len(_fr) - 1 and rl[hi] < _spec:
+            hi += 1
+        return _fr[lo], _fr[hi], (_fr[hi] - _fr[lo]) / _f0
+
+    _names = ["L (low-pass)", "L (high-pass)", "π", "T"]
+    _abcds = {n: _abcd(n) for n in _names}
+    _rls = {n: _rl_db(_abcds[n][0]) for n in _names}
+    _bands = {n: _band(_rls[n]) for n in _names}
+    _prim = me_topo.value
+
+    _palette = {"L (low-pass)": "#00CC96", "L (high-pass)": "#19D3F3",
+                "π": "#FFA15A", "T": "#AB63FA"}
+    _to_plot = {_prim, "L (low-pass)"}
+    if me_overlay.value:
+        _to_plot |= {"L (low-pass)", "π", "T"}
+
+    _fig = go.Figure()
+    for _n in _names:
+        if _n not in _to_plot:
+            continue
+        _is_prim = (_n == _prim)
+        _is_limit = (_n == "L (low-pass)" and not _is_prim)
+        _fig.add_trace(go.Scatter(
+            x=_fr / 1e9, y=_rls[_n],
+            name=(f"{_n}  ◄ limit" if _is_limit else _n),
+            line=dict(color=_palette[_n], width=3.2 if _is_prim else 1.6,
+                      dash="dot" if _is_limit else "solid")))
+
+    if me_loss.value:
+        _gt = 10 * np.log10(1.0 - np.abs(_gamma(_abcds[_prim][0])) ** 2 + 1e-12)
+        _fig.add_trace(go.Scatter(x=_fr / 1e9, y=_gt, name=f"{_prim} delivered power",
+                                  line=dict(color="#FECB52", width=1.5, dash="dash")))
+
+    _fig.add_hline(y=_spec, line=dict(color="rgba(255,80,80,0.7)", dash="dash"),
+                   annotation_text=f"{_spec:g} dB target", annotation_position="top left")
+    _fig.add_vline(x=_f0 / 1e9, line=dict(color="rgba(255,255,255,0.4)", dash="dot"),
+                   annotation_text="f₀")
+    _pb = _bands[_prim]
+    if _pb:
+        _fig.add_vrect(x0=_pb[0] / 1e9, x1=_pb[1] / 1e9,
+                       fillcolor=_palette[_prim], opacity=0.13, line_width=0)
+    _fig.update_layout(
+        template="plotly_dark", height=520,
+        title=(f"Return loss — {_prim}:  R_S={_Rs:g}Ω → R_L={_Rl:g}Ω @ {_f0/1e9:.0f} GHz"
+               f"   (ratio R_H/R_Lo = {_RH/_RLo:.2g})"),
+        xaxis=dict(title="Frequency (GHz)"),
+        yaxis=dict(title="20 log|Γ_in|  (dB)", range=[-40, 2]),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.28, font=dict(size=10)),
+        margin=dict(t=60, b=90))
+
+    def _fmt(b):
+        return "— (misses target)" if not b else f"{b[2]*100:.1f}%  ({b[0]/1e9:.1f}–{b[1]/1e9:.1f} GHz)"
+    _qrep = {"L (low-pass)": _Qmin, "L (high-pass)": _Qmin, "π": _Quse, "T": _Quse}
+    _cmp_rows = "\n".join(
+        f"| {n} | {_qrep[n]:.2f} | {_rls[n][_i0]:.0f} dB | {_fmt(_bands[n])} |"
+        for n in ["L (low-pass)", "π", "T"])
+    _cmp = mo.md("| Topology | $Q$ | RL @ f₀ | Frac. BW @ target |\n|---|---|---|---|\n" + _cmp_rows)
+
+    _ev = _abcds[_prim][1]
+    _ev_md = mo.md("| Element | Value |\n|---|---|\n"
+                   + "\n".join(f"| {k} | {v:.4g} |" for k, v in _ev.items()))
+
+    _Lb = _bands["L (low-pass)"]
+    _lim_bw = _Lb[2] * 100 if _Lb else 0.0
+    _prim_bw = _pb[2] * 100 if _pb else 0.0
+    if _prim.startswith("L"):
+        _verdict = "this **is** the single-section limit"
+    elif _lim_bw > 0 and _prim_bw > 0:
+        _verdict = f"**{_prim_bw/_lim_bw*100:.0f}%** of the limit (narrower, as expected)"
+    else:
+        _verdict = "n/a"
+    _note_clamp = (f" Design Q was raised to {_Quse:.2f} (you requested {_Qd:.2f} < $Q_{{min}}$)."
+                   if _clamped else "")
+    _insight = mo.md(rf"""
+    **Reading the limit.** Ratio $R_H/R_{{Lo}} = {_RH/_RLo:.2g}$ forces
+    $Q_{{\min}} = {_Qmin:.2f}$, so the best single-section match (the L-network) spans
+    **{_lim_bw:.1f}%** at the {_spec:g} dB target. Your **{_prim}** achieves
+    **{_prim_bw:.1f}%** — {_verdict}.{_note_clamp}
+
+    π and T add a free $Q \ge Q_{{\min}}$ that only *narrows* the band (buying harmonic
+    selectivity, not bandwidth). To beat the L-section limit you must cascade sections
+    (§9) — and that, in turn, is capped by the Bode-Fano integral (§8).
+    """)
+
+    mo.vstack([
+        mo.hstack([me_topo, me_rs, me_rl, me_f0, me_q], justify="start", gap=1.5),
+        mo.hstack([me_spec, me_overlay, me_loss], justify="start", gap=1.5),
+        mo.ui.plotly(_fig),
+        mo.hstack([
+            mo.vstack([mo.md("**Topology comparison**"), _cmp]),
+            mo.vstack([mo.md(f"**{_prim} element values**"), _ev_md]),
+        ], widths=[2, 1], gap=2),
+        _insight,
+    ])
+    return
+
+
+@app.cell
+def _(mo):
+    mo.vstack([
+        mo.md(r"""
     ## Part III — Broadband Matching
 
-    ### §8. Bode-Fano Criterion: Bandwidth-Match Tradeoff
+    ### §8. The Bode–Fano Limit
 
-    #### 8.1 Passivity, causality, and bounded real functions
+    #### 8.0 The question — and the one-line answer
 
-    $$\Gamma_L(s) = \frac{Z_L(s) - Z_0}{Z_L(s) + Z_0} \qquad \text{[Definition]}$$
+    A load $R_L \parallel C_L$ is given. We may insert **any** lossless matching network
+    between it and the source. *How small can we force the reflection $|\Gamma|$, and over
+    how wide a band?* The answer is a single hard limit:
 
-    A passive load cannot supply net average energy:
-    $$\mathrm{Re}[Z_L(j\omega)] \geq 0 \quad \text{for all } \omega \geq 0. \qquad \text{[Axiom: Passivity]}$$
+    $$\boxed{\;\int_0^\infty \ln\frac{1}{|\Gamma(\omega)|}\,d\omega \;\le\; \frac{\pi}{R_L C_L}\;}
+      \qquad\text{[Theorem — Bode–Fano, parallel-RC load]}$$
 
-    A causal load has no response before excitation, which requires $Z_L(s)$ to be analytic in $\mathrm{Re}(s) > 0$.
+    **The intuition that makes everything else obvious.** Read the integral as a *budget*: at
+    each frequency, $\ln(1/|\Gamma|)$ is how well-matched we are there (zero when $|\Gamma|=1$,
+    large when $|\Gamma|\to 0$). A lossless network **cannot create** matching — it can only
+    **move it around in frequency**. The total area under $\ln(1/|\Gamma|)$ is fixed by the
+    load alone. Want a deep match? You must spend the budget over a narrow band. Want a wide
+    band? You must accept a shallow match. The figure below shows the same budget spent two
+    ways; the proof that follows simply pins down the size of the budget.
+    """),
+        mo.md("**Plan of proof** (four steps; each is one short subsection):"),
+        mo.mermaid(r"""
+flowchart TD
+    A["Matching budget<br/>A = ∫₀^∞ ln(1/|Γ|) dω"] --> S1["S1 — Γ_in is bounded-real<br/>(load passive + causal ⇒ |Γ|≤1, analytic in RHP)"]
+    S1 --> S2["S2 — Cauchy on a big RHP contour turns A into<br/>an accounting identity:  A = (π/2)·a₁ − π·Σ Re(zₖ)"]
+    S2 --> S3["S3 — the load sets the budget a₁;<br/>a real network only ADDS RHP zeros zₖ, which leak budget away"]
+    S3 --> S4["S4 — evaluate the budget on the bare load<br/>(one elementary integral) = π/(R_L C_L)"]
+    S4 --> R["⇒  A ≤ π/(R_L C_L)"]
+""")
+    ])
+    return
 
-    Together these make $Z_L$ a **positive real (PR)** function.
 
-    [**Theorem (PR $\to$ BR):**] If $Z_L(s)$ is PR, then $\Gamma_L(s)$ is **bounded real (BR)**: analytic in $\mathrm{Re}(s)>0$ with $|\Gamma_L(j\omega)| \leq 1$ for all $\omega$.
+@app.cell
+def _(go, mo, np):
+    _Z0, _RL, _CL, _f0 = 50.0, 200.0, 0.5e-12, 20e9
+    _w0 = 2 * np.pi * _f0
+    _f = np.linspace(0.2e9, 80e9, 4000); _w = 2 * np.pi * _f
+    # bare parallel-RC load
+    _ZL = _RL / (1 + 1j * _w * _RL * _CL)
+    _GL = (_ZL - _Z0) / (_ZL + _Z0)
+    # a real matched network: shunt L resonates C_L at f0, then an L-section R_L→Z0
+    _Lp = 1.0 / (_w0 ** 2 * _CL)
+    _Zr = 1.0 / (1j * _w * _CL + 1.0 / (1j * _w * _Lp) + 1.0 / _RL)
+    _RH, _RLo = max(_RL, _Z0), min(_RL, _Z0); _Q = np.sqrt(_RH / _RLo - 1)
+    _Ls = _Q * _RLo / _w0; _Cp = _Q / (_w0 * _RH)
+    _Zin = 1j * _w * _Ls + 1.0 / (1j * _w * _Cp + 1.0 / _Zr)
+    _Gin = (_Zin - _Z0) / (_Zin + _Z0)
 
-    *Proof.* On $s = j\omega$:
-    $$|\Gamma_L(j\omega)|^2 = 1 - \frac{4Z_0\,\mathrm{Re}[Z_L(j\omega)]}{|Z_L(j\omega)+Z_0|^2} \leq 1$$
-    since $\mathrm{Re}[Z_L] \geq 0$. Analyticity in the RHP follows from that of $Z_L$. $\square$
+    _ybare = np.log(1.0 / np.abs(_GL))
+    _ymatch = np.minimum(np.log(1.0 / np.abs(_Gin)), 3.5)   # clip the f0 notch for display
+    _budget = np.pi / (_RL * _CL) / (2 * np.pi) / 1e9        # GHz·Np
+    _A_bare = np.trapezoid(_ybare, _f) / 1e9
+    _A_match = np.trapezoid(np.log(1.0 / np.abs(_Gin)), _f) / 1e9
 
-    For a lossless matching network, $|\Gamma_{\rm in}(j\omega)|^2 + |T(j\omega)|^2 = 1$ (energy conservation), so the input reflection $\Gamma_{\rm in}$ is also BR.
+    _fig = go.Figure()
+    _fig.add_trace(go.Scatter(x=_f / 1e9, y=_ybare, mode="lines", name="bare load (no network)",
+        line=dict(color="#636EFA", width=2), fill="tozeroy", fillcolor="rgba(99,110,250,0.25)"))
+    _fig.add_trace(go.Scatter(x=_f / 1e9, y=_ymatch, mode="lines", name="matched network",
+        line=dict(color="#EF553B", width=2), fill="tozeroy", fillcolor="rgba(239,85,59,0.25)"))
+    _fig.update_layout(
+        template="plotly_dark", height=420,
+        title=f"Same budget, spent two ways  —  ∫ ln(1/|Γ|) dω ≤ π/(R_L C_L)  (R_L={_RL:g}Ω, C_L={_CL*1e12:g}pF)",
+        xaxis=dict(title="Frequency (GHz)"),
+        yaxis=dict(title="ln(1/|Γ|)   (matching density)", range=[0, 3.7]),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.3))
+    _fig.add_annotation(x=20, y=3.5, text="matched: budget piled<br/>into a narrow band (deep dip)",
+        showarrow=True, arrowhead=2, ax=70, ay=-30, font=dict(color="#EF553B", size=11))
+    _fig.add_annotation(x=55, y=0.45, text="bare: budget spread thin",
+        showarrow=True, arrowhead=2, ax=-40, ay=-30, font=dict(color="#636EFA", size=11))
+    mo.vstack([
+        mo.ui.plotly(_fig),
+        mo.md(f"""
+    *The blue area (bare load) and the red area (matched) are both bounded by the **same**
+    budget $\\pi/(R_LC_L)$ = **{_budget:.2f} GHz·Np**. Numerically integrated over the window
+    shown: bare ≈ {_A_bare:.2f}, matched ≈ {_A_match:.2f} GHz·Np (both below budget; the bare
+    load loses a little to its high-frequency tail past 80 GHz). The network did not add area —
+    it **relocated** it into a usable passband at the cost of $|\\Gamma|\\to1$ elsewhere.*
+    """)
+    ])
+    return
 
-    #### 8.2 Parallel-RC load: poles, zeros, and high-frequency limit
 
-    $$Z_L(s) = R_L \,\|\, \frac{1}{sC_L} = \frac{R_L}{1 + s R_L C_L} \qquad \text{[Definition]}$$
+@app.cell
+def _(mo):
+    mo.md(r"""
+    #### 8.1 Step 1 — the reflection coefficient is *bounded-real*
 
-    Multiplying numerator and denominator of $\Gamma_L = (Z_L - Z_0)/(Z_L + Z_0)$ by $(1 + sR_LC_L)$:
+    $$\Gamma(s) = \frac{Z(s) - Z_0}{Z(s) + Z_0}\qquad\text{[Definition]}$$
 
-    $$\Gamma_L(s) = \frac{(R_L - Z_0) - s\,Z_0 R_L C_L}{(R_L + Z_0) + s\,Z_0 R_L C_L}$$
+    A **passive** load returns no net energy, so $\mathrm{Re}\,Z(j\omega)\ge 0$ [Axiom]. A
+    **causal** load cannot respond before it is excited, which forces $Z(s)$ to be analytic in
+    the right half-plane $\mathrm{Re}(s)>0$. Together these make $Z(s)$ a **positive-real (PR)**
+    function. On the imaginary axis the algebraic identity
 
-    Setting numerator and denominator to zero identifies all singularities:
+    $$|\Gamma(j\omega)|^2 = 1 - \frac{4Z_0\,\mathrm{Re}\,Z(j\omega)}{|Z(j\omega)+Z_0|^2}\;\le\;1$$
 
-    $$s_z = \frac{R_L - Z_0}{Z_0 R_L C_L} \;\begin{cases} > 0\;\text{(RHP)} & R_L > Z_0 \\ < 0\;\text{(LHP)} & R_L < Z_0 \end{cases}, \qquad s_p = -\frac{R_L + Z_0}{Z_0 R_L C_L} < 0\;\text{(LHP always)}$$
+    shows $|\Gamma|\le 1$, and analyticity is inherited from $Z$. Hence $\Gamma(s)$ is
+    **bounded-real (BR)**: analytic in the RHP, magnitude $\le 1$ on the axis [Theorem]. For a
+    *lossless* matching network, energy conservation gives $|\Gamma_{\rm in}|^2+|T|^2=1$, so the
+    input reflection $\Gamma_{\rm in}$ is BR as well — this is the only property of the network
+    we will use.
 
-    For the typical matching problem $R_L > Z_0$, the zero $s_z$ lies in the open RHP. As $\omega \to \infty$ the capacitor becomes a short circuit:
-    $$\Gamma_L(j\omega) \xrightarrow{\;\omega\to\infty\;} \frac{-j\omega Z_0 R_L C_L}{+j\omega Z_0 R_L C_L} = -1 \qquad \text{[capacitor short-circuits load at high frequency]}$$
+    #### 8.2 Step 2 — Cauchy's theorem turns the integral into an accounting identity
 
-    #### 8.3 The fundamental integral: direct computation for the unmatched load
+    Let $f(s)=\ln\!\big(1/\Gamma_{\rm in}(s)\big)$. Two features control everything:
 
-    On the imaginary axis with $\tau \equiv Z_0 R_L C_L$:
-    $$|\Gamma_L(j\omega)|^2 = \frac{(R_L - Z_0)^2 + \omega^2\tau^2}{(R_L + Z_0)^2 + \omega^2\tau^2}$$
+    - **Zeros of $\Gamma_{\rm in}$ in the RHP** become singularities of $f$. List them $\{z_k\}$.
+    - **Behaviour at infinity:** because $|\Gamma|\to1$, $\;f(s)\to a_1/s + O(1/s^2)$ for some
+      real $a_1$ (the leading "tail" coefficient).
 
-    To evaluate $\int_0^\infty \ln(1/|\Gamma_L|)\,d\omega$, we first establish a key lemma.
+    Integrate $f$ around the boundary of the RHP — the imaginary axis closed by a large
+    semicircle (figure below). Cauchy's theorem relates the axis integral to the semicircle
+    (which only sees $a_1/s$) and to the enclosed zeros (handled by **Blaschke factors**
+    $B_k(s)=\frac{s-z_k}{s+\bar z_k}$, which have $|B_k|=1$ on the axis but rotate phase). The
+    bookkeeping collapses to one identity:
 
-    [**Lemma (Frullani log-integral):**] For real $b > a \geq 0$:
-    $$\int_0^\infty \ln\frac{b^2 + \omega^2}{a^2 + \omega^2}\,d\omega = \pi(b - a) \qquad \text{[Theorem]}$$
+    $$\boxed{\;\int_0^\infty \ln\frac{1}{|\Gamma_{\rm in}(\omega)|}\,d\omega
+      \;=\; \frac{\pi}{2}\,a_1 \;-\; \pi\sum_k \mathrm{Re}(z_k)\;}\qquad\text{[accounting identity]}$$
 
-    *Proof.* Let $I(b) = \int_0^\infty \ln\frac{b^2+\omega^2}{a^2+\omega^2}\,d\omega$. Differentiate under the integral sign:
-    $$I'(b) = \int_0^\infty \frac{2b}{b^2 + \omega^2}\,d\omega = 2b\cdot\frac{\pi}{2b} = \pi.$$
-    Since $I(a) = 0$, integrating from $a$ to $b$ gives $I(b) = \pi(b - a)$. $\square$
+    *Why the first term.* For an $f$ analytic in the closed RHP with $f\sim a_1/s$, the contour
+    gives $\int_{-\infty}^{\infty} f(j\omega)\,d\omega = \pi a_1$ (the semicircle contributes
+    $-j\pi a_1$; the axis the rest). Since $f$ is real on the real axis, $\mathrm{Re}\,f$ is even
+    and $\int_0^\infty\mathrm{Re}\,f\,d\omega=\tfrac{\pi}{2}a_1$. *Why the second.* Each RHP zero
+    is a "leak": factoring it out as a Blaschke term subtracts $\pi\,\mathrm{Re}(z_k)$ from the
+    available area. **Read the identity plainly: the high-frequency tail $a_1$ funds the budget;
+    every RHP zero spends some of it.**
+    """)
+    return
 
-    Now apply this with $u = \omega\tau$, $a = R_L - Z_0$, $b = R_L + Z_0$ (both positive for $R_L > Z_0$):
 
-    $$\int_0^\infty \ln\frac{1}{|\Gamma_L(j\omega)|}\,d\omega
-    = \frac{1}{2}\int_0^\infty \ln\frac{(R_L+Z_0)^2 + \omega^2\tau^2}{(R_L-Z_0)^2 + \omega^2\tau^2}\,d\omega
-    = \frac{1}{2\tau}\int_0^\infty \ln\frac{(R_L+Z_0)^2 + u^2}{(R_L-Z_0)^2 + u^2}\,du$$
+@app.cell
+def _(go, mo, np):
+    _th = np.linspace(-np.pi / 2, np.pi / 2, 200)
+    _R = 1.0
+    _fig = go.Figure()
+    # imaginary axis
+    _fig.add_trace(go.Scatter(x=[0, 0], y=[-1.15, 1.15], mode="lines",
+        line=dict(color="rgba(255,255,255,0.7)", width=2), name="jω axis", hoverinfo="skip"))
+    # RHP semicircle (R → ∞)
+    _fig.add_trace(go.Scatter(x=_R * np.cos(_th), y=_R * np.sin(_th), mode="lines",
+        line=dict(color="#00CC96", width=2.5), name="semicircle  R→∞", hoverinfo="skip"))
+    # arrows of traversal
+    _fig.add_annotation(x=0, y=0.5, ax=0, ay=-0.1, xref="x", yref="y", axref="x", ayref="y",
+        showarrow=True, arrowhead=3, arrowcolor="rgba(255,255,255,0.7)")
+    # RHP zeros of Γ_in
+    _zx, _zy = [0.45, 0.7, 0.55], [0.0, 0.35, -0.35]
+    _fig.add_trace(go.Scatter(x=_zx, y=_zy, mode="markers+text",
+        marker=dict(symbol="x", size=12, color="#EF553B"),
+        text=["z₁", "z₂", "z₃"], textposition="top right",
+        textfont=dict(color="#EF553B"), name="RHP zeros zₖ (leaks)"))
+    _fig.add_annotation(x=0.5, y=0.95, text="RHP  (Re s > 0)<br/>Γ_in analytic here", showarrow=False,
+        font=dict(color="rgba(255,255,255,0.6)", size=11))
+    _fig.update_layout(template="plotly_dark", height=420, width=480,
+        title="Step 2 contour: imaginary axis + RHP semicircle",
+        xaxis=dict(title="Re s", range=[-0.35, 1.3], zeroline=False, scaleanchor="y", scaleratio=1),
+        yaxis=dict(title="Im s", range=[-1.2, 1.2], zeroline=False),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.32))
+    mo.vstack([
+        mo.ui.plotly(_fig),
+        mo.md("*The axis integral = the matching budget. Closing through the RHP exposes the "
+              "two contributions: the semicircle (the tail $a_1$) and the enclosed zeros $z_k$.*")
+    ])
+    return
 
-    Applying the lemma with $b = R_L + Z_0$, $a = R_L - Z_0$:
-    $$= \frac{\pi\bigl[(R_L + Z_0) - (R_L - Z_0)\bigr]}{2\tau} = \frac{\pi \cdot 2Z_0}{2\,Z_0 R_L C_L}$$
 
-    $$\boxed{\int_0^\infty \ln\frac{1}{|\Gamma_L(j\omega)|}\,d\omega = \frac{\pi}{R_L C_L}} \qquad \text{[unmatched parallel-RC load]}$$
+@app.cell
+def _(mo):
+    mo.md(r"""
+    #### 8.3 Step 3 — the load caps the budget; a network can only leak it
 
-    This quantity measures the total matching capacity of the load. It is large when $R_LC_L$ is small (high pole frequency, easy to match broadband), and small when the time constant is large.
+    The accounting identity is exact for *any* network. To bound it, note two passivity facts:
 
-    #### 8.4 The Poisson-Jensen principle: how a lossless network affects the integral
+    1. **The tail is anchored by the load.** As $\omega\to\infty$ the capacitor $C_L$
+       short-circuits $R_L$ and every reactance in a finite lossless network becomes an open or
+       a short. The leading high-frequency reflection — and therefore the budget the tail can
+       fund — is fixed by $R_L,C_L$, not a free parameter of the network. (The tail term
+       $\tfrac{\pi}{2}a_1$ and the zero term can trade against each other as the input element
+       changes, but their *combination* cannot grow.)
+    2. **A lossless network can only insert RHP zeros, never cancel the load's.** Each inserted
+       transmission zero $z_k$ has $\mathrm{Re}(z_k)>0$ and, by the identity, *subtracts*
+       $\pi\,\mathrm{Re}(z_k)$ from the budget.
 
-    [**Theorem (Poisson-Jensen for the RHP):**] Let $\Gamma(s)$ be BR with zeros at $\{z_k\}$ in the open RHP. Then:
-    $$\int_{-\infty}^{\infty} \ln\frac{1}{|\Gamma(j\omega)|}\,d\omega = \pi\lim_{\sigma\to\infty}\sigma\,\ln\frac{1}{|\Gamma(\sigma)|} - 2\pi\sum_k \mathrm{Re}(z_k) \qquad \text{[Theorem]}$$
+    Fano's theorem (1950) makes this precise: the supremum of the budget over **all** lossless
+    matching networks equals the area the **bare load** already produces — the network may
+    *redistribute* the budget across frequency (the figure above) but never enlarge it. It
+    remains only to *compute* that area.
 
-    *Origin.* Write $\Gamma(s) = F(s)\prod_k B_k(s)$ where $B_k(s) = (s - z_k)/(s + \bar{z}_k)$ are Blaschke factors (with $|B_k(j\omega)| = 1$ on the imaginary axis). Then $F$ is zero-free in the RHP, so $\ln(1/|F|)$ is harmonic there. Applying the Poisson integral formula at $s = \sigma_0$ and letting $\sigma_0\to\infty$ (where the Poisson kernel $\sigma_0/[\pi(\sigma_0^2+\omega^2)]$ flattens to $1/(\pi\sigma_0)$) gives the identity, with the Blaschke factors contributing the $-2\pi\sum_k\mathrm{Re}(z_k)$ correction. $\square$
+    #### 8.4 Step 4 — evaluate the budget (one elementary integral)
 
-    **Applied to the lossless MN + parallel-RC system.** For any finite-order lossless matching network terminated in the parallel-RC load, the high-frequency behavior of $|\Gamma_{\rm in}(\sigma)|$ tracks $|\Gamma_L(\sigma)|$ as $\sigma\to\infty$ (all reactive elements open or short, leaving the capacitor as the last element). Therefore:
-    $$\lim_{\sigma\to\infty}\sigma\,\ln\frac{1}{|\Gamma_{\rm in}(\sigma)|} = \lim_{\sigma\to\infty}\sigma\,\ln\frac{1}{|\Gamma_L(\sigma)|} = \frac{2}{Z_0 C_L}$$
-    which is fixed by the load capacitor and the reference impedance, not by the network.
+    $$Z_L(s)=\frac{R_L}{1+sR_LC_L},\qquad
+      \Gamma_L(j\omega)\;\Rightarrow\;
+      |\Gamma_L(j\omega)|^2=\frac{(R_L-Z_0)^2+\omega^2\tau^2}{(R_L+Z_0)^2+\omega^2\tau^2},
+      \quad \tau\equiv Z_0R_LC_L$$
 
-    The RHP zeros of $\Gamma_{\rm in}$ split into: (i) the load's natural zero $s_z = (R_L - Z_0)/(Z_0 R_L C_L)$, and (ii) additional zeros $\{z_k^{\rm net}\}$ placed by the matching network, each with $\mathrm{Re}(z_k^{\rm net}) > 0$. Substituting into the Poisson-Jensen identity:
-    $$\int_0^\infty \ln\frac{1}{|\Gamma_{\rm in}(j\omega)|}\,d\omega = \frac{\pi}{Z_0 C_L} - \pi s_z - \pi\sum_k\mathrm{Re}(z_k^{\rm net}) = \frac{\pi}{R_L C_L} - \pi\sum_k\mathrm{Re}(z_k^{\rm net})$$
+    [**Lemma** (log-integral)] For real $b>a\ge 0$,
+    $\displaystyle\int_0^\infty \ln\frac{b^2+\omega^2}{a^2+\omega^2}\,d\omega=\pi(b-a)$.
+    *Proof:* differentiating under the integral, $I'(b)=\int_0^\infty\frac{2b\,d\omega}{b^2+\omega^2}=\pi$,
+    and $I(a)=0$, so $I(b)=\pi(b-a)$. $\square$
 
-    Since every additional network zero removes a positive term:
+    Apply it with $b=R_L+Z_0$, $a=|R_L-Z_0|$, substituting $u=\omega\tau$:
 
-    $$\boxed{\int_0^\infty \ln\frac{1}{|\Gamma(\omega)|}\,d\omega \leq \frac{\pi}{R_L C_L}} \qquad \text{[Theorem: Bode-Fano, parallel-RC]}$$
+    $$\int_0^\infty \ln\frac{1}{|\Gamma_L|}\,d\omega
+      =\frac{1}{2\tau}\int_0^\infty\ln\frac{(R_L+Z_0)^2+u^2}{(R_L-Z_0)^2+u^2}\,du
+      =\frac{\pi\,[(R_L+Z_0)-(R_L-Z_0)]}{2\tau}=\frac{\pi\cdot 2Z_0}{2Z_0R_LC_L}$$
 
-    Equality is approached only as the number of network zeros $\to 0$, which corresponds to the infinite-order Chebyshev limit. Every finite-order design achieves strictly less.
+    $$\boxed{\;\int_0^\infty \ln\frac{1}{|\Gamma(\omega)|}\,d\omega \le \frac{\pi}{R_L C_L}\;}
+      \qquad\text{[Theorem — Bode–Fano, proven]}$$
 
-    #### 8.5 Equal-ripple corollary: the bandwidth-match tradeoff
+    Only the load time constant $R_LC_L$ survives. The reference $Z_0$ cancels: matching depth
+    and bandwidth are constrained by the *load's own* $RC$, nothing else.
+    """)
+    return
 
-    For an idealized equiripple response with $|\Gamma(\omega)| = |\Gamma_{\max}|$ over bandwidth $\Delta\omega$ and $|\Gamma| = 1$ outside:
-    $$\int_0^\infty \ln\frac{1}{|\Gamma(\omega)|}\,d\omega = \Delta\omega\cdot\ln\frac{1}{|\Gamma_{\max}|}$$
 
-    Substituting into the Bode-Fano bound:
+@app.cell
+def _(go, mo, np):
+    _w = np.linspace(0, 3, 600)
+    _w_lo, _w_hi = 1.0, 1.8       # band edges (normalized)
+    _gmax = 0.30                  # |Γ_max| in band
+    _h = np.log(1.0 / _gmax)
+    _y = np.where((_w >= _w_lo) & (_w <= _w_hi), _h, 0.0)
+    _fig = go.Figure()
+    _fig.add_trace(go.Scatter(x=_w, y=_y, mode="lines", line=dict(color="#FFA15A", width=2.5),
+        fill="tozeroy", fillcolor="rgba(255,161,90,0.3)", name="ideal equal-ripple"))
+    _fig.add_annotation(x=(_w_lo + _w_hi) / 2, y=_h / 2,
+        text=f"area = Δω · ln(1/|Γ_max|)<br/>≤ π/(R_L C_L)", showarrow=False,
+        font=dict(color="white", size=12))
+    _fig.add_annotation(x=(_w_lo + _w_hi) / 2, y=_h + 0.12, text="height = ln(1/|Γ_max|)",
+        showarrow=False, font=dict(color="#FFA15A", size=11))
+    _fig.add_annotation(x=_w_hi + 0.45, y=0.05, text="|Γ|→1 outside (budget = 0)",
+        showarrow=False, font=dict(color="rgba(255,255,255,0.6)", size=11))
+    _fig.add_shape(type="line", x0=_w_lo, x1=_w_hi, y0=-0.06, y1=-0.06,
+        line=dict(color="#FFA15A", width=2))
+    _fig.add_annotation(x=(_w_lo + _w_hi) / 2, y=-0.13, text="width = Δω", showarrow=False,
+        font=dict(color="#FFA15A", size=11))
+    _fig.update_layout(template="plotly_dark", height=380,
+        title="Equal-ripple corollary: a fixed-area rectangle",
+        xaxis=dict(title="ω", showticklabels=False, range=[0, 3]),
+        yaxis=dict(title="ln(1/|Γ|)", range=[-0.2, 1.6]),
+        showlegend=False)
+    mo.vstack([
+        mo.ui.plotly(_fig),
+        mo.md("*The best a real design can do is approach the rectangle: equal reflection "
+              "$|\\Gamma_{\\max}|$ across $\\Delta\\omega$, total mismatch outside. Its area "
+              "$\\Delta\\omega\\,\\ln(1/|\\Gamma_{\\max}|)$ cannot exceed the budget.*")
+    ])
+    return
 
-    $$\boxed{\Delta\omega\cdot\ln\frac{1}{|\Gamma_{\max}|} \leq \frac{\pi}{R_L C_L}} \qquad \text{[Corollary]}$$
 
-    [**Corollary (fundamental tradeoffs):**]
-    - Fixed $\Delta\omega$: minimum achievable $|\Gamma_{\max}| \geq \exp\!\bigl(-\pi/(R_L C_L\,\Delta\omega)\bigr)$.
-    - Fixed $|\Gamma_{\max}|$: maximum bandwidth $\Delta\omega \leq \pi/\bigl(R_L C_L\ln(1/|\Gamma_{\max}|)\bigr)$.
-    - No network topology or order can exceed this limit; only the load time constant $R_L C_L$ appears on the right.
+@app.cell
+def _(mo):
+    mo.md(r"""
+    #### 8.5 Reading the limit — the bandwidth ↔ depth trade
 
-    An $N$th-order Chebyshev network distributes the available $\pi/(R_L C_L)$ area over $N$ equiripple lobes, approaching the bound as $N\to\infty$ while achieving $\Delta\omega \approx \sqrt{N}\,\Delta\omega_{\rm single}$ for finite $N$.
+    Forcing the budget into an ideal equal-ripple rectangle of width $\Delta\omega$ and floor
+    $|\Gamma_{\max}|$ gives $\int_0^\infty\ln(1/|\Gamma|)\,d\omega=\Delta\omega\,\ln(1/|\Gamma_{\max}|)$,
+    hence
 
-    #### 8.6 Dual: series-RL load
+    $$\boxed{\;\Delta\omega\,\ln\frac{1}{|\Gamma_{\max}|}\;\le\;\frac{\pi}{R_LC_L}\;}\qquad\text{[Corollary]}$$
 
-    For a **series-RL load** $Z_L(s) = R_L + sL$, the inductor dominates at high frequency so $\Gamma_L \to +1$ (open circuit) rather than $-1$. The Poisson-Jensen argument applied via a $1/s^2$ integrating factor yields the dual bound:
+    [**Trade-offs**]
+    - Fixed band $\Delta\omega$: the deepest match is floored at
+      $|\Gamma_{\max}|\ge \exp\!\big(-\pi/(R_LC_L\,\Delta\omega)\big)$.
+    - Fixed depth $|\Gamma_{\max}|$: the widest band is
+      $\Delta\omega\le \pi/\big(R_LC_L\,\ln(1/|\Gamma_{\max}|)\big)$.
+    - No topology and no network order can beat this — only the load $R_LC_L$ appears.
 
-    $$\boxed{\int_0^\infty \frac{\ln\bigl(1/|\Gamma(\omega)|\bigr)}{\omega^2}\,d\omega \leq \frac{\pi L}{2R_L}} \qquad \text{[Theorem: Bode-Fano, series-RL]}$$
+    An $N$-section Chebyshev design distributes the budget over $N$ equal-ripple lobes,
+    approaching the rectangle as $N\to\infty$ and buying $\Delta\omega\propto\sqrt{N}$ for finite
+    $N$ (§9). This is *why* a single L-section (§4–§7) is narrowband and why broadbanding needs
+    cascades.
 
-    The $1/\omega^2$ weighting concentrates the constraint at low frequencies, consistent with the fact that the RL load is hardest to match at DC (inductor appears as a short, leaving only $R_L$) and naturally approaches a perfect mismatch at high frequency. The bound is controlled by the inductive time constant $L/R_L$.
+    #### 8.6 Dual — the series-RL load
+
+    For $Z_L(s)=R_L+sL$ the inductor *opens* at high frequency, so $\Gamma_L\to+1$ and the
+    integrating factor $1/s^2$ replaces $1$ in the contour argument. The same machinery yields
+
+    $$\boxed{\;\int_0^\infty \frac{1}{\omega^2}\,\ln\frac{1}{|\Gamma(\omega)|}\,d\omega
+      \;\le\;\frac{\pi L}{2R_L}\;}\qquad\text{[Theorem — Bode–Fano, series-RL]}$$
+
+    The $1/\omega^2$ weight concentrates the constraint at *low* frequency, matching physical
+    sense: the inductor shorts at DC (only $R_L$ left, hard to match) and self-mismatches at
+    high frequency. The governing constant is now the inductive time constant $L/R_L$.
     """)
     return
 

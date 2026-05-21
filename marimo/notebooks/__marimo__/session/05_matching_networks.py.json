@@ -1,0 +1,404 @@
+{
+  "version": "1",
+  "metadata": {
+    "marimo_version": "0.23.6",
+    "script_metadata_hash": "8a193694def0dfd6d84796c671070007"
+  },
+  "cells": [
+    {
+      "id": "Hbol",
+      "code_hash": "4ef2f36ec7aeec5685390fd6720e4880",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "MJUe",
+      "code_hash": "92234652428c1a515adfc16b5e228cd0",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "vblA",
+      "code_hash": "ad5dfb95ba3b8f0b98ed80157898c072",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h1 id=\"05-matching-networks-broadband-design-and-cyclostationary-noise\">05 \u2014 Matching Networks, Broadband Design, and Cyclostationary Noise</h1>\n<span class=\"paragraph\">Builds on notebooks 01\u201304. Lumped and distributed impedance matching,\nBode-Fano bandwidth limits, transformer coupling, and mixer/sampler noise.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "bkHC",
+      "code_hash": "fdff2a68bdd0be26ae8f082af94c9bd4",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"part-i-impedance-matching-fundamentals\">Part I \u2014 Impedance Matching Fundamentals</h2>\n<h3 id=\"1-motivation-mismatch-loss-and-the-power-transfer-theorem\">\u00a71. Motivation: Mismatch Loss and the Power Transfer Theorem</h3>\n<span class=\"paragraph\">Consider a source characterized by a Thevenin equivalent voltage <marimo-tex class=\"arithmatex\">||(V_S||)</marimo-tex> and internal impedance <marimo-tex class=\"arithmatex\">||(Z_S = R_S + jX_S||)</marimo-tex>. It drives a load impedance <marimo-tex class=\"arithmatex\">||(Z_L = R_L + jX_L||)</marimo-tex>.\nThe current flowing through the circuit is:</span>\n<marimo-tex class=\"arithmatex\">||[I = \\frac{V_S}{Z_S + Z_L} = \\frac{V_S}{(R_S + R_L) + j(X_S + X_L)}||]</marimo-tex><span class=\"paragraph\">The time-average power delivered to the load is given by <marimo-tex class=\"arithmatex\">||(P_L = \\frac{1}{2} |I|^2 R_L||)</marimo-tex>:</span>\n<marimo-tex class=\"arithmatex\">||[P_L = \\frac{1}{2} \\frac{|V_S|^2 R_L}{(R_S + R_L)^2 + (X_S + X_L)^2}||]</marimo-tex><span class=\"paragraph\">To maximize <marimo-tex class=\"arithmatex\">||(P_L||)</marimo-tex> with respect to <marimo-tex class=\"arithmatex\">||(X_L||)</marimo-tex>, we set <marimo-tex class=\"arithmatex\">||(X_L = -X_S||)</marimo-tex>. Substituting this condition yields:</span>\n<marimo-tex class=\"arithmatex\">||[P_L = \\frac{1}{2} \\frac{|V_S|^2 R_L}{(R_S + R_L)^2}||]</marimo-tex><span class=\"paragraph\">Maximizing with respect to <marimo-tex class=\"arithmatex\">||(R_L||)</marimo-tex> by setting <marimo-tex class=\"arithmatex\">||(\\partial P_L / \\partial R_L = 0||)</marimo-tex> gives <marimo-tex class=\"arithmatex\">||(R_L = R_S||)</marimo-tex>. Therefore, maximum power transfer occurs when <marimo-tex class=\"arithmatex\">||(Z_L = Z_S^*||)</marimo-tex>. Under this conjugate match condition, the <strong>available power</strong> is:</span>\n<marimo-tex class=\"arithmatex\">||[P_{\\text{avail}} = \\frac{|V_S|^2}{8 R_S}||]</marimo-tex><span class=\"paragraph\">For any other load, the fraction actually delivered is represented by the mismatch loss (ML):</span>\n<marimo-tex class=\"arithmatex\">||[\\text{ML} = 1 - |\\Gamma_L|^2 = \\frac{4 R_S R_L}{|Z_S + Z_L|^2}||]</marimo-tex><span class=\"paragraph\">where <marimo-tex class=\"arithmatex\">||(\\Gamma_L = (Z_L - Z_S^*)/(Z_L + Z_S)||)</marimo-tex>. In dB: <marimo-tex class=\"arithmatex\">||(\\text{ML}_{\\text{dB}} = 10\\log_{10}(1 - |\\Gamma_L|^2)||)</marimo-tex>.</span>\n<span class=\"paragraph\"><strong>Quality factor.</strong> For a series resonator: <marimo-tex class=\"arithmatex\">||(Q = X/R||)</marimo-tex>; for a shunt resonator: <marimo-tex class=\"arithmatex\">||(Q = B/G||)</marimo-tex>.\nA single-resonator match has an approximate 3 dB fractional bandwidth of <marimo-tex class=\"arithmatex\">||(1/Q||)</marimo-tex>:</span>\n<marimo-tex class=\"arithmatex\">||[\\text{BW}_{3\\,\\text{dB}} \\approx \\frac{f_0}{Q_{\\text{loaded}}}||]</marimo-tex><span class=\"paragraph\">Large impedance transformation ratios (<marimo-tex class=\"arithmatex\">||(R_H/R_L \\gg 1||)</marimo-tex>) force high <marimo-tex class=\"arithmatex\">||(Q||)</marimo-tex>, leading to a narrow bandwidth.\nParts II\u2013IV provide the tools to escape this constraint.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "lEQa",
+      "code_hash": "f7b2333d28b8691e88cc382140684e74",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h3 id=\"2-network-representations-for-matching\">\u00a72. Network Representations for Matching</h3>\n<span class=\"paragraph\">Matching networks are two-ports inserted between <marimo-tex class=\"arithmatex\">||(Z_S||)</marimo-tex> and <marimo-tex class=\"arithmatex\">||(Z_L||)</marimo-tex> to provide the required impedance transformation.\nThe ABCD (transmission) matrix formulation is the most natural representation for cascaded networks, as the matrices multiply directly:</span>\n<marimo-tex class=\"arithmatex\">||[\\begin{bmatrix}V_1\\\\I_1\\end{bmatrix} = \\begin{bmatrix}A &amp; B\\\\C &amp; D\\end{bmatrix}\n\\begin{bmatrix}V_2\\\\-I_2\\end{bmatrix}||]</marimo-tex><span class=\"paragraph\">For a <strong>series impedance</strong> <marimo-tex class=\"arithmatex\">||(Z||)</marimo-tex>: The voltage drops by <marimo-tex class=\"arithmatex\">||(I_1 Z||)</marimo-tex>, and current is unchanged (<marimo-tex class=\"arithmatex\">||(I_1 = -I_2||)</marimo-tex>).\n<marimo-tex class=\"arithmatex\">||(A=1,\\; B=Z,\\; C=0,\\; D=1||)</marimo-tex>.</span>\n<span class=\"paragraph\">For a <strong>shunt admittance</strong> <marimo-tex class=\"arithmatex\">||(Y||)</marimo-tex>: The voltage is unchanged (<marimo-tex class=\"arithmatex\">||(V_1 = V_2||)</marimo-tex>), and current splits (<marimo-tex class=\"arithmatex\">||(I_1 = -I_2 + V_2 Y||)</marimo-tex>).\n<marimo-tex class=\"arithmatex\">||(A=1,\\; B=0,\\; C=Y,\\; D=1||)</marimo-tex>.</span>\n<span class=\"paragraph\">A lossless LC network satisfies the condition that power in equals power out, which imposes constraints on the matrix elements. Specifically, it can be shown that <marimo-tex class=\"arithmatex\">||(A,D||)</marimo-tex> must be purely real, and <marimo-tex class=\"arithmatex\">||(B,C||)</marimo-tex> purely imaginary.\nReciprocity requires the determinant to be unity: <marimo-tex class=\"arithmatex\">||(AD - BC = 1||)</marimo-tex> for all passive, isotropic networks.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "PKri",
+      "code_hash": "0a1d6562b1b8a0dad3785f2e208db795",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h3 id=\"3-the-smith-chart-from-first-principles\">\u00a73. The Smith Chart from First Principles</h3>\n<span class=\"paragraph\">The Smith chart is the single most important graphical tool in microwave engineering. It is not an ad-hoc construction; it follows inevitably from the algebraic properties of the <strong>Mobius (bilinear) transformation</strong> that relates impedance to reflection coefficient. This section derives the chart rigorously.</span>\n<h4 id=\"31-the-bilinear-mobius-transformation\">3.1 The Bilinear (Mobius) Transformation</h4>\n<span class=\"paragraph\">Every normalized impedance <marimo-tex class=\"arithmatex\">||(z = Z/Z_0 = r + jx||)</marimo-tex> maps to a reflection coefficient <marimo-tex class=\"arithmatex\">||(\\Gamma = u + jv||)</marimo-tex> via:</span>\n<marimo-tex class=\"arithmatex\">||[\\Gamma = \\frac{z - 1}{z + 1}||]</marimo-tex><span class=\"paragraph\">The inverse is <marimo-tex class=\"arithmatex\">||(z = \\frac{1 + \\Gamma}{1 - \\Gamma}||)</marimo-tex>. This is a <strong>Mobius transformation</strong> of the form <marimo-tex class=\"arithmatex\">||(w = \\frac{az + b}{cz + d}||)</marimo-tex> with <marimo-tex class=\"arithmatex\">||(a=1, b=-1, c=1, d=1||)</marimo-tex>.</span>\n<span class=\"paragraph\"><strong>Key property:</strong> A Mobius transformation maps every generalized circle (circle or straight line) in one complex plane to a generalized circle in the other. This single fact generates the entire Smith chart.</span>\n<h4 id=\"32-deriving-the-constant-resistance-circles\">3.2 Deriving the Constant-Resistance Circles</h4>\n<span class=\"paragraph\">Set <marimo-tex class=\"arithmatex\">||(z = r + jx||)</marimo-tex> with <marimo-tex class=\"arithmatex\">||(r||)</marimo-tex> fixed. Substituting into <marimo-tex class=\"arithmatex\">||(\\Gamma = (z-1)/(z+1)||)</marimo-tex>:</span>\n<marimo-tex class=\"arithmatex\">||[\\Gamma = \\frac{(r-1) + jx}{(r+1) + jx}||]</marimo-tex><span class=\"paragraph\">Multiply numerator and denominator by the conjugate of the denominator:</span>\n<marimo-tex class=\"arithmatex\">||[\\Gamma = \\frac{[(r-1)+jx][(r+1)-jx]}{|{(r+1)+jx}|^2} = \\frac{(r^2-1+x^2) + j[x(r+1) - x(r-1)]}{(r+1)^2 + x^2}||]</marimo-tex><marimo-tex class=\"arithmatex\">||[u = \\frac{r^2 - 1 + x^2}{(r+1)^2 + x^2}, \\qquad v = \\frac{2x}{(r+1)^2 + x^2}||]</marimo-tex><span class=\"paragraph\">After algebraic manipulation (eliminating <marimo-tex class=\"arithmatex\">||(x||)</marimo-tex> between these two equations), one obtains:</span>\n<marimo-tex class=\"arithmatex\">||[\\boxed{\\left(u - \\frac{r}{r+1}\\right)^2 + v^2 = \\frac{1}{(r+1)^2}}||]</marimo-tex><span class=\"paragraph\">This is a circle in the <marimo-tex class=\"arithmatex\">||(\\Gamma||)</marimo-tex>-plane centered at <marimo-tex class=\"arithmatex\">||(\\left(\\frac{r}{r+1}, 0\\right)||)</marimo-tex> with radius <marimo-tex class=\"arithmatex\">||(\\frac{1}{r+1}||)</marimo-tex>.</span>\n<ul>\n<li><marimo-tex class=\"arithmatex\">||(r = 0||)</marimo-tex>: center <marimo-tex class=\"arithmatex\">||((0, 0)||)</marimo-tex>, radius <marimo-tex class=\"arithmatex\">||(1||)</marimo-tex> -- the unit circle itself (pure reactance).</li>\n<li><marimo-tex class=\"arithmatex\">||(r = 1||)</marimo-tex>: center <marimo-tex class=\"arithmatex\">||((0.5, 0)||)</marimo-tex>, radius <marimo-tex class=\"arithmatex\">||(0.5||)</marimo-tex> -- passes through the origin.</li>\n<li><marimo-tex class=\"arithmatex\">||(r \\to \\infty||)</marimo-tex>: center <marimo-tex class=\"arithmatex\">||((1, 0)||)</marimo-tex>, radius <marimo-tex class=\"arithmatex\">||(0||)</marimo-tex> -- the point <marimo-tex class=\"arithmatex\">||(\\Gamma = 1||)</marimo-tex> (open circuit).</li>\n</ul>\n<h4 id=\"33-deriving-the-constant-reactance-circles\">3.3 Deriving the Constant-Reactance Circles</h4>\n<span class=\"paragraph\">Now fix <marimo-tex class=\"arithmatex\">||(x||)</marimo-tex> and let <marimo-tex class=\"arithmatex\">||(r||)</marimo-tex> vary over <marimo-tex class=\"arithmatex\">||([0, \\infty)||)</marimo-tex>. Eliminating <marimo-tex class=\"arithmatex\">||(r||)</marimo-tex> from the same pair of equations yields:</span>\n<marimo-tex class=\"arithmatex\">||[\\boxed{(u - 1)^2 + \\left(v - \\frac{1}{x}\\right)^2 = \\frac{1}{x^2}}||]</marimo-tex><span class=\"paragraph\">These are circles centered at <marimo-tex class=\"arithmatex\">||(\\left(1, \\frac{1}{x}\\right)||)</marimo-tex> with radius <marimo-tex class=\"arithmatex\">||(\\frac{1}{|x|}||)</marimo-tex>, all tangent to the point <marimo-tex class=\"arithmatex\">||(\\Gamma = 1||)</marimo-tex> (open circuit). Positive <marimo-tex class=\"arithmatex\">||(x||)</marimo-tex> (inductive) gives circles in the upper half-plane; negative <marimo-tex class=\"arithmatex\">||(x||)</marimo-tex> (capacitive) in the lower half-plane. The <marimo-tex class=\"arithmatex\">||(x = 0||)</marimo-tex> \"circle\" degenerates to the real axis.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Xref",
+      "code_hash": "6d7370feba21794cf5b07bd8d60a7ebd",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h4 id=\"34-the-admittance-chart-and-the-180-degree-rotation\">3.4 The Admittance Chart and the 180-degree Rotation</h4>\n<span class=\"paragraph\">For shunt elements it is natural to work in normalized admittance <marimo-tex class=\"arithmatex\">||(y = g + jb = 1/z||)</marimo-tex>. Substituting <marimo-tex class=\"arithmatex\">||(z = 1/y||)</marimo-tex>:</span>\n<marimo-tex class=\"arithmatex\">||[\\Gamma = \\frac{1/y - 1}{1/y + 1} = \\frac{1 - y}{1 + y} = -\\frac{y - 1}{y + 1}||]</marimo-tex><span class=\"paragraph\">The leading minus sign is multiplication by <marimo-tex class=\"arithmatex\">||(e^{j\\pi}||)</marimo-tex>: a <strong>180-degree rotation</strong> of the impedance-chart mapping. Therefore constant-<marimo-tex class=\"arithmatex\">||(g||)</marimo-tex> circles are the constant-<marimo-tex class=\"arithmatex\">||(r||)</marimo-tex> circles reflected through the origin, and constant-<marimo-tex class=\"arithmatex\">||(b||)</marimo-tex> circles are reflected constant-<marimo-tex class=\"arithmatex\">||(x||)</marimo-tex> circles.</span>\n<span class=\"paragraph\">The constant-conductance circle for conductance <marimo-tex class=\"arithmatex\">||(g||)</marimo-tex> is:</span>\n<marimo-tex class=\"arithmatex\">||[\\left(u + \\frac{g}{g+1}\\right)^2 + v^2 = \\frac{1}{(g+1)^2}||]</marimo-tex><span class=\"paragraph\">centered at <marimo-tex class=\"arithmatex\">||(\\left(-\\frac{g}{g+1}, 0\\right)||)</marimo-tex>. The constant-susceptance circle for susceptance <marimo-tex class=\"arithmatex\">||(b||)</marimo-tex>:</span>\n<marimo-tex class=\"arithmatex\">||[(u + 1)^2 + \\left(v + \\frac{1}{b}\\right)^2 = \\frac{1}{b^2}||]</marimo-tex><span class=\"paragraph\">centered at <marimo-tex class=\"arithmatex\">||(\\left(-1, -\\frac{1}{b}\\right)||)</marimo-tex>, tangent to <marimo-tex class=\"arithmatex\">||(\\Gamma = -1||)</marimo-tex> (short circuit).</span>\n<span class=\"paragraph\"><strong>The Smith chart is thus a dual-coordinate system</strong>: Z-contours (constant <marimo-tex class=\"arithmatex\">||(r||)</marimo-tex>, <marimo-tex class=\"arithmatex\">||(x||)</marimo-tex>) and Y-contours (constant <marimo-tex class=\"arithmatex\">||(g||)</marimo-tex>, <marimo-tex class=\"arithmatex\">||(b||)</marimo-tex>) overlaid on the same <marimo-tex class=\"arithmatex\">||(|\\Gamma| \\le 1||)</marimo-tex> disk. Switching between the two is equivalent to toggling between series and parallel analysis of the circuit.</span>\n<h4 id=\"35-movement-rules-for-matching\">3.5 Movement Rules for Matching</h4>\n<table>\n<thead>\n<tr>\n<th>Element</th>\n<th>Domain</th>\n<th>Effect</th>\n<th>Trajectory</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>Series <marimo-tex class=\"arithmatex\">||(L||)</marimo-tex> (<marimo-tex class=\"arithmatex\">||(+jx||)</marimo-tex>)</td>\n<td><marimo-tex class=\"arithmatex\">||(z_{\\text{new}} = z + jx||)</marimo-tex></td>\n<td>Increase reactance</td>\n<td>CW along constant-<marimo-tex class=\"arithmatex\">||(r||)</marimo-tex> circle</td>\n</tr>\n<tr>\n<td>Series <marimo-tex class=\"arithmatex\">||(C||)</marimo-tex> (<marimo-tex class=\"arithmatex\">||(-jx||)</marimo-tex>)</td>\n<td><marimo-tex class=\"arithmatex\">||(z_{\\text{new}} = z - jx||)</marimo-tex></td>\n<td>Decrease reactance</td>\n<td>CCW along constant-<marimo-tex class=\"arithmatex\">||(r||)</marimo-tex> circle</td>\n</tr>\n<tr>\n<td>Shunt <marimo-tex class=\"arithmatex\">||(C||)</marimo-tex> (<marimo-tex class=\"arithmatex\">||(+jb||)</marimo-tex>)</td>\n<td><marimo-tex class=\"arithmatex\">||(y_{\\text{new}} = y + jb||)</marimo-tex></td>\n<td>Increase susceptance</td>\n<td>CW along constant-<marimo-tex class=\"arithmatex\">||(g||)</marimo-tex> circle</td>\n</tr>\n<tr>\n<td>Shunt <marimo-tex class=\"arithmatex\">||(L||)</marimo-tex> (<marimo-tex class=\"arithmatex\">||(-jb||)</marimo-tex>)</td>\n<td><marimo-tex class=\"arithmatex\">||(y_{\\text{new}} = y - jb||)</marimo-tex></td>\n<td>Decrease susceptance</td>\n<td>CCW along constant-<marimo-tex class=\"arithmatex\">||(g||)</marimo-tex> circle</td>\n</tr>\n</tbody>\n</table>\n<span class=\"paragraph\">A matching design is a sequence of arc moves from the load point to the chart center (<marimo-tex class=\"arithmatex\">||(\\Gamma = 0||)</marimo-tex>, i.e. <marimo-tex class=\"arithmatex\">||(z = 1||)</marimo-tex>).</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "SFPL",
+      "code_hash": "52f9ab14f4dd34b131f9675de3774553",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h4 id=\"interactive-i-bilinear-mapping-z-plane-to-gamma-plane\">Interactive I -- Bilinear Mapping: <marimo-tex class=\"arithmatex\">||(z||)</marimo-tex>-plane <marimo-tex class=\"arithmatex\">||(\\to||)</marimo-tex> <marimo-tex class=\"arithmatex\">||(\\Gamma||)</marimo-tex>-plane</h4>\n<span class=\"paragraph\">The chart below shows the bilinear transform in action. On the left is the normalized impedance plane; on the right is the <marimo-tex class=\"arithmatex\">||(\\Gamma||)</marimo-tex>-plane (the Smith chart). Vertical lines of constant <marimo-tex class=\"arithmatex\">||(r||)</marimo-tex> in the <marimo-tex class=\"arithmatex\">||(z||)</marimo-tex>-plane map to the constant-resistance circles. Horizontal lines of constant <marimo-tex class=\"arithmatex\">||(x||)</marimo-tex> map to the constant-reactance arcs.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "BYtC",
+      "code_hash": "e7996eff25d70d98f5e7f9533634dc65",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "RGSE",
+      "code_hash": "fff4192ffb6535a8e82299be78a640e9",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "Kclp",
+      "code_hash": "7ac69019acd3c889a3c850c34194360d",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "emfo",
+      "code_hash": "9026d1329ff3c54a341c4142f1a70baa",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h4 id=\"interactive-iii-step-by-step-matching-network-synthesis\">Interactive III -- Step-by-Step Matching Network Synthesis</h4>\n<span class=\"paragraph\">Build a matching network element by element. Each button adds a reactive component to the cascade. The Smith chart traces the full trajectory from load to (ideally) the chart center <marimo-tex class=\"arithmatex\">||(\\Gamma = 0||)</marimo-tex>.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Hstk",
+      "code_hash": "3c6c74f02d68a4c577e2487cb776ba44",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "nWHF",
+      "code_hash": "e853076ed7e796367168756b45590579",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "iLit",
+      "code_hash": "12bc133e0c14f696a98389e10cbf8a5f",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "ZHCJ",
+      "code_hash": "7814b4a6404d5a9060b33fb338b2c77f",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"part-ii-lumped-matching-networks\">Part II \u2014 Lumped Matching Networks</h2>\n<h3 id=\"4-l-network-synthesis\">\u00a74. L-Network Synthesis</h3>\n<span class=\"paragraph\">The L-network transforms between two real impedances <marimo-tex class=\"arithmatex\">||(R_S||)</marimo-tex> and <marimo-tex class=\"arithmatex\">||(R_L||)</marimo-tex> (<marimo-tex class=\"arithmatex\">||(R_H = \\max(R_S, R_L)||)</marimo-tex>, <marimo-tex class=\"arithmatex\">||(R_{Lo} = \\min(R_S, R_L)||)</marimo-tex>) using exactly two reactive elements.</span>\n<span class=\"paragraph\"><strong>Derivation of Q and element values:</strong>\nConsider the load <marimo-tex class=\"arithmatex\">||(R_H||)</marimo-tex> in parallel with a shunt reactance <marimo-tex class=\"arithmatex\">||(X_p||)</marimo-tex>. The admittance is <marimo-tex class=\"arithmatex\">||(Y_p = 1/R_H + 1/(jX_p)||)</marimo-tex>.\nThe equivalent series impedance is <marimo-tex class=\"arithmatex\">||(Z_s = 1/Y_p||)</marimo-tex>:</span>\n<marimo-tex class=\"arithmatex\">||[Z_s = \\frac{R_H (jX_p)}{R_H + jX_p} = \\frac{R_H X_p^2 + j R_H^2 X_p}{R_H^2 + X_p^2}||]</marimo-tex><span class=\"paragraph\">We require the real part to equal <marimo-tex class=\"arithmatex\">||(R_{Lo}||)</marimo-tex>:</span>\n<marimo-tex class=\"arithmatex\">||[R_{Lo} = \\frac{R_H X_p^2}{R_H^2 + X_p^2} \\implies R_{Lo} R_H^2 + R_{Lo} X_p^2 = R_H X_p^2 \\implies X_p^2 (R_H - R_{Lo}) = R_{Lo} R_H^2||]</marimo-tex><marimo-tex class=\"arithmatex\">||[X_p = \\pm R_H \\sqrt{\\frac{R_{Lo}}{R_H - R_{Lo}}} = \\pm \\frac{R_H}{Q}||]</marimo-tex><span class=\"paragraph\">where we define the network quality factor <marimo-tex class=\"arithmatex\">||(Q||)</marimo-tex>:</span>\n<marimo-tex class=\"arithmatex\">||[Q = \\sqrt{\\frac{R_H}{R_{Lo}} - 1}||]</marimo-tex><span class=\"paragraph\">The imaginary part of the parallel combination is <marimo-tex class=\"arithmatex\">||(\\frac{R_H^2 X_p}{R_H^2 + X_p^2} = \\frac{R_H Q}{1 + Q^2} = R_{Lo} Q||)</marimo-tex>.\nTo cancel this reactance and achieve a purely real impedance <marimo-tex class=\"arithmatex\">||(R_{Lo}||)</marimo-tex>, the series arm must provide the opposite reactance <marimo-tex class=\"arithmatex\">||(X_s||)</marimo-tex>:</span>\n<marimo-tex class=\"arithmatex\">||[X_s = \\mp R_{Lo} Q||]</marimo-tex><span class=\"paragraph\"><strong>Low-pass topology</strong> (shunt <marimo-tex class=\"arithmatex\">||(C||)</marimo-tex> at high-impedance port, series <marimo-tex class=\"arithmatex\">||(L||)</marimo-tex> in series arm):</span>\n<marimo-tex class=\"arithmatex\">||[X_p = -1/(\\omega_0 C_p) \\implies C_p = \\frac{Q}{\\omega_0 R_H}||]</marimo-tex><marimo-tex class=\"arithmatex\">||[X_s = \\omega_0 L_s \\implies L_s = \\frac{Q R_{Lo}}{\\omega_0}||]</marimo-tex><span class=\"paragraph\"><strong>High-pass topology</strong>: (shunt <marimo-tex class=\"arithmatex\">||(L||)</marimo-tex> at high-impedance port, series <marimo-tex class=\"arithmatex\">||(C||)</marimo-tex> in series arm).</span>\n<span class=\"paragraph\">The 3 dB bandwidth is approximately <marimo-tex class=\"arithmatex\">||(\\text{BW} \\approx f_0/Q||)</marimo-tex>. For a given transformation ratio, <marimo-tex class=\"arithmatex\">||(Q||)</marimo-tex> is fixed, meaning the L-network has no bandwidth knob. This motivates \u03c0 and T networks.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "ROlb",
+      "code_hash": "5f47fedb065ab1b395ca42b401e7880a",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h3 id=\"5-network-synthesis\">\u00a75. \u03c0-Network Synthesis</h3>\n<span class=\"paragraph\">The \u03c0-network uses two shunt elements and one series element, giving an extra degree of freedom: a free parameter <marimo-tex class=\"arithmatex\">||(Q &gt; Q_{\\min} = \\sqrt{R_H/R_{Lo} - 1}||)</marimo-tex>.\nHigher <marimo-tex class=\"arithmatex\">||(Q||)</marimo-tex> leads to a narrower bandwidth (useful for harmonic suppression); lower <marimo-tex class=\"arithmatex\">||(Q||)</marimo-tex> gives wider bandwidth (down to <marimo-tex class=\"arithmatex\">||(Q_{\\min}||)</marimo-tex>, which recovers the L-network).</span>\n<span class=\"paragraph\">A \u03c0-network can be modeled as two cascaded L-networks with a virtual intermediate resistance <marimo-tex class=\"arithmatex\">||(R_v &lt; R_{Lo}||)</marimo-tex>.</span>\n<span class=\"paragraph\">The condition is:</span>\n<marimo-tex class=\"arithmatex\">||[R_v = \\frac{R_H}{1 + Q_1^2} = \\frac{R_{Lo}}{1 + Q_2^2}||]</marimo-tex><span class=\"paragraph\">where <marimo-tex class=\"arithmatex\">||(Q_1 = \\sqrt{R_H/R_v - 1}||)</marimo-tex> and <marimo-tex class=\"arithmatex\">||(Q_2 = \\sqrt{R_{Lo}/R_v - 1}||)</marimo-tex>. The overall network <marimo-tex class=\"arithmatex\">||(Q||)</marimo-tex> is approximately <marimo-tex class=\"arithmatex\">||(Q \\approx Q_1 + Q_2||)</marimo-tex>, but traditionally we specify <marimo-tex class=\"arithmatex\">||(Q_1||)</marimo-tex> (the larger of the two) as the design <marimo-tex class=\"arithmatex\">||(Q||)</marimo-tex>, meaning <marimo-tex class=\"arithmatex\">||(R_v = R_H / (1 + Q^2)||)</marimo-tex>.</span>\n<span class=\"paragraph\">For the low-pass version:</span>\n<marimo-tex class=\"arithmatex\">||[C_1 = \\frac{Q_1}{\\omega_0 R_S}, \\quad\n  L   = \\frac{(Q_1 + Q_2) R_v}{\\omega_0}, \\quad\n  C_2 = \\frac{Q_2}{\\omega_0 R_L}||]</marimo-tex></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "qnkX",
+      "code_hash": "8c1437e21b8268a418e431695109a4df",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h3 id=\"6-t-network-synthesis\">\u00a76. T-Network Synthesis</h3>\n<span class=\"paragraph\">The T-network (two series arms, one shunt arm) is the dual of the \u03c0.\nIts virtual resistance is higher than both terminations: <marimo-tex class=\"arithmatex\">||(R_v = R_{Lo}(1 + Q^2) &gt; R_H||)</marimo-tex>.</span>\n<span class=\"paragraph\">The <strong>tapped-capacitor</strong> network used in notebook 04 \u00a717.6 is a degenerate T: the two series arms are capacitors, and the shunt arm is the device output capacitance <marimo-tex class=\"arithmatex\">||(C_{ds}||)</marimo-tex>.\nThe tap ratio provides impedance transformation without inductors:</span>\n<marimo-tex class=\"arithmatex\">||[n_{\\text{tap}} = \\sqrt{\\frac{R_L}{R_{\\text{eff}}}}, \\quad\n  C_{\\text{tap}} = \\frac{C_{\\text{total}}}{n_{\\text{tap}}^2}||]</marimo-tex><span class=\"paragraph\">For a full low-pass T with tunable <marimo-tex class=\"arithmatex\">||(Q||)</marimo-tex>:</span>\n<marimo-tex class=\"arithmatex\">||[L_1 = \\frac{Q_1 R_S}{\\omega_0}, \\quad\n  C   = \\frac{Q_1/R_S + Q_2/R_L}{\\omega_0}, \\quad\n  L_2 = \\frac{Q_2 R_L}{\\omega_0}||]</marimo-tex></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "TqIu",
+      "code_hash": "9f417e6ead28ce088b087807058f03e8",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "Vxnm",
+      "code_hash": "fd95ee4f8204e0aaec9da54a9e7f60ab",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "DnEU",
+      "code_hash": "4b7739aac8a7cecb5f97889be13fc34d",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"part-iii-broadband-matching\">Part III \u2014 Broadband Matching</h2>\n<h3 id=\"8-bode-fano-criterion-bandwidth-match-tradeoff\">\u00a78. Bode-Fano Criterion: Bandwidth-Match Tradeoff</h3>\n<h4 id=\"foundation-passive-causal-impedance-and-its-reflection-coefficient\">Foundation: Passive, causal impedance and its reflection coefficient</h4>\n<span class=\"paragraph\">[<strong>Definition:</strong>] For a load with impedance <marimo-tex class=\"arithmatex\">||(Z_L(s)||)</marimo-tex>, the reflection coefficient is</span>\n<marimo-tex class=\"arithmatex\">||[\\Gamma(s) = \\frac{Z_L(s) - Z_0}{Z_L(s) + Z_0},||]</marimo-tex><span class=\"paragraph\">where <marimo-tex class=\"arithmatex\">||(Z_0 = 50\\,\\Omega||)</marimo-tex> is the reference impedance. On the <marimo-tex class=\"arithmatex\">||(j\\omega||)</marimo-tex>-axis (physical frequencies), we write <marimo-tex class=\"arithmatex\">||(\\Gamma(j\\omega) = |\\Gamma(\\omega)| e^{j\\phi(\\omega)}||)</marimo-tex>.</span>\n<span class=\"paragraph\"><strong>Key property \u2014 Passivity and causality:</strong> A physically realizable (passive) load impedance <marimo-tex class=\"arithmatex\">||(Z_L(s)||)</marimo-tex> obeys two constraints:</span>\n<ul>\n<li><strong>Passivity:</strong> <marimo-tex class=\"arithmatex\">||(\\mathrm{Re}(Z_L(j\\omega)) \\ge 0||)</marimo-tex> for all <marimo-tex class=\"arithmatex\">||(\\omega \\ge 0||)</marimo-tex> (energy dissipation, no gain).</li>\n<li><strong>Causality:</strong> <marimo-tex class=\"arithmatex\">||(Z_L(s)||)</marimo-tex> has no poles or zeros in the right half-plane <marimo-tex class=\"arithmatex\">||(\\mathrm{Re}(s) &gt; 0||)</marimo-tex> (future cannot affect past).</li>\n</ul>\n<span class=\"paragraph\">These two requirements together imply a remarkable property: the reflection coefficient <marimo-tex class=\"arithmatex\">||(\\Gamma(s)||)</marimo-tex> is <strong>analytic and bounded</strong> in the right half-plane (it is a Bounded Real Function, or BRF). This analyticity is the source of all the constraints that follow.</span>\n<h4 id=\"contour-integration-cauchys-residue-theorem-applied-to-ln1gammas\">Contour integration: Cauchy's residue theorem applied to <marimo-tex class=\"arithmatex\">||(\\ln(1/\\Gamma(s))||)</marimo-tex></h4>\n<span class=\"paragraph\">Consider the complex function <marimo-tex class=\"arithmatex\">||(F(s) = \\ln(1/\\Gamma(s))||)</marimo-tex> on the Riemann surface where the logarithm is single-valued. We integrate <marimo-tex class=\"arithmatex\">||(F(s)||)</marimo-tex> around a large semicircular contour in the right half-plane (RHP): the diameter lies along the <marimo-tex class=\"arithmatex\">||(j\\omega||)</marimo-tex>-axis from <marimo-tex class=\"arithmatex\">||(-j\\infty||)</marimo-tex> to <marimo-tex class=\"arithmatex\">||(+j\\infty||)</marimo-tex>, and the arc closes the semicircle at <marimo-tex class=\"arithmatex\">||(s = \\infty||)</marimo-tex> in the RHP.</span>\n<span class=\"paragraph\"><strong>Step 1 \u2014 The contour integral equals zero if no poles inside.</strong> By Cauchy's theorem, if <marimo-tex class=\"arithmatex\">||(F(s)||)</marimo-tex> has no poles inside the contour (and decays at infinity), then</span>\n<marimo-tex class=\"arithmatex\">||[\\oint_C F(s)\\,ds = 0.||]</marimo-tex><span class=\"paragraph\">The contour has three pieces:</span>\n<ul>\n<li>Along <marimo-tex class=\"arithmatex\">||(+j\\omega||)</marimo-tex> (physical frequencies, <marimo-tex class=\"arithmatex\">||(0 \\to +\\infty||)</marimo-tex>): contributes <marimo-tex class=\"arithmatex\">||(\\int_0^\\infty \\ln(1/\\Gamma(j\\omega))\\,dj\\omega = j\\int_0^\\infty \\ln(1/|\\Gamma(\\omega)|)\\,d\\omega||)</marimo-tex> (note <marimo-tex class=\"arithmatex\">||(d(j\\omega) = j\\,d\\omega||)</marimo-tex>).</li>\n<li>Along <marimo-tex class=\"arithmatex\">||(-j\\omega||)</marimo-tex> (negative frequencies, by symmetry of real <marimo-tex class=\"arithmatex\">||(Z_L||)</marimo-tex>): contributes <marimo-tex class=\"arithmatex\">||(-j\\int_0^\\infty \\ln(1/|\\Gamma(\\omega)|)\\,d\\omega||)</marimo-tex>.</li>\n<li>Along the semicircle at <marimo-tex class=\"arithmatex\">||(s = Re^{j\\theta}||)</marimo-tex> (very large <marimo-tex class=\"arithmatex\">||(R||)</marimo-tex>): <marimo-tex class=\"arithmatex\">||(\\Gamma(Re^{j\\theta}) \\to 1||)</marimo-tex> (the load becomes a unit reflection at high frequency), so <marimo-tex class=\"arithmatex\">||(\\ln(1/\\Gamma) \\to 0||)</marimo-tex> and this arc vanishes as <marimo-tex class=\"arithmatex\">||(R \\to \\infty||)</marimo-tex>.</li>\n</ul>\n<span class=\"paragraph\">The positive and negative frequency contributions cancel by symmetry, confirming <marimo-tex class=\"arithmatex\">||(\\oint_C = 0||)</marimo-tex> is consistent. <strong>This means the integral by itself does not yet constrain the bandwidth\u2014we need to account for what happens outside the contour.</strong></span>\n<span class=\"paragraph\"><strong>Step 2 \u2014 The load's pole structure contributes a residue.</strong> Real loads have finite time constants. A <strong>parallel-RC load</strong> (<marimo-tex class=\"arithmatex\">||(R_L||)</marimo-tex> in parallel with <marimo-tex class=\"arithmatex\">||(C_L||)</marimo-tex>) has impedance</span>\n<marimo-tex class=\"arithmatex\">||[Z_L(s) = \\frac{R_L}{1 + s R_L C_L}.||]</marimo-tex><span class=\"paragraph\">This impedance has a <strong>pole</strong> at <marimo-tex class=\"arithmatex\">||(s = -1/(R_L C_L)||)</marimo-tex> (in the left half-plane; the load is stable). The corresponding reflection coefficient is</span>\n<marimo-tex class=\"arithmatex\">||[\\Gamma(s) = \\frac{Z_L(s) - Z_0}{Z_L(s) + Z_0} = \\frac{\\frac{R_L}{1+sR_LC_L} - Z_0}{\\frac{R_L}{1+sR_LC_L} + Z_0}.||]</marimo-tex><span class=\"paragraph\">Multiplying numerator and denominator by <marimo-tex class=\"arithmatex\">||((1 + sR_LC_L)||)</marimo-tex>:\n$<marimo-tex class=\"arithmatex\">||(\\Gamma(s) = \\frac{R_L - Z_0(1 + sR_LC_L)}{R_L + Z_0(1 + sR_LC_L)}\n= \\frac{R_L - Z_0 - sZ_0 R_L C_L}{R_L + Z_0 + sZ_0 R_L C_L}.||)</marimo-tex>$</span>\n<span class=\"paragraph\">The pole of <marimo-tex class=\"arithmatex\">||(Z_L||)</marimo-tex> at <marimo-tex class=\"arithmatex\">||(s = -1/(R_L C_L)||)</marimo-tex> creates a <strong>zero</strong> of the denominator of <marimo-tex class=\"arithmatex\">||(\\Gamma||)</marimo-tex> at</span>\n<marimo-tex class=\"arithmatex\">||[s = -\\frac{R_L + Z_0}{Z_0 R_L C_L}.||]</marimo-tex><span class=\"paragraph\">More importantly, <marimo-tex class=\"arithmatex\">||(\\Gamma(s)||)</marimo-tex> itself has a <strong>pole</strong> at</span>\n<marimo-tex class=\"arithmatex\">||[s_p = -\\frac{R_L + Z_0}{R_L C_L} \\quad (\\text{in the LHP}).||]</marimo-tex><span class=\"paragraph\"><strong>Step 3 \u2014 Symmetry and the modified contour.</strong> For a real load, <marimo-tex class=\"arithmatex\">||(\\Gamma(j\\omega)||)</marimo-tex> is not generally real; however, a key observation is that the integral <marimo-tex class=\"arithmatex\">||(\\int_0^\\infty \\ln(1/|\\Gamma(\\omega)|)\\,d\\omega||)</marimo-tex> is intimately linked to the singularities of <marimo-tex class=\"arithmatex\">||(\\Gamma(s)||)</marimo-tex> in the complex plane. When we deform the contour to account for the pole at <marimo-tex class=\"arithmatex\">||(s_p||)</marimo-tex> by closing with a small indentation around the pole, the residue contributes:</span>\n<marimo-tex class=\"arithmatex\">||[\\text{Res}_{s=s_p}\\!\\left[\\ln\\left(\\frac{1}{\\Gamma(s)}\\right)\\right] = \\text{some finite value depending on load parameters}.||]</marimo-tex><span class=\"paragraph\">The rigorous derivation (using arguments from complex analysis and the Nevanlinna-Pick interpolation) yields that the accumulated effect of passivity and causality imposes a bound on how much the reflection magnitude can be suppressed over frequency.</span>\n<h4 id=\"the-bode-fano-integral-bound-derivation-for-parallel-rc-load\">The Bode-Fano integral bound: derivation for parallel-RC load</h4>\n<span class=\"paragraph\">[<strong>Theorem (Bode-Fano):</strong>] For a lossless matching network terminating a <strong>parallel-RC load</strong> with <marimo-tex class=\"arithmatex\">||(Z_L(s) = R_L/(1 + sR_LC_L)||)</marimo-tex>, the reflection coefficient <marimo-tex class=\"arithmatex\">||(\\Gamma(\\omega)||)</marimo-tex> seen from the matching network must satisfy</span>\n<marimo-tex class=\"arithmatex\">||[\\boxed{\\int_0^\\infty \\ln\\frac{1}{|\\Gamma(\\omega)|}\\,d\\omega \\;\\leq\\; \\frac{\\pi}{2(R_L C_L)}}||]</marimo-tex><span class=\"paragraph\">(Some authors write this with factor <marimo-tex class=\"arithmatex\">||(\\pi/(R_L C_L)||)</marimo-tex>, depending on whether the contour is a full plane or a half-plane; we use the standard convention.)</span>\n<span class=\"paragraph\"><strong>Physical meaning of the bound:</strong></span>\n<ul>\n<li>The integral on the left measures the \"total suppression\" of reflection across all frequencies, weighted by frequency (in Nepers\u00b7radians/second).</li>\n<li>The right-hand side <marimo-tex class=\"arithmatex\">||(\\pi/(2R_L C_L)||)</marimo-tex> depends only on the load's time constant <marimo-tex class=\"arithmatex\">||(\\tau = R_L C_L||)</marimo-tex>.</li>\n<li>A load with a <strong>small</strong> time constant (fast dynamics, high-frequency pole) has a <strong>large</strong> bound: it is easier to match over broad bandwidth.</li>\n<li>A load with a <strong>large</strong> time constant (slow dynamics, low-frequency pole) has a <strong>small</strong> bound: matching must be concentrated in a narrow band.</li>\n</ul>\n<h4 id=\"equal-ripple-optimal-design-and-the-bandwidth-match-tradeoff\">Equal-ripple optimal design and the bandwidth-match tradeoff</h4>\n<span class=\"paragraph\">To extract the most useful insight, consider an <strong>ideal equal-ripple</strong> matching network that achieves:</span>\n<ul>\n<li><marimo-tex class=\"arithmatex\">||(|\\Gamma(\\omega)| = |\\Gamma_{\\max}|||)</marimo-tex> (constant) over the matching bandwidth <marimo-tex class=\"arithmatex\">||(|\\omega - \\omega_0| &lt; \\Delta\\omega/2||)</marimo-tex>,</li>\n<li><marimo-tex class=\"arithmatex\">||(|\\Gamma(\\omega)| = 1||)</marimo-tex> (total reflection) everywhere outside.</li>\n</ul>\n<span class=\"paragraph\">Then the integral becomes</span>\n<marimo-tex class=\"arithmatex\">||[\\int_0^\\infty \\ln\\frac{1}{|\\Gamma(\\omega)|}\\,d\\omega = \\int_{\\omega_0 - \\Delta\\omega/2}^{\\omega_0 + \\Delta\\omega/2} \\ln\\frac{1}{|\\Gamma_{\\max}|}\\,d\\omega + \\int_{\\text{outside}} 0 \\, d\\omega = \\Delta\\omega \\cdot \\ln\\frac{1}{|\\Gamma_{\\max}|}||]</marimo-tex><span class=\"paragraph\">Applying the Bode-Fano bound:</span>\n<marimo-tex class=\"arithmatex\">||[\\boxed{\\Delta\\omega \\cdot \\ln\\frac{1}{|\\Gamma_{\\max}|} \\;\\leq\\; \\frac{\\pi}{2R_L C_L}.}||]</marimo-tex><span class=\"paragraph\"><strong>Rearranging:</strong></span>\n<marimo-tex class=\"arithmatex\">||[\\Delta\\omega \\leq \\frac{\\pi}{2R_L C_L\\, \\ln(1/|\\Gamma_{\\max}|)}.||]</marimo-tex><span class=\"paragraph\">[<strong>Key insight:</strong>] For a <strong>fixed match depth</strong> <marimo-tex class=\"arithmatex\">||(|\\Gamma_{\\max}|||)</marimo-tex>, the bandwidth is inversely proportional to <marimo-tex class=\"arithmatex\">||(\\ln(1/|\\Gamma_{\\max}|)||)</marimo-tex> (the match quality in Nepers). For a <strong>fixed bandwidth</strong> <marimo-tex class=\"arithmatex\">||(\\Delta\\omega||)</marimo-tex>, the achievable reflection is bounded by</span>\n<marimo-tex class=\"arithmatex\">||[|\\Gamma_{\\max}| \\geq \\exp\\!\\left(-\\frac{\\pi}{2R_L C_L \\Delta\\omega}\\right).||]</marimo-tex><span class=\"paragraph\"><strong>Interpretation:</strong></span>\n<ul>\n<li>To <strong>double the bandwidth</strong>, you must accept a shallower match (increase <marimo-tex class=\"arithmatex\">||(|\\Gamma_{\\max}|||)</marimo-tex> by roughly a factor of 2 in linear magnitude, or 6 dB).</li>\n<li>To achieve a <strong>deeper match</strong> (decrease <marimo-tex class=\"arithmatex\">||(|\\Gamma_{\\max}|||)</marimo-tex>), you sacrifice bandwidth.</li>\n<li>The product <marimo-tex class=\"arithmatex\">||(\\Delta\\omega \\cdot |\\text{match depth}|||)</marimo-tex> (in Nepers) is fundamentally limited by the load physics alone.</li>\n</ul>\n<h4 id=\"higher-order-networks-and-the-chebyshev-bound\">Higher-order networks and the Chebyshev bound</h4>\n<span class=\"paragraph\">A network of order <marimo-tex class=\"arithmatex\">||(N||)</marimo-tex> (i.e., with <marimo-tex class=\"arithmatex\">||(N||)</marimo-tex> reactive elements) can achieve a response <marimo-tex class=\"arithmatex\">||(|\\Gamma(\\omega)|||)</marimo-tex> with <marimo-tex class=\"arithmatex\">||(N||)</marimo-tex> turning points (equal-ripple oscillation) in the passband. The equal-ripple Chebyshev design fills the rectangular integration domain more efficiently than a single-pole design, achieving</span>\n<marimo-tex class=\"arithmatex\">||[\\Delta\\omega \\approx \\sqrt{N} \\cdot \\Delta\\omega_{\\text{single}}.||]</marimo-tex><span class=\"paragraph\"><strong>Bandwidth scales as <marimo-tex class=\"arithmatex\">||(\\sqrt{N}||)</marimo-tex>:</strong> The benefit of adding reactive elements saturates; doubling the order increases bandwidth by only <marimo-tex class=\"arithmatex\">||(\\sim 40\\%||)</marimo-tex>. No network, no matter how high-order, can exceed the fundamental Bode-Fano bound; higher-order networks asymptotically approach it.</span>\n<h4 id=\"series-rl-load-and-the-dual-bound\">Series-RL load and the dual bound</h4>\n<span class=\"paragraph\">For a <strong>series-RL load</strong> with <marimo-tex class=\"arithmatex\">||(Z_L(s) = R_L + sL||)</marimo-tex>, the corresponding bound uses a weighted integral:</span>\n<marimo-tex class=\"arithmatex\">||[\\boxed{\\int_0^\\infty \\frac{\\ln(1/|\\Gamma(\\omega)|)}{\\omega^2}\\,d\\omega \\;\\leq\\; \\frac{\\pi L}{2R_L}}||]</marimo-tex><span class=\"paragraph\">The <marimo-tex class=\"arithmatex\">||(1/\\omega^2||)</marimo-tex> weighting emphasizes low frequencies; the bound is controlled by the inductor <marimo-tex class=\"arithmatex\">||(L||)</marimo-tex> (which dominates at high frequency) and the series resistance <marimo-tex class=\"arithmatex\">||(R_L||)</marimo-tex>. The intuition is reversed: a series-RL load is easier to match at high frequencies and harder at low frequencies, so the weighting reflects this asymmetry.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "ulZA",
+      "code_hash": "a4f0dfc2edb824c96aa88ed567bd6593",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h3 id=\"9-chebyshev-matching-network-synthesis\">\u00a79. Chebyshev Matching Network Synthesis</h3>\n<span class=\"paragraph\">The low-pass prototype provides normalized element values <marimo-tex class=\"arithmatex\">||(g_k||)</marimo-tex> for Butterworth (maximally flat) and Chebyshev (equiripple) responses.</span>\n<span class=\"paragraph\"><strong>Chebyshev element values</strong> (<marimo-tex class=\"arithmatex\">||(N||)</marimo-tex> elements, ripple <marimo-tex class=\"arithmatex\">||(\\varepsilon||)</marimo-tex>):</span>\n<marimo-tex class=\"arithmatex\">||[g_0 = 1, \\quad\n  g_k = \\frac{4 a_{k-1} a_k}{b_{k-1} g_{k-1}}, \\quad\n  a_k = \\sin\\!\\left(\\frac{(2k-1)\\pi}{2N}\\right), \\quad\n  b_k = \\gamma^2 + \\sin^2\\!\\left(\\frac{k\\pi}{N}\\right)||]</marimo-tex><span class=\"paragraph\">where <marimo-tex class=\"arithmatex\">||(\\gamma = \\sinh\\!\\bigl(\\beta/(2N)\\bigr)||)</marimo-tex> and <marimo-tex class=\"arithmatex\">||(\\beta = \\ln\\!\\cot(\\varepsilon_{\\text{dB}}/17.37)||)</marimo-tex>.</span>\n<span class=\"paragraph\"><strong>Bandpass transformation</strong> scales and frequency-shifts the prototype:</span>\n<table>\n<thead>\n<tr>\n<th>Prototype arm</th>\n<th>Bandpass realization</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>Series inductor <marimo-tex class=\"arithmatex\">||(g_k||)</marimo-tex></td>\n<td>Series LC: <marimo-tex class=\"arithmatex\">||(L = g_k Z_0/\\Delta\\omega||)</marimo-tex>, <marimo-tex class=\"arithmatex\">||(C = \\Delta\\omega/(\\omega_0^2 L)||)</marimo-tex></td>\n</tr>\n<tr>\n<td>Shunt capacitor <marimo-tex class=\"arithmatex\">||(g_k||)</marimo-tex></td>\n<td>Parallel LC: <marimo-tex class=\"arithmatex\">||(C = g_k/(\\Delta\\omega Z_0)||)</marimo-tex>, <marimo-tex class=\"arithmatex\">||(L = \\Delta\\omega/(\\omega_0^2 C)||)</marimo-tex></td>\n</tr>\n</tbody>\n</table>\n<span class=\"paragraph\">where <marimo-tex class=\"arithmatex\">||(\\Delta\\omega = 2\\pi \\cdot \\text{BW}||)</marimo-tex> and <marimo-tex class=\"arithmatex\">||(Z_0 = R_S||)</marimo-tex>.</span>\n<span class=\"paragraph\"><strong>Worked example:</strong> <marimo-tex class=\"arithmatex\">||(N=3||)</marimo-tex>, 0.1 dB Chebyshev, <marimo-tex class=\"arithmatex\">||(50\\,\\Omega \\to 200\\,\\Omega||)</marimo-tex>, <marimo-tex class=\"arithmatex\">||(f_0 = 28\\,\\text{GHz}||)</marimo-tex>, <marimo-tex class=\"arithmatex\">||(\\text{BW} = 3\\,\\text{GHz}||)</marimo-tex>:\nPrototype values: <marimo-tex class=\"arithmatex\">||(g_1 \\approx 1.032||)</marimo-tex>, <marimo-tex class=\"arithmatex\">||(g_2 \\approx 1.147||)</marimo-tex>, <marimo-tex class=\"arithmatex\">||(g_3 \\approx 1.032||)</marimo-tex>, <marimo-tex class=\"arithmatex\">||(g_4 = 1||)</marimo-tex>.\nScaled series arm: <marimo-tex class=\"arithmatex\">||(L_1 = g_1 \\cdot 50 / (2\\pi \\cdot 3\\text{e}9) \\approx 2.74\\,\\text{pH}||)</marimo-tex>.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "ecfG",
+      "code_hash": "01592265b84a5d4f1cde884846ea1430",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h3 id=\"10-real-frequency-technique-overview\">\u00a710. Real-Frequency Technique (Overview)</h3>\n<span class=\"paragraph\">When the load impedance <marimo-tex class=\"arithmatex\">||(Z_L(f)||)</marimo-tex> is known from VNA measurements rather than a simple <marimo-tex class=\"arithmatex\">||(R\\|C||)</marimo-tex> model, the exact Chebyshev prototype is no longer directly applicable. Yarman's real-frequency technique solves for the lossless two-port <marimo-tex class=\"arithmatex\">||([T]||)</marimo-tex> that maximizes:</span>\n<marimo-tex class=\"arithmatex\">||[\\int_{f_1}^{f_2} |S_{21}(f)|^2\\,df||]</marimo-tex><span class=\"paragraph\">subject to <marimo-tex class=\"arithmatex\">||([T]||)</marimo-tex> being lossless and of prescribed degree <marimo-tex class=\"arithmatex\">||(N||)</marimo-tex>. The solution is obtained numerically (gradient descent on the reflection polynomial coefficients). Practical use: matching a transistor's measured <marimo-tex class=\"arithmatex\">||(Y_{22}^*(f)||)</marimo-tex> to <marimo-tex class=\"arithmatex\">||(50\\,\\Omega||)</marimo-tex> over a wide IF band without assuming a lumped-element model.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Pvdt",
+      "code_hash": "ea7369b1e56f812d7e67d9e6c4f9650d",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "ZBYS",
+      "code_hash": "8a91f5bb1623be604a0ef713c66daa9c",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "aLJB",
+      "code_hash": "72372e2795dfdb758b20ce0882c80304",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"part-iv-distributed-and-transformer-matching\">Part IV \u2014 Distributed and Transformer Matching</h2>\n<h3 id=\"12-quarter-wave-transformer\">\u00a712. Quarter-Wave Transformer</h3>\n<span class=\"paragraph\">A transmission line section of length <marimo-tex class=\"arithmatex\">||(\\ell = \\lambda/4||)</marimo-tex> with characteristic impedance <marimo-tex class=\"arithmatex\">||(Z_1||)</marimo-tex> transforms a real load <marimo-tex class=\"arithmatex\">||(R_L||)</marimo-tex> into an input impedance <marimo-tex class=\"arithmatex\">||(Z_{\\text{in}}||)</marimo-tex> at <marimo-tex class=\"arithmatex\">||(f_0||)</marimo-tex>.\nBy substituting <marimo-tex class=\"arithmatex\">||(\\theta = \\beta\\ell = \\pi/2||)</marimo-tex> into the standard lossless transmission line impedance equation:</span>\n<marimo-tex class=\"arithmatex\">||[Z_{\\text{in}} = Z_1 \\frac{R_L + j Z_1 \\tan(\\theta)}{Z_1 + j R_L \\tan(\\theta)}||]</marimo-tex><span class=\"paragraph\">Taking the limit as <marimo-tex class=\"arithmatex\">||(\\theta \\to \\pi/2||)</marimo-tex>, we find <marimo-tex class=\"arithmatex\">||(Z_{\\text{in}} = Z_1^2 / R_L||)</marimo-tex>.\nTo match to source <marimo-tex class=\"arithmatex\">||(R_S||)</marimo-tex>, we set <marimo-tex class=\"arithmatex\">||(Z_{\\text{in}} = R_S||)</marimo-tex>, giving the required line impedance:</span>\n<marimo-tex class=\"arithmatex\">||[Z_1 = \\sqrt{R_S R_L}||]</marimo-tex><span class=\"paragraph\">Bandwidth to maximum reflection <marimo-tex class=\"arithmatex\">||(|\\Gamma_{\\max}|||)</marimo-tex> (Pozar eq. 5.47):</span>\n<marimo-tex class=\"arithmatex\">||[\\frac{\\Delta f}{f_0} = 2 - \\frac{4}{\\pi}\\arccos\\!\\left(\n  \\frac{|\\Gamma_{\\max}|}{\\sqrt{1 - |\\Gamma_{\\max}|^2}}\n  \\cdot \\frac{2Z_1}{|Z_1^2/R_S - R_S|}\\right)||]</marimo-tex><span class=\"paragraph\">For <marimo-tex class=\"arithmatex\">||(R_S = 50\\,\\Omega||)</marimo-tex>, <marimo-tex class=\"arithmatex\">||(R_L = 200\\,\\Omega||)</marimo-tex>: <marimo-tex class=\"arithmatex\">||(Z_1 = 100\\,\\Omega||)</marimo-tex>,\nbandwidth to <marimo-tex class=\"arithmatex\">||(|\\Gamma_{\\max}| = 0.2||)</marimo-tex> is approximately 30% of <marimo-tex class=\"arithmatex\">||(f_0||)</marimo-tex>.</span>\n<span class=\"paragraph\"><strong>Multi-section Chebyshev transformer:</strong> <marimo-tex class=\"arithmatex\">||(N||)</marimo-tex> cascaded <marimo-tex class=\"arithmatex\">||(\\lambda/4||)</marimo-tex> sections with impedances <marimo-tex class=\"arithmatex\">||(Z_k||)</marimo-tex> chosen from the Chebyshev synthesis (Pozar \u00a75.7) \u2014 achieves the Bode-Fano bound for a resistive load, and bandwidth scales as <marimo-tex class=\"arithmatex\">||(N^{1/2}||)</marimo-tex>.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "nHfw",
+      "code_hash": "6784783bbbd92476d179d7f608399d54",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h3 id=\"13-single-stub-tuner\">\u00a713. Single-Stub Tuner</h3>\n<span class=\"paragraph\">A parallel stub (open- or short-circuit) is placed at distance <marimo-tex class=\"arithmatex\">||(d||)</marimo-tex> from the load. The design procedure works with admittances:</span>\n<ol>\n<li>Transform <marimo-tex class=\"arithmatex\">||(Y_L||)</marimo-tex> over a distance <marimo-tex class=\"arithmatex\">||(d||)</marimo-tex> such that <marimo-tex class=\"arithmatex\">||(\\text{Re}(Y_{\\text{in}}(d)) = Y_0||)</marimo-tex>.</li>\n<li>Add a shunt stub of length <marimo-tex class=\"arithmatex\">||(\\ell||)</marimo-tex> such that <marimo-tex class=\"arithmatex\">||(B_{\\text{stub}} = -B_{\\text{in}}(d)||)</marimo-tex>, canceling the susceptance.</li>\n</ol>\n<span class=\"paragraph\"><strong>Derivation of position <marimo-tex class=\"arithmatex\">||(d||)</marimo-tex>:</strong>\nThe load admittance is <marimo-tex class=\"arithmatex\">||(Y_L = G_L + jB_L||)</marimo-tex>. The admittance seen at distance <marimo-tex class=\"arithmatex\">||(d||)</marimo-tex> (electrical length <marimo-tex class=\"arithmatex\">||(\\theta = \\beta d||)</marimo-tex>) is:</span>\n<marimo-tex class=\"arithmatex\">||[Y_{\\text{in}} = Y_0 \\frac{Y_L + j Y_0 t}{Y_0 + j Y_L t}||]</marimo-tex><span class=\"paragraph\">where <marimo-tex class=\"arithmatex\">||(t = \\tan(\\beta d)||)</marimo-tex>. Equating <marimo-tex class=\"arithmatex\">||(\\text{Re}(Y_{\\text{in}})||)</marimo-tex> to <marimo-tex class=\"arithmatex\">||(Y_0||)</marimo-tex> and solving the resulting quadratic equation for <marimo-tex class=\"arithmatex\">||(t||)</marimo-tex> yields:</span>\n<marimo-tex class=\"arithmatex\">||[t = \\frac{B_L \\pm \\sqrt{G_L(Y_0 - G_L) + B_L^2}}{G_L - Y_0}||]</marimo-tex><span class=\"paragraph\">From <marimo-tex class=\"arithmatex\">||(t||)</marimo-tex>, we find <marimo-tex class=\"arithmatex\">||(d = \\frac{1}{2\\pi}\\arctan(t)||)</marimo-tex> wavelengths.</span>\n<span class=\"paragraph\"><strong>Derivation of stub length <marimo-tex class=\"arithmatex\">||(\\ell||)</marimo-tex>:</strong>\nOnce <marimo-tex class=\"arithmatex\">||(d||)</marimo-tex> is known, evaluate <marimo-tex class=\"arithmatex\">||(B_{\\text{in}} = \\text{Im}(Y_{\\text{in}})||)</marimo-tex>. The stub must provide <marimo-tex class=\"arithmatex\">||(B_{\\text{stub}} = -B_{\\text{in}}||)</marimo-tex>.\nFor a <strong>short-circuit</strong> stub, the input admittance is <marimo-tex class=\"arithmatex\">||(Y_{\\text{sc}} = -j Y_0 \\cot(\\beta\\ell)||)</marimo-tex>.</span>\n<marimo-tex class=\"arithmatex\">||[-Y_0 \\cot(\\beta\\ell) = -B_{\\text{in}} \\implies \\ell = \\frac{1}{2\\pi}\\arctan\\left(\\frac{Y_0}{B_{\\text{in}}}\\right) \\text{ wavelengths}||]</marimo-tex><span class=\"paragraph\">For an <strong>open-circuit</strong> stub, the input admittance is <marimo-tex class=\"arithmatex\">||(Y_{\\text{oc}} = j Y_0 \\tan(\\beta\\ell)||)</marimo-tex>.</span>\n<marimo-tex class=\"arithmatex\">||[Y_0 \\tan(\\beta\\ell) = -B_{\\text{in}} \\implies \\ell = \\frac{1}{2\\pi}\\arctan\\left(\\frac{-B_{\\text{in}}}{Y_0}\\right) \\text{ wavelengths}||]</marimo-tex><span class=\"paragraph\">If <marimo-tex class=\"arithmatex\">||(G_L &gt; Y_0||)</marimo-tex>, the discriminant can be negative \u2192 no real solution at this frequency\n(the load is in the \"forbidden conductance region\" for single-stub matching).</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "xXTn",
+      "code_hash": "0c0a5dc045908236565e0ebfe005b8bf",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h3 id=\"14-double-stub-tuner\">\u00a714. Double-Stub Tuner</h3>\n<span class=\"paragraph\">Two stubs at fixed positions <marimo-tex class=\"arithmatex\">||(0||)</marimo-tex> and <marimo-tex class=\"arithmatex\">||(d = \\lambda/8||)</marimo-tex> apart (or <marimo-tex class=\"arithmatex\">||(\\lambda/4||)</marimo-tex>) can match any load outside the <strong>forbidden region</strong> <marimo-tex class=\"arithmatex\">||(G_L &gt; 2Y_0||)</marimo-tex> (for <marimo-tex class=\"arithmatex\">||(d = \\lambda/8||)</marimo-tex>).</span>\n<span class=\"paragraph\">Design steps (Pozar \u00a75.3):</span>\n<ol>\n<li>Add a stub of susceptance <marimo-tex class=\"arithmatex\">||(B_1||)</marimo-tex> in parallel with the load <marimo-tex class=\"arithmatex\">||(Y_L||)</marimo-tex>, resulting in <marimo-tex class=\"arithmatex\">||(Y_1 = Y_L + jB_1||)</marimo-tex>.</li>\n<li>Transform <marimo-tex class=\"arithmatex\">||(Y_1||)</marimo-tex> through the fixed transmission line length <marimo-tex class=\"arithmatex\">||(d||)</marimo-tex> to get <marimo-tex class=\"arithmatex\">||(Y_2||)</marimo-tex>. We require <marimo-tex class=\"arithmatex\">||(\\text{Re}(Y_2) = Y_0||)</marimo-tex>. This condition provides an equation to solve for <marimo-tex class=\"arithmatex\">||(B_1||)</marimo-tex>.</li>\n<li>The remaining susceptance at the second stub location is <marimo-tex class=\"arithmatex\">||(B_2' = \\text{Im}(Y_2)||)</marimo-tex>. Add the second stub with susceptance <marimo-tex class=\"arithmatex\">||(B_2 = -B_2'||)</marimo-tex> to cancel it out.</li>\n</ol>\n<span class=\"paragraph\">The forbidden region shifts with <marimo-tex class=\"arithmatex\">||(d||)</marimo-tex>: choosing <marimo-tex class=\"arithmatex\">||(d = 3\\lambda/16||)</marimo-tex> avoids the original forbidden zone but creates a new one elsewhere. Double-stub tuners appear in bench test setups; single-stub (simpler, manufacturable) is preferred on-chip.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "AjVT",
+      "code_hash": "d0fca96836ac82ec7e18ad4215b168aa",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h3 id=\"15-on-chip-transformer-coupling\">\u00a715. On-Chip Transformer Coupling</h3>\n<span class=\"paragraph\">A coupled-inductor pair with mutual inductance <marimo-tex class=\"arithmatex\">||(M = k\\sqrt{L_1 L_2}||)</marimo-tex> and turns ratio <marimo-tex class=\"arithmatex\">||(n = \\sqrt{L_1/L_2}||)</marimo-tex> transforms impedances.\nThe impedance matrix of the two-port is:</span>\n<marimo-tex class=\"arithmatex\">||[\\begin{bmatrix}V_1\\\\V_2\\end{bmatrix} = \\begin{bmatrix}j\\omega L_1 &amp; j\\omega M \\\\ j\\omega M &amp; j\\omega L_2\\end{bmatrix} \\begin{bmatrix}I_1\\\\I_2\\end{bmatrix}||]</marimo-tex><span class=\"paragraph\">Connecting a load <marimo-tex class=\"arithmatex\">||(Z_L||)</marimo-tex> to port 2 (<marimo-tex class=\"arithmatex\">||(V_2 = -I_2 Z_L||)</marimo-tex>) gives <marimo-tex class=\"arithmatex\">||(I_2 = \\frac{-j\\omega M}{Z_L + j\\omega L_2} I_1||)</marimo-tex>.\nThe input impedance is <marimo-tex class=\"arithmatex\">||(Z_{\\text{in}} = V_1/I_1||)</marimo-tex>:</span>\n<marimo-tex class=\"arithmatex\">||[Z_{\\text{in}} = j\\omega L_1 + \\frac{(\\omega M)^2}{Z_L + j\\omega L_2} = j\\omega L_1(1 - k^2) + \\frac{k^2 L_1/L_2}{1/(j\\omega L_2) + 1/Z_L}||]</marimo-tex><span class=\"paragraph\">In the limit of strong coupling (<marimo-tex class=\"arithmatex\">||(k \\to 1||)</marimo-tex>) and large inductance (<marimo-tex class=\"arithmatex\">||(\\omega L_2 \\gg |Z_L|||)</marimo-tex>):</span>\n<marimo-tex class=\"arithmatex\">||[Z_{\\text{in}} \\approx n^2 Z_L||]</marimo-tex><span class=\"paragraph\"><strong>Q penalty.</strong> Winding resistance <marimo-tex class=\"arithmatex\">||(r_1 = \\omega L_1/Q_1||)</marimo-tex> adds series noise.\nThe noise figure penalty (Friis referred back through the network):</span>\n<marimo-tex class=\"arithmatex\">||[\\Delta NF \\approx 10\\log_{10}\\!\\left(1 + \\frac{r_1}{R_S}\\right) \\quad [\\text{dB}]||]</marimo-tex><span class=\"paragraph\">At 28 GHz in 65 nm CMOS: <marimo-tex class=\"arithmatex\">||(Q_{\\text{spiral}} \\approx 10||)</marimo-tex>\u2013<marimo-tex class=\"arithmatex\">||(15||)</marimo-tex>, <marimo-tex class=\"arithmatex\">||(k \\approx 0.7||)</marimo-tex>\u2013<marimo-tex class=\"arithmatex\">||(0.8||)</marimo-tex>.\nFor <marimo-tex class=\"arithmatex\">||(Q = 12||)</marimo-tex>, <marimo-tex class=\"arithmatex\">||(L_1 = 100\\,\\text{pH}||)</marimo-tex>, <marimo-tex class=\"arithmatex\">||(R_S = 50\\,\\Omega||)</marimo-tex>:\n<marimo-tex class=\"arithmatex\">||(r_1 = 2\\pi \\cdot 28\\text{e}9 \\cdot 100\\text{e-12}/12 \\approx 1.5\\,\\Omega||)</marimo-tex>,\n<marimo-tex class=\"arithmatex\">||(\\Delta NF \\approx 0.13\\,\\text{dB}||)</marimo-tex> (referred to input \u2014 acceptable).</span>\n<span class=\"paragraph\"><strong>Balun application.</strong> A 1:2 turns-ratio transformer converts single-ended to differential, enabling a differential mixer drive from a single-ended LNA. <marimo-tex class=\"arithmatex\">||(\\Delta NF||)</marimo-tex> rises to 0.5\u20131 dB including imbalance and layout parasitics.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "pHFh",
+      "code_hash": "9841daf808d074df12483177aa43ae2f",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "NCOB",
+      "code_hash": "389ba4ba74c3c0d47420c37ac8bea9a7",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "aqbW",
+      "code_hash": "9203e55cc277e744fd78acd7996bba4d",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"part-v-mmwave-output-matching-revisited\">Part V \u2014 mmWave Output Matching Revisited</h2>\n<h3 id=\"17-the-28-ghz-lna-output-match-three-topologies\">\u00a717. The 28 GHz LNA Output Match: Three Topologies</h3>\n<span class=\"paragraph\">Notebook 04 \u00a717.6 used a <strong>tapped-capacitor</strong> to transform the optimal load impedance at 28 GHz. Here we compare it against two distributed alternatives for the same design point (<marimo-tex class=\"arithmatex\">||(R_L = 200\\,\\Omega \\to 50\\,\\Omega||)</marimo-tex>, <marimo-tex class=\"arithmatex\">||(f_0 = 28\\,\\text{GHz}||)</marimo-tex>).</span>\n<table>\n<thead>\n<tr>\n<th>Topology</th>\n<th>Realization</th>\n<th>BW (\u22123 dB)</th>\n<th>\u0394NF</th>\n<th>On-chip area</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>Tapped capacitor</td>\n<td><marimo-tex class=\"arithmatex\">||(C_1||)</marimo-tex>, <marimo-tex class=\"arithmatex\">||(C_2||)</marimo-tex> divider</td>\n<td>~10% (~2.8 GHz)</td>\n<td>&lt;0.1 dB</td>\n<td>Very small</td>\n</tr>\n<tr>\n<td>\u03bb/4 microstrip TL</td>\n<td><marimo-tex class=\"arithmatex\">||(Z_1 = 100\\,\\Omega||)</marimo-tex>, <marimo-tex class=\"arithmatex\">||(\\ell = 1.34\\,\\text{mm}||)</marimo-tex> (air)</td>\n<td>~30%</td>\n<td>~0.3 dB</td>\n<td>Large</td>\n</tr>\n<tr>\n<td>On-chip transformer</td>\n<td><marimo-tex class=\"arithmatex\">||(n=2||)</marimo-tex>, <marimo-tex class=\"arithmatex\">||(k=0.75||)</marimo-tex>, <marimo-tex class=\"arithmatex\">||(Q=12||)</marimo-tex></td>\n<td>~15%</td>\n<td>~0.5\u20131 dB</td>\n<td>Medium; enables differential</td>\n</tr>\n</tbody>\n</table>\n<span class=\"paragraph\"><strong>\u0394NF calculation for the \u03bb/4 TL</strong> (50 \u03a9 microstrip with 0.3 dB/mm loss at 28 GHz; <marimo-tex class=\"arithmatex\">||(\\ell \\approx 0.9||)</marimo-tex> mm in SiO\u2082 effective medium): insertion loss <marimo-tex class=\"arithmatex\">||(\\approx 0.27||)</marimo-tex> dB.\nFriis: the output matching loss is divided by LNA gain (15 dB = 32\u00d7), contributing only <marimo-tex class=\"arithmatex\">||(0.27\\,\\text{dB}/32 \\approx 0.008\\,\\text{dB}||)</marimo-tex> to input-referred NF \u2014 negligible. The 0.3 dB figure refers to the degradation of the output signal power delivered to the next stage.</span>\n<span class=\"paragraph\"><strong>Practical choice at 28 GHz CMOS:</strong> tapped-capacitor for narrowband; transformer coupling when a differential IF mixer is required downstream.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "TRpd",
+      "code_hash": "d59109db4f1f233be7bd0191d271b617",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"part-vi-cyclostationary-noise-in-mixers-and-samplers\">Part VI \u2014 Cyclostationary Noise in Mixers and Samplers</h2>\n<h3 id=\"18-cyclostationary-processes\">\u00a718. Cyclostationary Processes</h3>\n<span class=\"paragraph\">A process <marimo-tex class=\"arithmatex\">||(x(t)||)</marimo-tex> is <strong>wide-sense cyclostationary</strong> with period <marimo-tex class=\"arithmatex\">||(T = 1/f_{\\text{LO}}||)</marimo-tex> if its mean and autocorrelation function are periodic:</span>\n<marimo-tex class=\"arithmatex\">||[R_x(t, \\tau) \\triangleq E[x(t)\\,x(t+\\tau)] = R_x(t+T, \\tau)||]</marimo-tex><span class=\"paragraph\">Fourier expanding in <marimo-tex class=\"arithmatex\">||(t||)</marimo-tex>:</span>\n<marimo-tex class=\"arithmatex\">||[R_x(t, \\tau) = \\sum_{n=-\\infty}^{\\infty} R_n(\\tau)\\,e^{jn\\omega_{\\text{LO}} t}, \\qquad\n  R_n(\\tau) = \\frac{1}{T}\\int_0^T R_x(t,\\tau)\\,e^{-jn\\omega_{\\text{LO}} t}\\,dt||]</marimo-tex><span class=\"paragraph\">The <strong>cyclic spectral densities</strong> <marimo-tex class=\"arithmatex\">||(S_n(f) = \\mathcal{F}\\{R_n(\\tau)\\}||)</marimo-tex> describe spectral correlation between frequency components separated by <marimo-tex class=\"arithmatex\">||(nf_{\\text{LO}}||)</marimo-tex>. The <marimo-tex class=\"arithmatex\">||(n=0||)</marimo-tex> term is the ordinary time-averaged power spectral density (PSD).</span>\n<span class=\"paragraph\"><strong>Why stationary analysis fails in a mixer.</strong> Thermal noise at the RF input at frequency <marimo-tex class=\"arithmatex\">||(f_{\\text{RF}}||)</marimo-tex> and image frequency <marimo-tex class=\"arithmatex\">||(f_{\\text{RF}} - 2f_{\\text{IF}}||)</marimo-tex> both mix to the same IF frequency <marimo-tex class=\"arithmatex\">||(f_{\\text{IF}}||)</marimo-tex>. The <strong>conversion matrix</strong> <marimo-tex class=\"arithmatex\">||(\\mathbf{C}||)</marimo-tex> maps input noise spectral vector <marimo-tex class=\"arithmatex\">||(\\mathbf{a}||)</marimo-tex> (components at <marimo-tex class=\"arithmatex\">||(f \\pm nf_{\\text{LO}}||)</marimo-tex>) to output vector <marimo-tex class=\"arithmatex\">||(\\mathbf{b} = \\mathbf{C}\\mathbf{a}||)</marimo-tex>, with <marimo-tex class=\"arithmatex\">||(C_{mn} = g_{m-n}||)</marimo-tex> (Fourier coefficient of the time-varying conductance).\nOutput noise matrix: <marimo-tex class=\"arithmatex\">||(\\mathbf{S}_{\\text{out}} = \\mathbf{C}\\,\\mathbf{S}_{\\text{in}}\\,\\mathbf{C}^\\dagger||)</marimo-tex>.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "TXez",
+      "code_hash": "72c402aea59279687871c68fcd8983dc",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h3 id=\"19-mixer-noise-theory\">\u00a719. Mixer Noise Theory</h3>\n<span class=\"paragraph\">Model the MOSFET switch as a time-varying conductance <marimo-tex class=\"arithmatex\">||(g(t)||)</marimo-tex> driven by a square-wave LO: <marimo-tex class=\"arithmatex\">||(g(t) = g_{\\text{on}}||)</marimo-tex> for <marimo-tex class=\"arithmatex\">||(0 &lt; t &lt; T/2||)</marimo-tex>, <marimo-tex class=\"arithmatex\">||(g_{\\text{off}}||)</marimo-tex> otherwise.\nThe Fourier coefficients are given by:</span>\n<marimo-tex class=\"arithmatex\">||[g_n = \\frac{1}{T}\\int_0^T g(t)\\,e^{-jn\\omega_{\\text{LO}} t}\\,dt = \\frac{g_{\\text{on}} - g_{\\text{off}}}{j\\pi n},\\quad n \\neq 0||]</marimo-tex><span class=\"paragraph\">Channel thermal noise current PSD is directly proportional to the instantaneous conductance: <marimo-tex class=\"arithmatex\">||(S_i(t,f) = 4kT\\,g(t)||)</marimo-tex> \u2014 a fundamental cyclostationary process.</span>\n<span class=\"paragraph\"><strong>DSB noise figure.</strong> The IF output collects noise from both the signal band (<marimo-tex class=\"arithmatex\">||(f_{\\text{LO}} + f_{\\text{IF}}||)</marimo-tex>) and the image band (<marimo-tex class=\"arithmatex\">||(f_{\\text{LO}} - f_{\\text{IF}}||)</marimo-tex>) with equal weight. For a resistive switch, it can be proven that <marimo-tex class=\"arithmatex\">||(NF_{\\text{DSB}} = L_c||)</marimo-tex> (conversion loss in dB).</span>\n<span class=\"paragraph\"><strong>SSB noise figure.</strong> Only one sideband carries the signal; the image contributes noise without signal. For an ideal balanced mixer with <strong>no</strong> image rejection:</span>\n<marimo-tex class=\"arithmatex\">||[NF_{\\text{SSB}} = NF_{\\text{DSB}} + 10\\log_{10}(2) \\approx NF_{\\text{DSB}} + 3\\,\\text{dB}||]</marimo-tex><span class=\"paragraph\">With image rejection ratio <marimo-tex class=\"arithmatex\">||(\\text{IRR}||)</marimo-tex> (dB), the image noise contribution is suppressed by <marimo-tex class=\"arithmatex\">||(10^{-\\text{IRR}/10}||)</marimo-tex>, recovering <marimo-tex class=\"arithmatex\">||(NF_{\\text{SSB}} \\to NF_{\\text{DSB}}||)</marimo-tex> as <marimo-tex class=\"arithmatex\">||(\\text{IRR} \\to \\infty||)</marimo-tex>.</span>\n<span class=\"paragraph\"><strong>Friis with mixer</strong> (extending notebook 04 \u00a711):</span>\n<marimo-tex class=\"arithmatex\">||[F_{\\text{sys}} = F_{\\text{LNA}} + \\frac{F_{\\text{mixer}} - 1}{G_{A,\\text{LNA}}}||]</marimo-tex><span class=\"paragraph\">For <marimo-tex class=\"arithmatex\">||(G_{A,\\text{LNA}} = 15\\,\\text{dB}||)</marimo-tex> (32\u00d7) and <marimo-tex class=\"arithmatex\">||(F_{\\text{mixer}} = 10||)</marimo-tex> (10 dB SSB):\n<marimo-tex class=\"arithmatex\">||((10 - 1)/32 = 0.28||)</marimo-tex> linear \u2192 negligible vs. <marimo-tex class=\"arithmatex\">||(F_{\\text{LNA}} - 1 \\approx 0.78||)</marimo-tex> for 3.5 dB NF.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "dNNg",
+      "code_hash": "f09b14a2f7a102626d72de101e597c3c",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h3 id=\"20-switched-capacitor-sampler-noise\">\u00a720. Switched-Capacitor (Sampler) Noise</h3>\n<span class=\"paragraph\">A track-and-hold circuit samples an input voltage with switch resistance <marimo-tex class=\"arithmatex\">||(R_{\\text{sw}}||)</marimo-tex> and hold capacitor <marimo-tex class=\"arithmatex\">||(C_h||)</marimo-tex>. During track phase, it forms an RC low-pass filter with noise bandwidth <marimo-tex class=\"arithmatex\">||(BW_n = 1/(4R_{\\text{sw}} C_h)||)</marimo-tex>.</span>\n<span class=\"paragraph\">The total integrated noise charge on the capacitor is the integral of the filtered Johnson noise PSD:</span>\n<marimo-tex class=\"arithmatex\">||[\\langle v_n^2 \\rangle = \\int_0^\\infty \\frac{4kT R_{\\text{sw}}}{1 + (\\omega R_{\\text{sw}} C_h)^2}\\,\\frac{d\\omega}{2\\pi} = \\frac{kT}{C_h}||]</marimo-tex><span class=\"paragraph\">The <marimo-tex class=\"arithmatex\">||(R_{\\text{sw}}||)</marimo-tex> cancels entirely \u2014 the noise power on the capacitor is fundamentally independent of the switch resistance. This is the <strong>kT/C noise</strong> limit.</span>\n<span class=\"paragraph\"><strong>Noise folding from aliasing.</strong> If the input noise BW is <marimo-tex class=\"arithmatex\">||(B||)</marimo-tex> and the sample rate is <marimo-tex class=\"arithmatex\">||(f_s||)</marimo-tex>, then <marimo-tex class=\"arithmatex\">||(N = \\lceil B/f_s \\rceil||)</marimo-tex> noise images fold into the baseband <marimo-tex class=\"arithmatex\">||([0, f_s/2]||)</marimo-tex>.\nThe effective noise PSD rises by <marimo-tex class=\"arithmatex\">||(10\\log_{10}(N)\\,\\text{dB}||)</marimo-tex>:</span>\n<marimo-tex class=\"arithmatex\">||[\\text{Noise folding penalty} = 10\\log_{10}(N)\\,\\text{dB}||]</marimo-tex><span class=\"paragraph\"><strong>Settling requirement</strong> for <marimo-tex class=\"arithmatex\">||(N_b||)</marimo-tex>-bit resolution:\nThe track settling error must be less than 1 LSB, so <marimo-tex class=\"arithmatex\">||(e^{-T_s/(2\\tau)} &lt; 2^{-N_b}||)</marimo-tex>. Thus:\n<marimo-tex class=\"arithmatex\">||(\\tau = R_{\\text{sw}} C_h \\ll \\frac{T_s}{2 N_b \\ln 2}||)</marimo-tex>.</span>\n<span class=\"paragraph\">At 28 GHz direct RF sampling (<marimo-tex class=\"arithmatex\">||(f_s = 56\\,\\text{GHz}||)</marimo-tex>, <marimo-tex class=\"arithmatex\">||(N_b = 8||)</marimo-tex>):\n<marimo-tex class=\"arithmatex\">||(\\tau \\ll 1.3\\,\\text{ps}||)</marimo-tex> \u2192 <marimo-tex class=\"arithmatex\">||(R_{\\text{sw}} C_h \\ll 1.3\\,\\text{ps}||)</marimo-tex>,\nrequiring <marimo-tex class=\"arithmatex\">||(R_{\\text{sw}} &lt; 10\\,\\Omega||)</marimo-tex> for <marimo-tex class=\"arithmatex\">||(C_h = 100\\,\\text{fF}||)</marimo-tex>.\nSub-10 \u03a9 switch on-resistance at 28 GHz is feasible but challenging.\nThis motivates heterodyne architecture (down-convert first to a lower IF, then sample).</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "yCnT",
+      "code_hash": "4f99042e395cabd815862b26ab69e20c",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "wlCL",
+      "code_hash": "aa869754f3542bf1313714246cb64676",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "kqZH",
+      "code_hash": "122f0ea9be2c8dd2a0d3bdcab6259e14",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"part-vii-summary\">Part VII \u2014 Summary</h2>\n<h3 id=\"22-summary-and-bridge-to-notebook-06\">\u00a722. Summary and Bridge to Notebook 06</h3>\n<span class=\"paragraph\">The complete receiver design chain is now assembled:</span>\n<ol>\n<li><strong>LNA</strong> (notebook 04): place <marimo-tex class=\"arithmatex\">||(\\Gamma_S||)</marimo-tex> near <marimo-tex class=\"arithmatex\">||(\\Gamma_{\\text{opt}}||)</marimo-tex> via inductive\n   degeneration \u2192 <marimo-tex class=\"arithmatex\">||(NF \\approx F_{\\min}||)</marimo-tex>.</li>\n<li><strong>Input/output matching</strong> (this notebook): Bode-Fano bounds the achievable\n   bandwidth; L/\u03c0/T or stub/transformer networks realise the target impedance.</li>\n<li><strong>Mixer</strong> (this notebook): SSB <marimo-tex class=\"arithmatex\">||(NF_{\\text{mixer}} = NF_{\\text{DSB}} + 3\\,\\text{dB}||)</marimo-tex>\n   (absent image rejection); Friis shows it is suppressed by LNA gain.</li>\n<li><strong>Sampler</strong> (this notebook): kT/C sets the noise floor; noise folding penalises\n   direct-RF architectures.</li>\n</ol>\n<span class=\"paragraph\"><strong>Open problems for notebook 06:</strong></span>\n<ul>\n<li><strong>Nonlinearity:</strong> 1 dB compression point <marimo-tex class=\"arithmatex\">||(P_{\\text{1dB}}||)</marimo-tex>, input-referred\n  third-order intercept <marimo-tex class=\"arithmatex\">||(\\text{IIP}_3||)</marimo-tex>, AM-PM conversion.</li>\n<li><strong>PA design:</strong> load-pull, drain efficiency, Doherty topology.</li>\n<li><strong>Full mmWave frontend:</strong> LNA + matching + mixer + PA as an integrated design.</li>\n</ul>\n<span class=\"paragraph\">Concept-dependency map:</span>\n<div class=\"language-cbmbas codehilite\"><pre><span></span><code><span class=\"mf\">05</span><span class=\"w\"> </span><span class=\"err\">\u00a7</span><span class=\"mf\">4</span><span class=\"err\">\u2013</span><span class=\"mf\">6</span><span class=\"w\">  </span><span class=\"n\">L</span><span class=\"o\">/</span><span class=\"n\">\u03c0</span><span class=\"o\">/</span><span class=\"n\">T</span><span class=\"w\"> </span><span class=\"n\">synthesis</span><span class=\"w\">  </span><span class=\"err\">\u2500\u2500\u25ba</span><span class=\"w\">  </span><span class=\"mf\">06</span><span class=\"w\"> </span><span class=\"n\">PA</span><span class=\"w\"> </span><span class=\"n\">output</span><span class=\"w\"> </span><span class=\"n\">matching</span>\n<span class=\"mf\">05</span><span class=\"w\"> </span><span class=\"err\">\u00a7</span><span class=\"mf\">8</span><span class=\"err\">\u2013</span><span class=\"mf\">10</span><span class=\"w\"> </span><span class=\"n\">Bode</span><span class=\"o\">-</span><span class=\"n\">Fano</span><span class=\"w\"> </span><span class=\"o\">/</span><span class=\"w\"> </span><span class=\"n\">Chebyshev</span><span class=\"w\">  </span><span class=\"err\">\u2500\u2500\u25ba</span><span class=\"w\">  </span><span class=\"mf\">06</span><span class=\"w\"> </span><span class=\"n\">broadband</span><span class=\"w\"> </span><span class=\"n\">PA</span>\n<span class=\"mf\">05</span><span class=\"w\"> </span><span class=\"err\">\u00a7</span><span class=\"mf\">18</span><span class=\"err\">\u2013</span><span class=\"mf\">20</span><span class=\"w\"> </span><span class=\"n\">Cyclostationary</span><span class=\"w\">  </span><span class=\"err\">\u2500\u2500\u25ba</span><span class=\"w\">  </span><span class=\"mf\">06</span><span class=\"w\"> </span><span class=\"n\">AM</span><span class=\"o\">-</span><span class=\"n\">PM</span><span class=\"w\"> </span><span class=\"o\">/</span><span class=\"w\"> </span><span class=\"n\">PA</span><span class=\"w\"> </span><span class=\"n\">nonlinear</span><span class=\"w\"> </span><span class=\"n\">noise</span>\n</code></pre></div></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "wAgl",
+      "code_hash": "21a2b1fc9b1a8de1e23148dcf79a9141",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><hr />\n<span class=\"paragraph\"><strong>Previous:</strong> <a href=\"04_noise_and_lna_design.py\">04 \u2014 Noise Analysis and LNA Design</a>  |\n<strong>Next:</strong> <a href=\"06_oscillators_vco.py\">06 \u2014 Oscillators, VCOs, and mmWave Phase Noise</a></span></span>"
+          }
+        }
+      ],
+      "console": []
+    }
+  ]
+}
