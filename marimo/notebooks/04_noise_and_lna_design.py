@@ -308,9 +308,7 @@ def _(mo):
     coupled to a heat bath at temperature $T$ has, at equilibrium, the
     **Boltzmann weight**
 
-    $$P(\text{microstate } s) = \frac{e^{-E_s/kT}}{Z},
-    \qquad Z = \sum_s e^{-E_s/kT}
-    \quad \text{[canonical ensemble, definition]}.$$
+    $$P(\text{microstate } s) = \frac{e^{-E_s/kT}}{Z}, \qquad Z = \sum_s e^{-E_s/kT} \quad \text{[canonical ensemble, definition]}.$$
 
     A microstate $s$ specifies every $n_k$; its energy is
     $E_s = \sum_k n_k\,\varepsilon_k$.
@@ -341,8 +339,7 @@ def _(mo):
 
     Both routes yield the same closed form:
 
-    $$\boxed{f(\varepsilon) = \frac{1}{e^{(\varepsilon-\mu)/kT} + 1}}
-    \quad \text{[Fermi-Dirac distribution, theorem]}.$$
+    $$\boxed{f(\varepsilon) = \frac{1}{e^{(\varepsilon-\mu)/kT} + 1}} \quad \text{[Fermi-Dirac distribution, theorem]}.$$
 
     Route A makes the combinatorics explicit; Route B makes the role of
     the chemical potential $\mu$ transparent.
@@ -361,34 +358,27 @@ def _(mo):
     The total number of microstates compatible with the occupation
     vector $\{n_i\}$ is therefore
 
-    $$W(\{n_i\}) = \prod_i \binom{g_i}{n_i}
-    = \prod_i \frac{g_i!}{n_i!\,(g_i - n_i)!}.$$
+    $$W(\{n_i\}) = \prod_i \binom{g_i}{n_i} = \prod_i \frac{g_i!}{n_i!\,(g_i - n_i)!}.$$
 
     **Entropy.** $S = k\ln W$ [Boltzmann, definition]. Stirling's
     approximation $\ln m! \approx m\ln m - m$ (valid for $m \gg 1$)
     gives
 
-    $$\frac{S}{k} \approx \sum_i\Bigl[g_i\ln g_i - n_i\ln n_i
-    - (g_i - n_i)\ln(g_i - n_i)\Bigr].$$
+    $$\frac{S}{k} \approx \sum_i\Bigl[g_i\ln g_i - n_i\ln n_i - (g_i - n_i)\ln(g_i - n_i)\Bigr].$$
 
     **Maximise under constraints.** Fix $\sum_i n_i = N$ and
     $\sum_i n_i\varepsilon_i = E$. With Lagrange multipliers $\alpha$
     and $\beta$,
 
-    $$\frac{\partial}{\partial n_i}\!\Bigl[\frac{S}{k}
-    - \alpha\bigl(\textstyle\sum_j n_j - N\bigr)
-    - \beta\bigl(\textstyle\sum_j n_j\varepsilon_j - E\bigr)\Bigr] = 0.$$
+    $$\frac{\partial}{\partial n_i}\!\Bigl[\frac{S}{k} - \alpha\bigl(\textstyle\sum_j n_j - N\bigr) - \beta\bigl(\textstyle\sum_j n_j\varepsilon_j - E\bigr)\Bigr] = 0.$$
 
     Differentiating the entropy expression term-by-term,
 
-    $$-\ln n_i + \ln(g_i - n_i) - \alpha - \beta\varepsilon_i = 0
-    \;\Longrightarrow\;
-    \ln\!\frac{g_i - n_i}{n_i} = \alpha + \beta\varepsilon_i,$$
+    $$-\ln n_i + \ln(g_i - n_i) - \alpha - \beta\varepsilon_i = 0 \;\Longrightarrow\; \ln\!\frac{g_i - n_i}{n_i} = \alpha + \beta\varepsilon_i,$$
 
     which rearranges to
 
-    $$\frac{\langle n_i\rangle}{g_i}
-    = \frac{1}{e^{\alpha + \beta\varepsilon_i} + 1}.$$
+    $$\frac{\langle n_i\rangle}{g_i} = \frac{1}{e^{\alpha + \beta\varepsilon_i} + 1}.$$
 
     **Identifying the multipliers.** The first law $dE = T\,dS - \mu\,dN$
     combined with entropy maximisation gives $\partial S/\partial E\big|_N = 1/T$
@@ -413,29 +403,23 @@ def _(mo):
     **Single-state grand partition function.** Each state $k$ has
     $n \in \{0,1\}$:
 
-    $$\Xi_k = \sum_{n=0}^{1} e^{-(\varepsilon_k - \mu)n/kT}
-    = 1 + e^{-(\varepsilon_k - \mu)/kT}.$$
+    $$\Xi_k = \sum_{n=0}^{1} e^{-(\varepsilon_k - \mu)n/kT} = 1 + e^{-(\varepsilon_k - \mu)/kT}.$$
 
     **Mean occupancy** from $\langle n_k\rangle
     = -\partial\ln\Xi_k / \partial(\varepsilon_k/kT)$ at fixed $\mu$:
 
-    $$\langle n_k\rangle
-    = \frac{e^{-(\varepsilon_k - \mu)/kT}}{1 + e^{-(\varepsilon_k - \mu)/kT}}
-    = \frac{1}{e^{(\varepsilon_k - \mu)/kT} + 1}
-    = f(\varepsilon_k). \;\;\square$$
+    $$\langle n_k\rangle = \frac{e^{-(\varepsilon_k - \mu)/kT}}{1 + e^{-(\varepsilon_k - \mu)/kT}} = \frac{1}{e^{(\varepsilon_k - \mu)/kT} + 1} = f(\varepsilon_k). \;\;\square$$
 
     **Variance — the key result for noise.** Because $n_k \in \{0, 1\}$
     we have $n_k^2 = n_k$, so $\langle n_k^2\rangle = \langle n_k\rangle = f$:
 
-    $$\boxed{\mathrm{Var}(n_k) = f(\varepsilon_k)\,\bigl(1 - f(\varepsilon_k)\bigr)}
-    \quad \text{[partition variance, theorem]}.$$
+    $$\boxed{\mathrm{Var}(n_k) = f(\varepsilon_k)\,\bigl(1 - f(\varepsilon_k)\bigr)} \quad \text{[partition variance, theorem]}.$$
 
     Distinct states are statistically independent in the grand canonical
     ensemble (the joint distribution factorises across $k$), so
     variances of region-occupancies add:
 
-    $$\mathrm{Var}\!\left(\sum_{k\in\mathcal{R}} n_k\right)
-    = \sum_{k\in\mathcal{R}} f_k\bigl(1 - f_k\bigr).$$
+    $$\mathrm{Var}\!\left(\sum_{k\in\mathcal{R}} n_k\right) = \sum_{k\in\mathcal{R}} f_k\bigl(1 - f_k\bigr).$$
 
     This is the foundation of every "thermal" noise statement that
     follows.
@@ -459,9 +443,7 @@ def _(mo):
     The window's *width* is set by $|\varepsilon - \mu| \lesssim kT$; its
     *height* is bounded above by $1/4$. Their product is universal:
 
-    $$\int_{-\infty}^\infty f(\varepsilon)\bigl(1 - f(\varepsilon)\bigr)\,
-    d\varepsilon = kT
-    \quad \text{[Fermi-edge integral, theorem]}.$$
+    $$\int_{-\infty}^\infty f(\varepsilon)\bigl(1 - f(\varepsilon)\bigr)\, d\varepsilon = kT \quad \text{[Fermi-edge integral, theorem]}.$$
 
     *Proof.* Direct differentiation gives $f(1-f) = -kT\,df/d\varepsilon$.
     Then $\int -kT\,(df/d\varepsilon)\,d\varepsilon
@@ -479,8 +461,7 @@ def _(mo):
     $(\varepsilon - \mu)/kT \gg 1$ for all relevant states (non-degenerate
     gas: low density or high $T$),
 
-    $$f(\varepsilon) \approx e^{-(\varepsilon - \mu)/kT}
-    \quad \text{[Maxwell-Boltzmann limit]},$$
+    $$f(\varepsilon) \approx e^{-(\varepsilon - \mu)/kT} \quad \text{[Maxwell-Boltzmann limit]},$$
 
     and three things happen:
     *(i)* occupancies of distinct states become effectively independent
@@ -490,12 +471,7 @@ def _(mo):
     *(iii)* for any continuous **quadratic** degree of freedom
     $H = \tfrac{1}{2}\alpha x^2$ the Gaussian phase-space integral gives
 
-    $$\langle H\rangle
-    = \frac{\int_{-\infty}^\infty \tfrac{1}{2}\alpha x^2\,
-    e^{-\alpha x^2/2kT}\,dx}
-    {\int_{-\infty}^\infty e^{-\alpha x^2/2kT}\,dx}
-    = \frac{1}{2}kT
-    \quad \text{[equipartition theorem]}.$$
+    $$\langle H\rangle = \frac{\int_{-\infty}^\infty \tfrac{1}{2}\alpha x^2\, e^{-\alpha x^2/2kT}\,dx} {\int_{-\infty}^\infty e^{-\alpha x^2/2kT}\,dx} = \frac{1}{2}kT \quad \text{[equipartition theorem]}.$$
 
     The bridge from quantum statistics to classical equipartition is
     therefore **two steps, not one**: *FD $\to$ MB* (non-degenerate limit
@@ -621,8 +597,7 @@ def _(mo):
     in thermal equilibrium the noise PSD is set by the dissipative part
     of the response function:
 
-    $$\boxed{S_v(\omega) = 4kT\,\mathrm{Re}\{Z(\omega)\}}
-    \quad \text{[Callen-Welton FDT, theorem]}.$$
+    $$\boxed{S_v(\omega) = 4kT\,\mathrm{Re}\{Z(\omega)\}} \quad \text{[Callen-Welton FDT, theorem]}.$$
 
     Setting $Z = R$ gives $S_v = 4kTR$, independent of the microscopic
     mechanism that achieves the dissipation.
@@ -648,8 +623,7 @@ def _(mo):
     **Step 3 — Noise bandwidth of the RC filter.** The mean-square
     voltage on $C$ integrates over all positive frequencies,
 
-    $$\langle V_C^2\rangle = \int_0^\infty S_v\,|H(f)|^2\,df
-    = S_v\int_0^\infty \frac{df}{1+(2\pi fRC)^2} = \frac{S_v}{4RC}.$$
+    $$\langle V_C^2\rangle = \int_0^\infty S_v\,|H(f)|^2\,df = S_v\int_0^\infty \frac{df}{1+(2\pi fRC)^2} = \frac{S_v}{4RC}.$$
 
     The integral evaluates to $\arctan(\infty)/(2\pi RC) = 1/(4RC)$; this
     is the **noise bandwidth** $B_n = 1/(4RC)$ — the bandwidth of an
@@ -658,10 +632,7 @@ def _(mo):
 
     **Step 4 — Solve.** Equating Steps 1 and 3,
 
-    $$\frac{S_v}{4RC} = \frac{kT}{C}
-    \;\Longrightarrow\;
-    \boxed{S_v = 4kT R}
-    \quad \text{[Nyquist formula, theorem]}.$$
+    $$\frac{S_v}{4RC} = \frac{kT}{C} \;\Longrightarrow\; \boxed{S_v = 4kT R} \quad \text{[Nyquist formula, theorem]}.$$
 
     The capacitance $C$ drops out — as it must, since the noise is a
     property of the resistor, not of the load.
@@ -680,9 +651,7 @@ def _(mo):
     — the partition noise of §2.3. The Landauer-Büttiker scattering
     formalism (full derivation: §6.3) gives, in equilibrium,
 
-    $$S_I = \frac{8e^2}{h}\sum_n \mathcal{T}_n
-    \int f(1-f)\,d\varepsilon
-    = \frac{8e^2}{h}\sum_n \mathcal{T}_n \cdot kT = 4kT\,G,$$
+    $$S_I = \frac{8e^2}{h}\sum_n \mathcal{T}_n \int f(1-f)\,d\varepsilon = \frac{8e^2}{h}\sum_n \mathcal{T}_n \cdot kT = 4kT\,G,$$
 
     using the Fermi-edge integral from §2.3 and the Landauer
     conductance $G = (2e^2/h)\sum_n \mathcal{T}_n$ (spin-doubled).
@@ -700,9 +669,7 @@ def _(mo):
     A source $R_s$ delivers fraction $1/4$ of its open-circuit noise
     power into a matched load $R_L = R_s$:
 
-    $$P_\text{avail}
-    = \frac{\langle v_n^2\rangle}{4R_s}\,\Delta f
-    = \frac{4kTR_s}{4R_s}\,\Delta f = kT\,\Delta f.$$
+    $$P_\text{avail} = \frac{\langle v_n^2\rangle}{4R_s}\,\Delta f = \frac{4kTR_s}{4R_s}\,\Delta f = kT\,\Delta f.$$
 
     At $T_0 = 290$ K: $N_0 \equiv kT_0 = -174$ dBm/Hz — a hard floor no
     passive network can beat.
@@ -801,23 +768,19 @@ def _(mo):
     Consider $N$ independent carriers crossing a barrier in observation
     window $\tau$. The arrival process is Poisson:
 
-    $$P(N) = \frac{\bar{N}^{N}\,e^{-\bar{N}}}{N!}, \qquad
-    \langle N\rangle = \bar{N}, \quad \mathrm{Var}(N) = \bar{N}
-    \quad \text{[Poisson, theorem]}.$$
+    $$P(N) = \frac{\bar{N}^{N}\,e^{-\bar{N}}}{N!}, \qquad \langle N\rangle = \bar{N}, \quad \mathrm{Var}(N) = \bar{N} \quad \text{[Poisson, theorem]}.$$
 
     The time-averaged current is $I = qN/\tau$, so
     $\langle I\rangle = q\bar{N}/\tau$ and
 
-    $$\mathrm{Var}(I) = \frac{q^2}{\tau^2}\,\mathrm{Var}(N)
-    = \frac{q^2\bar{N}}{\tau^2} = \frac{q\,\langle I\rangle}{\tau}.$$
+    $$\mathrm{Var}(I) = \frac{q^2}{\tau^2}\,\mathrm{Var}(N) = \frac{q^2\bar{N}}{\tau^2} = \frac{q\,\langle I\rangle}{\tau}.$$
 
     Converting from variance over a single window of length $\tau$ to a
     one-sided PSD (Carson's theorem: a Poisson impulse train with rate
     $\lambda$ has flat current PSD $S_I = q^2\lambda \cdot 2 = 2q^2\lambda$,
     where $\lambda = \langle I\rangle/q$),
 
-    $$\boxed{S_I = 2qI}
-    \quad \text{[Schottky shot noise, theorem]}.$$
+    $$\boxed{S_I = 2qI} \quad \text{[Schottky shot noise, theorem]}.$$
 
     This applies wherever carriers cross a barrier independently — diodes,
     BJTs in forward active, MOS in subthreshold, photodetectors. It does
@@ -839,9 +802,7 @@ def _(mo):
     A diode junction at bias $V$ in detailed balance has independent
     forward and reverse Poisson streams:
 
-    $$I_+ = I_s e^{qV/kT}, \quad I_- = I_s, \quad
-    I = I_+ - I_- = I_s(e^{qV/kT} - 1)
-    \quad \text{[Shockley diode equation, theorem]}.$$
+    $$I_+ = I_s e^{qV/kT}, \quad I_- = I_s, \quad I = I_+ - I_- = I_s(e^{qV/kT} - 1) \quad \text{[Shockley diode equation, theorem]}.$$
 
     Each stream is independently shot-noisy and they are uncorrelated;
     variances add:
@@ -850,14 +811,12 @@ def _(mo):
 
     Two lines of algebra rewrite this in coth form. With $x = qV/2kT$,
 
-    $$e^{qV/kT} + 1 = e^{2x} + 1 = e^x(e^x + e^{-x}),
-    \qquad e^{qV/kT} - 1 = e^x(e^x - e^{-x}),$$
+    $$e^{qV/kT} + 1 = e^{2x} + 1 = e^x(e^x + e^{-x}), \qquad e^{qV/kT} - 1 = e^x(e^x - e^{-x}),$$
 
     so $(e^{qV/kT}+1)/(e^{qV/kT}-1) = \coth(x)$. Multiplying numerator and
     denominator of $S_I$ by $(I_+ - I_-)/(I_+ - I_-)$,
 
-    $$\boxed{S_I = 2qI\,\coth\!\left(\frac{qV}{2kT}\right)}
-    \quad \text{[thermal–shot crossover, theorem]}.$$
+    $$\boxed{S_I = 2qI\,\coth\!\left(\frac{qV}{2kT}\right)} \quad \text{[thermal–shot crossover, theorem]}.$$
 
     **Limits.**
     - $qV \to 0$: $\coth(x) \to 1/x = 2kT/qV$, so
@@ -1020,8 +979,7 @@ def _(mo):
     $X(t,\omega)$ is **strictly stationary** if for every $n$, every
     $(t_1,\ldots,t_n)$, and every shift $s$:
 
-    $$F_{X(t_1),\ldots,X(t_n)}(x_1,\ldots,x_n)
-    = F_{X(t_1+s),\ldots,X(t_n+s)}(x_1,\ldots,x_n).$$
+    $$F_{X(t_1),\ldots,X(t_n)}(x_1,\ldots,x_n) = F_{X(t_1+s),\ldots,X(t_n+s)}(x_1,\ldots,x_n).$$
 
     All finite-dimensional distributions are invariant under time shifts.
     SSS is the strongest stationarity condition and is rarely verifiable
@@ -1040,8 +998,7 @@ def _(mo):
 
     **Condition 2 — autocorrelation depends only on lag:**
 
-    $$R_X(t_1, t_2) \;\triangleq\; E\bigl[X(t_1)\,X(t_2)\bigr]
-    = R_X(t_1 - t_2) \equiv R_X(\tau), \quad \tau = t_1 - t_2.$$
+    $$R_X(t_1, t_2) \;\triangleq\; E\bigl[X(t_1)\,X(t_2)\bigr] = R_X(t_1 - t_2) \equiv R_X(\tau), \quad \tau = t_1 - t_2.$$
 
     WSS is weaker than SSS: it constrains only the first two moments.
     The converse implication SSS $\Rightarrow$ WSS holds whenever
@@ -1070,9 +1027,7 @@ def _(mo):
 
     **Sufficient condition (mixing).** A straightforward computation gives
 
-    $$E\bigl[|\hat{\mu}_T - \mu|^2\bigr]
-    = \frac{1}{T}\int_{-T}^{T}\!\left(1 - \frac{|\tau|}{T}\right)
-    C_X(\tau)\,d\tau,$$
+    $$E\bigl[|\hat{\mu}_T - \mu|^2\bigr] = \frac{1}{T}\int_{-T}^{T}\!\left(1 - \frac{|\tau|}{T}\right) C_X(\tau)\,d\tau,$$
 
     where $C_X(\tau) = R_X(\tau) - \mu^2$ is the autocovariance.
     This vanishes as $T \to \infty$ whenever
@@ -1105,8 +1060,7 @@ def _(mo):
 
     **Ensemble statistics:**
 
-    $$E[X(t)] = E[A] = 0, \quad
-    R_X(t_1,t_2) = E[A^2] = \sigma^2 \quad \text{(independent of $\tau$)}.$$
+    $$E[X(t)] = E[A] = 0, \quad R_X(t_1,t_2) = E[A^2] = \sigma^2 \quad \text{(independent of $\tau$)}.$$
 
     Both WSS conditions are satisfied — this is a WSS process.
 
@@ -1117,8 +1071,7 @@ def _(mo):
     This is a random variable with distribution $\mathcal{N}(0,\sigma^2)$,
     not the constant $\mu = 0$.
 
-    $$E\bigl[|\hat{\mu}_T - \mu|^2\bigr] = E[A^2] = \sigma^2 \quad
-    \text{for all } T.$$
+    $$E\bigl[|\hat{\mu}_T - \mu|^2\bigr] = E[A^2] = \sigma^2 \quad \text{for all } T.$$
 
     The mean-square error does not vanish — **mean-ergodicity fails**.
 
@@ -1139,8 +1092,7 @@ def _(mo):
     $R_X(0) = E[X(t)^2]$ is the mean-square value — the total noise power.
     The Parseval identity for the Wiener-Khinchin pair gives
 
-    $$P_\text{noise} = R_X(0) = \int_{-\infty}^{\infty} S_X(f)\,df
-    = 2\int_0^{\infty} S_X(f)\,df.$$
+    $$P_\text{noise} = R_X(0) = \int_{-\infty}^{\infty} S_X(f)\,df = 2\int_0^{\infty} S_X(f)\,df.$$
 
     This is why PSD carries units of W/Hz (or V²/Hz, A²/Hz): integrate over
     any bandwidth $B$ to get the noise power in that band.
@@ -1302,8 +1254,7 @@ def _(mo):
 
     **Sum rules** for multiple sources:
 
-    $$S_{\text{total}} = \sum_k S_k\quad \text{(uncorrelated)}, \qquad
-    S_{\text{total}} = \sum_k S_k + 2\,\mathrm{Re}\!\sum_{k<\ell} S_{k\ell}\quad\text{(with cross-terms)}.$$
+    $$S_{\text{total}} = \sum_k S_k\quad \text{(uncorrelated)}, \qquad S_{\text{total}} = \sum_k S_k + 2\,\mathrm{Re}\!\sum_{k<\ell} S_{k\ell}\quad\text{(with cross-terms)}.$$
 
     **Noise bandwidth** $B_n = \int_0^\infty |H(f)|^2\,df / |H(f_0)|^2$
     — the bandwidth of an ideal brick-wall filter that would pass the same
@@ -1516,8 +1467,7 @@ def _(mo):
 
     **Classical definition (Friis, 1944):**
 
-    $$F \;\triangleq\; \frac{\mathrm{SNR}_{\text{in}}}{\mathrm{SNR}_{\text{out}}}
-    \quad\text{at source temperature } T_0 = 290\text{ K.}$$
+    $$F \;\triangleq\; \frac{\mathrm{SNR}_{\text{in}}}{\mathrm{SNR}_{\text{out}}} \quad\text{at source temperature } T_0 = 290\text{ K.}$$
 
     Equivalently, $F$ is the factor by which a two-port degrades the
     signal-to-noise ratio of a 290 K source. $F \ge 1$ always;
@@ -1558,9 +1508,7 @@ def _(mo):
     load: the total output noise PSD is $kT_0$ regardless of the signal path.
     The signal, however, is reduced by $G_A = 1/L$. Hence
 
-    $$F = \frac{\mathrm{SNR}_{\mathrm{in}}}{\mathrm{SNR}_{\mathrm{out}}}
-    = \frac{P_{\mathrm{sig,in}} / (kT_0)}{G_A\,P_{\mathrm{sig,in}} / (kT_0)}
-    = \frac{1}{G_A} = L.$$
+    $$F = \frac{\mathrm{SNR}_{\mathrm{in}}}{\mathrm{SNR}_{\mathrm{out}}} = \frac{P_{\mathrm{sig,in}} / (kT_0)}{G_A\,P_{\mathrm{sig,in}} / (kT_0)} = \frac{1}{G_A} = L.$$
 
     Alternatively: the network adds $(L-1)kT_0$ of noise referred to its input
     (since its output noise $kT_0$ maps back to $kT_0 / G_A = L\,kT_0$, and
@@ -1728,8 +1676,7 @@ def _(mo):
     **Γ-plane form** (after the bilinear $Y_s \leftrightarrow \Gamma_s$
     substitution):
 
-    $$F(\Gamma_s) \;=\; F_{\min} \;+\; \frac{4\,R_n/Z_0}{|1 + \Gamma_{\text{opt}}|^2}\;
-    \frac{|\Gamma_s - \Gamma_{\text{opt}}|^2}{1 - |\Gamma_s|^2}.$$
+    $$F(\Gamma_s) \;=\; F_{\min} \;+\; \frac{4\,R_n/Z_0}{|1 + \Gamma_{\text{opt}}|^2}\; \frac{|\Gamma_s - \Gamma_{\text{opt}}|^2}{1 - |\Gamma_s|^2}.$$
 
     Two sanity checks (next cell): $F(\Gamma_{\text{opt}}) = F_{\min}$, and
     $F(\Gamma_s \to \partial\mathrm{disk}) \to \infty$.
@@ -1769,8 +1716,7 @@ def _(mo):
 
     Then the centre and radius of the constant-$F$ circle are
 
-    $$C_F \;=\; \frac{\Gamma_{\text{opt}}}{1 + N},
-    \qquad r_F \;=\; \frac{\sqrt{N^2 + N\,(1 - |\Gamma_{\text{opt}}|^2)}}{1 + N}.$$
+    $$C_F \;=\; \frac{\Gamma_{\text{opt}}}{1 + N}, \qquad r_F \;=\; \frac{\sqrt{N^2 + N\,(1 - |\Gamma_{\text{opt}}|^2)}}{1 + N}.$$
 
     **Limits:**
     - $F_{\text{target}} = F_{\min} \Rightarrow N = 0 \Rightarrow C_F = \Gamma_{\text{opt}}$, $r_F = 0$ — single point.
@@ -2119,8 +2065,7 @@ def _(mo):
     moves one still leaves the other poorly matched. The designer's
     compromise: pick $\Gamma_s$ on the locus minimising a cost
 
-    $$J(\Gamma_s) \;=\; \alpha\,[F(\Gamma_s) - F_{\min}]
-                       \;+\; \beta\,[G_{A,\max} - G_A(\Gamma_s)],$$
+    $$J(\Gamma_s) \;=\; \alpha\,[F(\Gamma_s) - F_{\min}] \;+\; \beta\,[G_{A,\max} - G_A(\Gamma_s)],$$
 
     where $\alpha, \beta$ are weights chosen by the application
     (receiver-noise-dominated → large $\alpha$; gain-budget-limited → large $\beta$).
@@ -2200,8 +2145,7 @@ def _(mo):
 
     The noise figure formula
 
-    $$F(\Gamma_s) = F_{\min} + \frac{4\,R_n/Z_0}{|1+\Gamma_{\mathrm{opt}}|^2}
-    \frac{|\Gamma_s - \Gamma_{\mathrm{opt}}|^2}{1 - |\Gamma_s|^2}$$
+    $$F(\Gamma_s) = F_{\min} + \frac{4\,R_n/Z_0}{|1+\Gamma_{\mathrm{opt}}|^2} \frac{|\Gamma_s - \Gamma_{\mathrm{opt}}|^2}{1 - |\Gamma_s|^2}$$
 
     has two distinct roles for $R_n$:
 
@@ -2247,9 +2191,7 @@ def _(mo):
     The rate at which $Y_{s,\mathrm{opt}}(f) = G_{s,\mathrm{opt}} + jB_{s,\mathrm{opt}}$
     moves with frequency is set by the Q of the optimum source admittance:
 
-    $$Q_{\mathrm{opt}} \;=\; \left|\frac{B_{s,\mathrm{opt}}}{G_{s,\mathrm{opt}}}\right|
-    \quad\text{or equivalently}\quad
-    \left|\frac{X_{s,\mathrm{opt}}}{R_{s,\mathrm{opt}}}\right|.$$
+    $$Q_{\mathrm{opt}} \;=\; \left|\frac{B_{s,\mathrm{opt}}}{G_{s,\mathrm{opt}}}\right| \quad\text{or equivalently}\quad \left|\frac{X_{s,\mathrm{opt}}}{R_{s,\mathrm{opt}}}\right|.$$
 
     A high $Q_{\mathrm{opt}}$ means $Y_{\mathrm{opt}}$ has a large reactive component
     that sweeps rapidly across the Smith chart with frequency — the noise match is
@@ -2446,13 +2388,7 @@ def _(mo):
 
     Standard π-hybrid NMOS:
 
-    $$\begin{array}{rl}
-    C_{gs} & \text{gate-source capacitance (dominant)} \\
-    C_{gd} & \text{gate-drain (Miller) capacitance} \\
-    g_m    & \text{small-signal transconductance} \\
-    r_o    & \text{output resistance} \\
-    r_g    & \text{gate resistance (multi-finger layout)} \\
-    \end{array}$$
+    $$\begin{array}{rl} C_{gs} & \text{gate-source capacitance (dominant)} \\ C_{gd} & \text{gate-drain (Miller) capacitance} \\ g_m    & \text{small-signal transconductance} \\ r_o    & \text{output resistance} \\ r_g    & \text{gate resistance (multi-finger layout)} \\ \end{array}$$
 
     Transit frequency $\omega_T \equiv g_m / C_{gs}$.
 
@@ -2967,28 +2903,24 @@ def _(mo):
     where $n_I$ and $n_Q$ are real **lowpass** (baseband) processes obtained by
     synchronous demodulation and low-pass filtering:
 
-    $$n_I(t) = \mathrm{LPF}\!\left\{2\,n(t)\cos(2\pi f_0 t)\right\}, \qquad
-    n_Q(t) = \mathrm{LPF}\!\left\{-2\,n(t)\sin(2\pi f_0 t)\right\}.$$
+    $$n_I(t) = \mathrm{LPF}\!\left\{2\,n(t)\cos(2\pi f_0 t)\right\}, \qquad n_Q(t) = \mathrm{LPF}\!\left\{-2\,n(t)\sin(2\pi f_0 t)\right\}.$$
 
     #### Derivation of the quadrature PSDs
 
     Let the two-sided PSD of $n(t)$ be
 
-    $$S_n(f) = \frac{N_0}{2}, \quad |f \pm f_0| < \frac{B}{2}, \qquad
-    \text{zero elsewhere.}$$
+    $$S_n(f) = \frac{N_0}{2}, \quad |f \pm f_0| < \frac{B}{2}, \qquad \text{zero elsewhere.}$$
 
     This represents bandpass white noise with **one-sided PSD** $N_0$
     (W/Hz, as measured by a spectrum analyser) in a bandwidth $B$ around $f_0$.
     The total bandpass power is
 
-    $$\langle n^2\rangle = \int_{-\infty}^{\infty} S_n(f)\,df
-    = \frac{N_0}{2}\cdot B + \frac{N_0}{2}\cdot B = N_0 B.$$
+    $$\langle n^2\rangle = \int_{-\infty}^{\infty} S_n(f)\,df = \frac{N_0}{2}\cdot B + \frac{N_0}{2}\cdot B = N_0 B.$$
 
     Applying the standard frequency-shifting identity for quadrature components,
     the PSD of the lowpass envelope is
 
-    $$S_{n_I}(f) = S_{n_Q}(f)
-    = \bigl[S_n(f - f_0) + S_n(f + f_0)\bigr]_{|f|<B/2}.$$
+    $$S_{n_I}(f) = S_{n_Q}(f) = \bigl[S_n(f - f_0) + S_n(f + f_0)\bigr]_{|f|<B/2}.$$
 
     For $|f| < B/2$: $f - f_0$ sits inside the negative-frequency band
     ($|(f-f_0)+f_0|=|f|<B/2$) and $f + f_0$ sits inside the positive-frequency
@@ -2998,8 +2930,7 @@ def _(mo):
 
     Integrating gives the quadrature variance:
 
-    $$\langle n_I^2\rangle = \int_{-B/2}^{B/2} N_0\,df = N_0 B,
-    \qquad \langle n_Q^2\rangle = N_0 B.$$
+    $$\langle n_I^2\rangle = \int_{-B/2}^{B/2} N_0\,df = N_0 B, \qquad \langle n_Q^2\rangle = N_0 B.$$
 
     The cross-PSD evaluates to $S_{n_I n_Q}(f) = j[S_n(f+f_0) - S_n(f-f_0)] = 0$
     for this symmetric bandpass spectrum, so
@@ -3009,8 +2940,7 @@ def _(mo):
     **Power accounting:** with $n = n_I\cos - n_Q\sin$ and the $\cos/\sin$
     time-averaging factor of $\tfrac{1}{2}$:
 
-    $$\langle n^2\rangle = \tfrac{1}{2}\langle n_I^2\rangle + \tfrac{1}{2}\langle n_Q^2\rangle
-    = \tfrac{1}{2} N_0 B + \tfrac{1}{2} N_0 B = N_0 B \;\checkmark$$
+    $$\langle n^2\rangle = \tfrac{1}{2}\langle n_I^2\rangle + \tfrac{1}{2}\langle n_Q^2\rangle = \tfrac{1}{2} N_0 B + \tfrac{1}{2} N_0 B = N_0 B \;\checkmark$$
 
     The equal variance $\langle n_I^2\rangle = \langle n_Q^2\rangle = N_0 B$
     — each quadrature carries the same noise power — is the statement of
@@ -3029,21 +2959,18 @@ def _(mo):
     Place the signal phasor at $Ae^{j0}$ (along the I-axis by choice of
     reference). Additive noise $n_I + jn_Q$ perturbs the tip:
 
-    $$A + n_I + jn_Q \approx (A + n_I)\,e^{\,j\,n_Q/A}
-    \quad\text{for } |n_Q| \ll A.$$
+    $$A + n_I + jn_Q \approx (A + n_I)\,e^{\,j\,n_Q/A} \quad\text{for } |n_Q| \ll A.$$
 
     Reading off the polar perturbation:
 
     $$\delta A = n_I \qquad (\text{radial, amplitude noise}),$$
 
-    $$\delta\phi = \arctan\!\frac{n_Q}{A} \approx \frac{n_Q}{A}
-    \qquad (\text{tangential, phase noise}).$$
+    $$\delta\phi = \arctan\!\frac{n_Q}{A} \approx \frac{n_Q}{A} \qquad (\text{tangential, phase noise}).$$
 
     The injected noise power is the same in both quadratures ($N_0B$);
     the phase noise is *suppressed by the signal amplitude*:
 
-    $$\langle\delta\phi^2\rangle = \frac{\langle n_Q^2\rangle}{A^2}
-    = \frac{N_0 B}{A^2} = \frac{N_0 B}{2 P_\text{sig}}.$$
+    $$\langle\delta\phi^2\rangle = \frac{\langle n_Q^2\rangle}{A^2} = \frac{N_0 B}{A^2} = \frac{N_0 B}{2 P_\text{sig}}.$$
 
     No noise is removed; the geometry of the phasor plane converts equal noise
     in both directions into unequal *angular* and *radial* fluctuations.
@@ -3054,8 +2981,7 @@ def _(mo):
     $\delta A$ is damped, while $\delta\phi$ accumulates as a random walk. The
     one-sided phase-noise PSD is
 
-    $$\mathcal{L}(f_m) \approx \frac{kTF}{2 P_{\mathrm{sig}}}
-    \cdot \frac{f_0^2}{Q_L^2\,f_m^2}$$
+    $$\mathcal{L}(f_m) \approx \frac{kTF}{2 P_{\mathrm{sig}}} \cdot \frac{f_0^2}{Q_L^2\,f_m^2}$$
 
     (Leeson's formula). The $1/P_\text{sig}$ factor is exactly the $1/A^2$
     scaling derived above. The $1/f_m^2$ roll-off is the power spectrum of a
@@ -3198,8 +3124,7 @@ def _(mo):
     phase-sensitively: it amplifies the I-quadrature by $\sqrt{G}$ and
     attenuates the Q-quadrature by $1/\sqrt{G}$. For thermal input noise:
 
-    $$\langle n_I^2\rangle \to G\,kTB, \qquad
-    \langle n_Q^2\rangle \to \frac{kTB}{G}.$$
+    $$\langle n_I^2\rangle \to G\,kTB, \qquad \langle n_Q^2\rangle \to \frac{kTB}{G}.$$
 
     The product $\langle n_I^2\rangle\langle n_Q^2\rangle = (kTB)^2$ is
     preserved; total noise power is unchanged. This is **classical noise
@@ -3277,8 +3202,7 @@ def _(mo):
     the celebrated cancellation that makes 1D ballistic conductance
     universal. The net current is
 
-    $$I = \frac{2e}{h}\sum_n \int \mathcal{T}_n(\varepsilon)
-    \bigl[n_L(\varepsilon) - n_R(\varepsilon)\bigr]\,d\varepsilon,$$
+    $$I = \frac{2e}{h}\sum_n \int \mathcal{T}_n(\varepsilon) \bigl[n_L(\varepsilon) - n_R(\varepsilon)\bigr]\,d\varepsilon,$$
 
     with $n_{L,R}(\varepsilon) = f(\varepsilon; \mu_{L,R}, T)$ Fermi-Dirac
     (the factor of 2 is spin degeneracy).
@@ -3287,8 +3211,7 @@ def _(mo):
     $V = (\mu_L - \mu_R)/e$ and using $-\partial f/\partial\varepsilon
     \to \delta(\varepsilon - \mu)$ at $T = 0$,
 
-    $$G = \frac{dI}{dV} = \frac{2e^2}{h}\sum_n \mathcal{T}_n(\mu)
-    \quad \text{[Landauer formula, theorem]}.$$
+    $$G = \frac{dI}{dV} = \frac{2e^2}{h}\sum_n \mathcal{T}_n(\mu) \quad \text{[Landauer formula, theorem]}.$$
 
     **Equilibrium current noise.** Each channel is a two-terminal
     scattering problem with binomial partition statistics for each
@@ -3296,24 +3219,18 @@ def _(mo):
     noise PSD, with the same spin doubling as the current operator and
     in the one-sided PSD convention, is
 
-    $$S_I = \frac{4e^2}{h}\sum_n \int
-    \Bigl\{\mathcal{T}_n\bigl[n_L(1-n_L) + n_R(1-n_R)\bigr]
-    + \mathcal{T}_n(1-\mathcal{T}_n)(n_L - n_R)^2\Bigr\}d\varepsilon.$$
+    $$S_I = \frac{4e^2}{h}\sum_n \int \Bigl\{\mathcal{T}_n\bigl[n_L(1-n_L) + n_R(1-n_R)\bigr] + \mathcal{T}_n(1-\mathcal{T}_n)(n_L - n_R)^2\Bigr\}d\varepsilon.$$
 
     At equilibrium $n_L = n_R = f$, the second (quantum-partition) term
     vanishes and $n_L(1-n_L) + n_R(1-n_R) = 2f(1-f)$, so
 
-    $$S_I^{(\text{eq})} = \frac{8e^2}{h}\sum_n \mathcal{T}_n
-    \int f(\varepsilon)\bigl(1 - f(\varepsilon)\bigr)\,d\varepsilon.$$
+    $$S_I^{(\text{eq})} = \frac{8e^2}{h}\sum_n \mathcal{T}_n \int f(\varepsilon)\bigl(1 - f(\varepsilon)\bigr)\,d\varepsilon.$$
 
     **Evaluation.** Using the universal Fermi-edge integral from §2.3,
     $\int f(1-f)\,d\varepsilon = kT$, and the Landauer conductance
     $G = (2e^2/h)\sum_n \mathcal{T}_n$,
 
-    $$\boxed{S_I^{(\text{eq})}
-    = \frac{8e^2}{h}\sum_n \mathcal{T}_n \cdot kT
-    = 4kT\,G}
-    \quad \text{[microscopic Nyquist, theorem]}.$$
+    $$\boxed{S_I^{(\text{eq})} = \frac{8e^2}{h}\sum_n \mathcal{T}_n \cdot kT = 4kT\,G} \quad \text{[microscopic Nyquist, theorem]}.$$
 
     Inverting to a voltage source: $S_V = S_I/G^2 = 4kT/G = 4kTR$.
     **The Nyquist formula is recovered from purely microscopic
@@ -3361,9 +3278,7 @@ def _(mo):
     giving $(e^{qV/kT}+1)/(e^{qV/kT}-1)
     = (e^x + e^{-x})/(e^x - e^{-x}) = \coth(x)$. Hence
 
-    $$S_I = 2q I_s\bigl(e^{qV/kT}-1\bigr)
-    \cdot \frac{e^{qV/kT}+1}{e^{qV/kT}-1}
-    = 2qI\,\coth\!\left(\frac{qV}{2kT}\right). \;\;\square$$
+    $$S_I = 2q I_s\bigl(e^{qV/kT}-1\bigr) \cdot \frac{e^{qV/kT}+1}{e^{qV/kT}-1} = 2qI\,\coth\!\left(\frac{qV}{2kT}\right). \;\;\square$$
 
     **Limits — algebra check.**
 
