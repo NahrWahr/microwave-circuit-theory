@@ -6,7 +6,7 @@
 #     "plotly",
 # ]
 # ///
-# v1.2
+# v1.3
 
 import marimo
 
@@ -257,88 +257,24 @@ def _(mo):
     mo.md(r"""
     ## 2. Physical Foundations of Noise
 
-### 2.1 From quantum mechanics to thermal noise
+    Two complementary stories run through this section, and they must
+    agree because they describe the same physics:
 
-    Thermal noise in resistors—the fundamental limit in every receiver—emerges from
-    statistical mechanics. We trace the logical chain: Schrödinger solutions → canonical ensemble
-    → partition function → entropy → temperature → equipartition → circuit noise.
+    | View | What fluctuates | Limit it shines in |
+    |---|---|---|
+    | **Macroscopic** | continuous EMF / voltage | $kT \gg$ level spacing — equipartition, Nyquist |
+    | **Microscopic** | discrete electron occupancy | individual carriers — Fermi-Dirac, partition noise, shot noise |
 
-    #### From Schrödinger to energy levels
-
-    A confined electron (e.g., in an atom or potential well) obeys the time-independent
-    Schrödinger equation:
-    $$-\frac{\hbar^2}{2m}\nabla^2\psi + V(\mathbf{r})\psi = E\psi.$$
-    For any potential $V(\mathbf{r})$, solutions exist only at **discrete energy levels** $E_1, E_2, E_3, \ldots$
-    (the spectrum). This discreteness is the foundation of statistical mechanics: a system at finite
-    temperature distributes probabilistically over these levels, not continuously over all energies.
-
-    #### The canonical ensemble and thermal equilibrium
-
-    Consider an object (our resistor) weakly coupled to a heat bath at temperature $T$. Heat flows
-    until the object equilibrates. At equilibrium, the probability of finding the system in a state
-    with energy $E_n$ is the **Boltzmann weight**:
-    $$P(E_n) = \frac{e^{-E_n/kT}}{Z},$$
-    where $Z$ is the **partition function**,
-    $$Z = \sum_{n=1}^\infty e^{-E_n/kT}.$$
-    This is the cornerstone of the canonical ensemble: at temperature $T$, low-energy states are more
-    probable, and the Boltzmann factor $e^{-E_n/kT}$ weights each state's contribution.
-
-    #### Partition function and state density
-
-    For most macroscopic systems, the spectrum is dense enough to be approximated by a continuum
-    density of states $g(E)$. If $g(E)$ is the number of states per unit energy, the partition
-    function becomes
-    $$Z = \int_0^\infty g(E)\,e^{-E/kT}\,dE.$$
-    For simple systems (free particle in a box, harmonic oscillator), $g(E)$ is computable in closed form.
-    The key insight: $Z$ automatically accounts for *all accessible states* weighted by their Boltzmann probability.
-
-    #### Entropy and the meaning of temperature
-
-    The **Boltzmann entropy** is
-    $$S = k\,\ln\Omega,$$
-    where $\Omega$ is the *effective number of available microstates*. For a system in the canonical
-    ensemble (fixed $T$, allowing energy fluctuations), this generalizes to
-    $$S = -k\sum_n P(E_n)\ln P(E_n) = \frac{\langle E \rangle}{T} + k\ln Z,$$
-    where $\langle E \rangle = \sum_n P(E_n) E_n$ is the average energy. The second law requires $dS \geq 0$
-    for spontaneous processes. At equilibrium (maximum entropy), we have
-    $$\frac{\partial S}{\partial E}\bigg|_{V,N} = \frac{1}{T}.$$
-    **Temperature is the inverse of the rate at which entropy increases with energy.** High $T$: systems
-    are spread broadly over many states. Low $T$: systems huddle in the lowest-energy states.
-
-    #### Equipartition: why thermal fluctuations are universal
-
-    For a system with a quadratic degree of freedom (e.g., kinetic energy $\tfrac{1}{2}m v_x^2$ or
-    capacitor energy $\tfrac{1}{2}C V^2$), the average energy in that mode is always
-    $$\langle E_{\text{quad}} \rangle = \frac{1}{2}kT.$$
-    This is **equipartition**: each quadratic mode gets the same energy, independent of its "stiffness" (mass,
-    capacitance) or frequency. The reason: the Boltzmann partition function for a quadratic potential
-    $V(x) = \alpha x^2/2$ evaluates to a Gaussian, and $\int x^2 e^{-\alpha x^2/2kT} dx / \int e^{-\alpha x^2/2kT} dx = kT/\alpha$.
-    This universal formula follows from the definition of temperature and the structure of the Boltzmann distribution.
-
-    #### Circuit noise: fluctuations from equipartition
-
-    A resistor is a conductor with many free electrons. At temperature $T$, those electrons undergo
-    random thermal motion—their kinetic energy fluctuates around the equipartition value $\tfrac{1}{2}kT$.
-    These fluctuations couple to the electrical potential, producing a random electromotive force (EMF)
-    across the resistor terminals.
-
-    More precisely: if we model the resistor as a noisy voltage source $v_n(t)$ in series with a
-    noiseless resistance $R$, equipartition applied to the electrical energy stored across a parasitic
-    capacitance $C$ (always present) predicts
-    $$\langle V_C^2 \rangle = \frac{kT}{C}.$$
-    The noise source $v_n(t)$ must have a power spectral density (PSD) such that, when filtered by the RC
-    circuit's transfer function, the capacitor sees exactly this rms voltage. The resulting **Nyquist formula**,
-    $$S_v = 4kTR \quad \text{(one-sided PSD)},$$
-    follows uniquely from equipartition and thermodynamic stability—it cannot be lower without violating
-    the second law of thermodynamics.
-
-    **In summary**: quantum mechanics (Schrödinger) establishes discrete energy levels.
-    Statistical mechanics (canonical ensemble, partition function) tells us how likely each level is at temperature $T$.
-    Entropy and the second law define temperature.
-    Equipartition then dictates how much energy is in each degree of freedom.
-    In a resistor, one of those degrees of freedom is electrical: the random electron motion becomes electrical noise,
-    with power proportional to $T$. The proportionality constant—$4R$ per Kelvin per Hertz—is a universal
-    consequence of thermodynamics, not an empirical fit.
+    §2.1–2.3 build the quantum-statistical foundation: canonical
+    ensemble, Fermi-Dirac distribution, and the partition-variance
+    factor $f(1-f)$ that is the microscopic source of *every* noise
+    statement in this notebook. §2.4 derives the Nyquist formula in
+    its classical (equipartition) form and notes the microscopic check
+    via the Callen-Welton fluctuation-dissipation theorem (full
+    Landauer derivation: §6.3). §2.5 takes the same machinery to the
+    *counting* limit — shot noise and the thermal $\leftrightarrow$
+    shot crossover. §2.6 catalogs the resulting noise mechanisms with
+    cross-references.
     """)
     return
 
@@ -346,77 +282,438 @@ def _(mo):
 @app.cell
 def _(mo):
     mo.md(r"""
-    ### 2.2 Thermal noise floor — derivation of $kT_0 B$
+    ### 2.1 Quantum origin and the canonical ensemble
 
-    **Step 1 — Equipartition theorem.** Statistical mechanics assigns
-    average energy $\tfrac{1}{2}kT$ to every independent *quadratic* degree
-    of freedom in a system at temperature $T$. This follows from the
-    canonical partition function: for a Hamiltonian $H = \tfrac{1}{2}\alpha x^2$,
-    $$\langle H \rangle = \frac{\int_{-\infty}^\infty \tfrac{1}{2}\alpha x^2\, e^{-\alpha x^2/2kT}\,dx}{\int_{-\infty}^\infty e^{-\alpha x^2/2kT}\,dx} = \frac{1}{2}kT.$$
-    For a capacitor the stored energy is $E_C = \tfrac{1}{2}C V_C^2$ — one
-    quadratic degree of freedom — so $\langle E_C \rangle = \tfrac{1}{2}kT$,
-    giving immediately
-    $$\langle V_C^2 \rangle = \frac{kT}{C}.$$
-    This result is exact within classical statistical mechanics and holds for
-    *any* network connected to the capacitor, provided the whole system is at
-    temperature $T$.
+    **Discrete states from Schrödinger.** A confined electron obeys the
+    time-independent Schrödinger equation,
 
-    **Step 2 — The minimal circuit model.** A noisy resistor $R$ is replaced
-    by a noiseless resistor in series with an open-circuit voltage noise
-    source $v_n(t)$ (Thevenin). Loading this source with capacitor $C$ gives
-    a first-order RC low-pass filter. The transfer function from $v_n$ to the
-    capacitor voltage $V_C$ is
-    $$H(f) = \frac{1}{1 + j 2\pi f RC},$$
-    so the PSD of $V_C$ is $S_{V_C}(f) = S_v(f)\,|H(f)|^2$. We assume
-    $v_n$ is wide-sense stationary with (unknown) flat PSD $S_v$.
+    $$-\frac{\hbar^2}{2m}\nabla^2\psi + V(\mathbf{r})\psi = E\psi.$$
 
-    **Step 3 — Noise bandwidth of an RC filter.** The total mean-square
-    voltage on $C$ integrates over all positive frequencies:
-    $$\langle V_C^2 \rangle = \int_0^\infty S_v\,\frac{df}{1+(2\pi fRC)^2} = S_v\,\frac{1}{4RC}.$$
-    The integral evaluates to $\arctan(\infty)/(2\pi RC) = 1/(4RC)$; this is
-    the **noise bandwidth** $B_n = 1/(4RC)$ of the RC filter — the bandwidth
-    of an ideal brick-wall filter that would pass the same total noise power.
-    It differs from the $-3\,\text{dB}$ bandwidth $f_{-3} = 1/(2\pi RC)$ by
-    the factor $\pi/2$.
+    For any binding potential $V(\mathbf{r})$ the spectrum is *discrete*:
+    $E_1, E_2, E_3, \ldots$. Statistical mechanics then has a list of
+    *single-particle states* to populate, not a continuous energy variable.
 
-    **Step 4 — Equate to equipartition and solve for $S_v$.** From Steps 1
-    and 3:
-    $$S_v \cdot \frac{1}{4RC} = \frac{kT}{C} \;\Longrightarrow\; \boxed{S_v = 4kTR.}$$
-    The capacitance $C$ drops out completely. This is the **Nyquist formula**:
-    the one-sided voltage noise PSD of a resistor $R$ at temperature $T$ is
-    $4kTR$, independent of frequency ("white") up to the phonon scattering
-    cutoff near $10$ THz in metals.
+    **Pauli exclusion — the binary occupancy.** Electrons are fermions:
+    at most one electron occupies any single-particle state. The
+    occupation number of state $k$ is therefore a Bernoulli random
+    variable,
 
-    **Why "one mode".** The RC circuit has a single energy-storing element
-    (the capacitor), hence one quadratic degree of freedom, hence one factor
-    of $\tfrac{1}{2}kT$ from equipartition. A transmission line of length $\ell$
-    supports modes spaced by $\Delta f = c/(2\ell)$; a lumped RC replaces the
-    continuum of transmission-line modes with a single averaged mode at the
-    noise bandwidth $B_n$. Both approaches give the same $S_v = 4kTR$ because
-    the total energy per mode is fixed by temperature, not by geometry.
+    $$n_k \in \{0, 1\} \quad \text{[Pauli, axiom]}.$$
 
-    The one-sided voltage noise PSD is therefore $S_v = 4kTR$ — the
-    **Nyquist formula**. It is flat ("white") to frequencies far beyond
-    microwave: the phonon cutoff of a metal resistor is $\sim 10$ THz.
+    Every noise statement that follows is a statement about fluctuations
+    of these binary $n_k$ — there is no other underlying random variable
+    at the level of single-particle states.
 
-    **Available noise power.** A source $R_s$ delivering into a matched
-    load $R_L = R_s$ transfers fraction $\tfrac{1}{4}$ of the open-circuit
-    noise power:
+    **The canonical ensemble — temperature enters.** A system weakly
+    coupled to a heat bath at temperature $T$ has, at equilibrium, the
+    **Boltzmann weight**
 
-    $$P_{\mathrm{avail}} = \frac{\langle v_n^2\rangle}{4R_s}\,\Delta f
-    = \frac{4kT R_s}{4R_s}\,\Delta f = kT\,\Delta f.$$
+    $$P(\text{microstate } s) = \frac{e^{-E_s/kT}}{Z},
+    \qquad Z = \sum_s e^{-E_s/kT}
+    \quad \text{[canonical ensemble, definition]}.$$
 
-    At $T_0 = 290$ K: $N_0 \equiv kT_0 = -174$ dBm/Hz. This is a hard
-    physical floor — no passive network can beat it.
+    A microstate $s$ specifies every $n_k$; its energy is
+    $E_s = \sum_k n_k\,\varepsilon_k$.
 
-    **Receiver sensitivity** in bandwidth $B$:
+    > **Note — entropy and the operational meaning of $T$.**
+    > The Gibbs entropy of the ensemble is
+    > $\,S = -k\sum_s P_s \ln P_s = \langle E\rangle/T + k\ln Z\,$.
+    > Equilibrium maximises $S$ at fixed $\langle E\rangle$; the relation
+    > $\partial S/\partial E\big|_{N,V} = 1/T$ *defines* temperature:
+    > $T^{-1}$ is the rate at which available phase-space volume grows
+    > with energy. High $T$ spreads the ensemble broadly; low $T$ huddles
+    > it in low-energy states. This single relation is the only fact
+    > about $T$ used everywhere below.
 
-    $$S_{\min} = k\,T_0\,B \cdot F \cdot \mathrm{SNR}_{\min}$$
+    The canonical ensemble by itself does **not** give $\langle n_k\rangle$ —
+    the constraint $\sum_k n_k = N$ couples states together. For the
+    mean occupancy we need either explicit combinatorics (§2.2 Route A)
+    or the grand-canonical factorisation (§2.2 Route B). Both routes
+    converge to the same closed form, the Fermi-Dirac distribution.
+    """)
+    return
 
-    where $F$ is the receiver noise factor (linear). Every dB of NF
-    directly subtracts from achievable sensitivity. At $B = 100$ MHz,
-    $\mathrm{SNR}_{\min} = 10$ dB: floor $= -174 + 80 + 10 = -84$ dBm; a
-    2 dB NF raises this to $-82$ dBm, a 6 dB NF to $-78$ dBm — already
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ### 2.2 The Fermi-Dirac distribution — two derivations
+
+    Both routes yield the same closed form:
+
+    $$\boxed{f(\varepsilon) = \frac{1}{e^{(\varepsilon-\mu)/kT} + 1}}
+    \quad \text{[Fermi-Dirac distribution, theorem]}.$$
+
+    Route A makes the combinatorics explicit; Route B makes the role of
+    the chemical potential $\mu$ transparent.
+
+    ---
+
+    #### Route A — combinatorial counting with Stirling and Lagrange
+
+    **Set-up.** Group single-particle states into bins of approximately
+    equal energy: bin $i$ has $g_i$ states (degeneracy) at energy
+    $\varepsilon_i$, occupied by $n_i$ fermions with $0 \le n_i \le g_i$
+    (Pauli).
+
+    **Microstate count.** The number of ways to choose which $n_i$ of
+    the $g_i$ states in bin $i$ are occupied is the binomial coefficient.
+    The total number of microstates compatible with the occupation
+    vector $\{n_i\}$ is therefore
+
+    $$W(\{n_i\}) = \prod_i \binom{g_i}{n_i}
+    = \prod_i \frac{g_i!}{n_i!\,(g_i - n_i)!}.$$
+
+    **Entropy.** $S = k\ln W$ [Boltzmann, definition]. Stirling's
+    approximation $\ln m! \approx m\ln m - m$ (valid for $m \gg 1$)
+    gives
+
+    $$\frac{S}{k} \approx \sum_i\Bigl[g_i\ln g_i - n_i\ln n_i
+    - (g_i - n_i)\ln(g_i - n_i)\Bigr].$$
+
+    **Maximise under constraints.** Fix $\sum_i n_i = N$ and
+    $\sum_i n_i\varepsilon_i = E$. With Lagrange multipliers $\alpha$
+    and $\beta$,
+
+    $$\frac{\partial}{\partial n_i}\!\Bigl[\frac{S}{k}
+    - \alpha\bigl(\textstyle\sum_j n_j - N\bigr)
+    - \beta\bigl(\textstyle\sum_j n_j\varepsilon_j - E\bigr)\Bigr] = 0.$$
+
+    Differentiating the entropy expression term-by-term,
+
+    $$-\ln n_i + \ln(g_i - n_i) - \alpha - \beta\varepsilon_i = 0
+    \;\Longrightarrow\;
+    \ln\!\frac{g_i - n_i}{n_i} = \alpha + \beta\varepsilon_i,$$
+
+    which rearranges to
+
+    $$\frac{\langle n_i\rangle}{g_i}
+    = \frac{1}{e^{\alpha + \beta\varepsilon_i} + 1}.$$
+
+    **Identifying the multipliers.** The first law $dE = T\,dS - \mu\,dN$
+    combined with entropy maximisation gives $\partial S/\partial E\big|_N = 1/T$
+    and $\partial S/\partial N\big|_E = -\mu/T$; matching to
+    $\partial(S/k)/\partial n_i = \alpha + \beta\varepsilon_i$ yields
+
+    $$\beta = \frac{1}{kT}, \qquad \alpha = -\frac{\mu}{kT}.$$
+
+    Substituting recovers Fermi-Dirac.
+
+    ---
+
+    #### Route B — grand canonical factorisation
+
+    **Why grand canonical here.** The canonical-ensemble constraint
+    $\sum_k n_k = N$ couples all states. Switching to the **grand
+    canonical** ensemble (variable $N$, fixed $\mu$) lets each
+    single-particle state be its own two-level subsystem. The cost is
+    that $N$ now fluctuates — but only by relative order $1/\sqrt{N}$,
+    irrelevant for any bulk conductor.
+
+    **Single-state grand partition function.** Each state $k$ has
+    $n \in \{0,1\}$:
+
+    $$\Xi_k = \sum_{n=0}^{1} e^{-(\varepsilon_k - \mu)n/kT}
+    = 1 + e^{-(\varepsilon_k - \mu)/kT}.$$
+
+    **Mean occupancy** from $\langle n_k\rangle
+    = -\partial\ln\Xi_k / \partial(\varepsilon_k/kT)$ at fixed $\mu$:
+
+    $$\langle n_k\rangle
+    = \frac{e^{-(\varepsilon_k - \mu)/kT}}{1 + e^{-(\varepsilon_k - \mu)/kT}}
+    = \frac{1}{e^{(\varepsilon_k - \mu)/kT} + 1}
+    = f(\varepsilon_k). \;\;\square$$
+
+    **Variance — the key result for noise.** Because $n_k \in \{0, 1\}$
+    we have $n_k^2 = n_k$, so $\langle n_k^2\rangle = \langle n_k\rangle = f$:
+
+    $$\boxed{\mathrm{Var}(n_k) = f(\varepsilon_k)\,\bigl(1 - f(\varepsilon_k)\bigr)}
+    \quad \text{[partition variance, theorem]}.$$
+
+    Distinct states are statistically independent in the grand canonical
+    ensemble (the joint distribution factorises across $k$), so
+    variances of region-occupancies add:
+
+    $$\mathrm{Var}\!\left(\sum_{k\in\mathcal{R}} n_k\right)
+    = \sum_{k\in\mathcal{R}} f_k\bigl(1 - f_k\bigr).$$
+
+    This is the foundation of every "thermal" noise statement that
+    follows.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ### 2.3 Partition noise and the classical limit
+
+    **Where the noise lives — the Fermi edge.** The factor
+    $f(\varepsilon)\bigl(1 - f(\varepsilon)\bigr)$ peaks at $\varepsilon = \mu$
+    with value $1/4$. Far below $E_F$ ($\varepsilon \ll \mu$) $f \to 1$
+    and the state is **Pauli-locked** — no fluctuations possible. Far
+    above $E_F$ ($\varepsilon \gg \mu$) $f \to 0$ and the state is
+    empty — no fluctuations either. **All occupancy fluctuations live in
+    a $\sim kT$-wide window around $E_F$.**
+
+    The window's *width* is set by $|\varepsilon - \mu| \lesssim kT$; its
+    *height* is bounded above by $1/4$. Their product is universal:
+
+    $$\int_{-\infty}^\infty f(\varepsilon)\bigl(1 - f(\varepsilon)\bigr)\,
+    d\varepsilon = kT
+    \quad \text{[Fermi-edge integral, theorem]}.$$
+
+    *Proof.* Direct differentiation gives $f(1-f) = -kT\,df/d\varepsilon$.
+    Then $\int -kT\,(df/d\varepsilon)\,d\varepsilon
+    = kT\,[f(-\infty) - f(+\infty)] = kT\,(1 - 0) = kT$. $\square$
+
+    This integral is the **microscopic origin of the $kT$ in thermal
+    noise** — it counts the effective number of fluctuating channels at
+    the Fermi edge, weighted by their individual partition variance. It
+    reappears in §2.4 packaged inside the Landauer-Büttiker formula, where
+    it converts directly into Nyquist's $4kTR$.
+
+    ---
+
+    **Classical (Maxwell-Boltzmann) limit.** When
+    $(\varepsilon - \mu)/kT \gg 1$ for all relevant states (non-degenerate
+    gas: low density or high $T$),
+
+    $$f(\varepsilon) \approx e^{-(\varepsilon - \mu)/kT}
+    \quad \text{[Maxwell-Boltzmann limit]},$$
+
+    and three things happen:
+    *(i)* occupancies of distinct states become effectively independent
+    Poisson variables (since $f \ll 1$, $f(1-f) \approx f$);
+    *(ii)* sums over discrete states $\sum_k$ pass to phase-space
+    integrals $\int dp\,dq/h$ weighted by $e^{-H/kT}/Z$;
+    *(iii)* for any continuous **quadratic** degree of freedom
+    $H = \tfrac{1}{2}\alpha x^2$ the Gaussian phase-space integral gives
+
+    $$\langle H\rangle
+    = \frac{\int_{-\infty}^\infty \tfrac{1}{2}\alpha x^2\,
+    e^{-\alpha x^2/2kT}\,dx}
+    {\int_{-\infty}^\infty e^{-\alpha x^2/2kT}\,dx}
+    = \frac{1}{2}kT
+    \quad \text{[equipartition theorem]}.$$
+
+    The bridge from quantum statistics to classical equipartition is
+    therefore **two steps, not one**: *FD $\to$ MB* (non-degenerate limit
+    that removes Pauli), then *MB $\to$ equipartition for continuous
+    quadratic DoFs* (Gaussian integral on the Boltzmann weight). The
+    literature sometimes elides this; the distinction matters when
+    either step breaks (degenerate gas at low $T$; non-quadratic
+    Hamiltonian).
+
+    For a capacitor, $H_C = \tfrac{1}{2}C V_C^2$ is one quadratic
+    degree of freedom, so
+
+    $$\langle V_C^2\rangle = \frac{kT}{C}.$$
+
+    This is the input to the Nyquist derivation of §2.4.
+
+    > **Note — when is the classical limit valid for circuit noise?**
+    > The classical limit requires $kT \gg \hbar\omega$ at the relevant
+    > frequency $\omega$. At $T = 290$ K and $f = 1$ THz:
+    > $kT \approx 25$ meV vs $\hbar\omega \approx 4$ meV — classical
+    > with margin. The quantum correction is below 10% up to ~6 THz at
+    > room temperature. Cryogenic operation at microwave frequencies
+    > (e.g.\ 10 GHz at 0.5 K) is the regime where zero-point noise
+    > becomes the floor; see §6.2.
+    """)
+    return
+
+
+@app.cell
+def _(go, make_subplots, mo, np):
+    # FIG 2.3 — Fermi-Dirac, partition variance, and the counting limit
+    _fig_fd = make_subplots(
+        rows=1, cols=3,
+        subplot_titles=(
+            "Fermi-Dirac f(ε) — edge sharpens as T → 0",
+            "Partition variance f(1−f) — peaks at ε = μ, area = kT",
+            "Counting limit: σ/⟨N⟩ = 1/√⟨N⟩",
+        ),
+    )
+
+    # Panels 1 & 2 — energy in units of (ε - μ)/kT_ref
+    _e_axis = np.linspace(-8.0, 8.0, 600)
+    _T_list = [0.5, 1.0, 2.5]
+    _colors_T = ["#5599DD", "#33CC88", "#EE8833"]
+
+    # Panel 1 — f(ε) at three temperatures
+    for _Tv, _clr in zip(_T_list, _colors_T):
+        _fv = 1.0 / (np.exp(_e_axis / _Tv) + 1.0)
+        _fig_fd.add_trace(go.Scatter(
+            x=_e_axis, y=_fv, mode="lines",
+            name=f"T/T_ref = {_Tv:.1f}",
+            line=dict(color=_clr, width=2),
+            legendgroup=f"T{_Tv}",
+            showlegend=True), row=1, col=1)
+    _fig_fd.add_vline(x=0.0, line_dash="dot", line_color="#888888",
+                      annotation_text="ε = μ",
+                      annotation_position="top right", row=1, col=1)
+
+    # Panel 2 — f(1-f) at same temperatures (height ≤ 1/4 universal, width ∝ T)
+    for _Tv, _clr in zip(_T_list, _colors_T):
+        _fv = 1.0 / (np.exp(_e_axis / _Tv) + 1.0)
+        _var = _fv * (1.0 - _fv)
+        _fig_fd.add_trace(go.Scatter(
+            x=_e_axis, y=_var, mode="lines",
+            line=dict(color=_clr, width=2, dash="dash"),
+            legendgroup=f"T{_Tv}",
+            showlegend=False), row=1, col=2)
+    _fig_fd.add_hline(y=0.25, line_dash="dot", line_color="#888888",
+                      annotation_text="max = 1/4",
+                      annotation_position="top right", row=1, col=2)
+
+    # Panel 3 — current normalized to mean at two carrier rates
+    _rng_pl = np.random.default_rng(11)
+    _t_axis_pl = np.linspace(0.0, 1.0, 200)
+    _N_high = 200.0
+    _N_low = 4.0
+    _counts_hi = _rng_pl.poisson(_N_high, size=_t_axis_pl.size)
+    _counts_lo = _rng_pl.poisson(_N_low,  size=_t_axis_pl.size)
+    _I_hi_norm = _counts_hi / _N_high
+    _I_lo_norm = _counts_lo / _N_low
+
+    _fig_fd.add_trace(go.Scatter(
+        x=_t_axis_pl, y=_I_hi_norm, mode="lines",
+        name=f"⟨N⟩ = {int(_N_high)} (sampling)",
+        line=dict(color="#5599DD", width=1.5),
+        showlegend=True), row=1, col=3)
+    _fig_fd.add_trace(go.Scatter(
+        x=_t_axis_pl, y=_I_lo_norm, mode="lines+markers",
+        name=f"⟨N⟩ = {int(_N_low)} (counting)",
+        line=dict(color="#EE8833", width=1.5),
+        marker=dict(size=4),
+        showlegend=True), row=1, col=3)
+    _fig_fd.add_hline(y=1.0, line_dash="dot", line_color="#888888",
+                      row=1, col=3)
+
+    _fig_fd.update_layout(
+        template="plotly_dark", height=400,
+        margin=dict(l=50, r=20, t=80, b=50),
+        legend=dict(x=0.01, y=0.99, bgcolor="rgba(0,0,0,0.5)",
+                    font=dict(size=9)),
+    )
+    _fig_fd.update_xaxes(title_text="(ε − μ) / kT_ref", row=1, col=1)
+    _fig_fd.update_yaxes(title_text="f(ε)",             row=1, col=1)
+    _fig_fd.update_xaxes(title_text="(ε − μ) / kT_ref", row=1, col=2)
+    _fig_fd.update_yaxes(title_text="f(1 − f)",         row=1, col=2)
+    _fig_fd.update_xaxes(title_text="window index (norm.)", row=1, col=3)
+    _fig_fd.update_yaxes(title_text="N / ⟨N⟩",          row=1, col=3)
+
+    mo.ui.plotly(_fig_fd)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ### 2.4 The Nyquist formula — macroscopic derivation, microscopic check
+
+    Two derivations of $S_v = 4kTR$ exist: a *macroscopic* (equipartition
+    + RC) proof, given in full below, and a *microscopic*
+    (Landauer-Büttiker) proof from $f(1-f)$, sketched here and detailed
+    in §6.3. They must agree by the **Callen-Welton fluctuation-
+    dissipation theorem (FDT)**, which states that for any linear system
+    in thermal equilibrium the noise PSD is set by the dissipative part
+    of the response function:
+
+    $$\boxed{S_v(\omega) = 4kT\,\mathrm{Re}\{Z(\omega)\}}
+    \quad \text{[Callen-Welton FDT, theorem]}.$$
+
+    Setting $Z = R$ gives $S_v = 4kTR$, independent of the microscopic
+    mechanism that achieves the dissipation.
+
+    #### Macroscopic derivation: equipartition + RC + capacitance trick
+
+    **Step 1 — Equipartition of the capacitor.** From §2.3, equipartition
+    assigns $\langle E_C\rangle = \tfrac{1}{2}kT$ to the capacitor's one
+    quadratic degree of freedom, giving
+
+    $$\langle V_C^2\rangle = \frac{kT}{C}.$$
+
+    This holds for *any* network connected to $C$, provided the whole
+    system is at temperature $T$.
+
+    **Step 2 — Circuit model.** Thevenize the noisy resistor: noiseless
+    $R$ in series with open-circuit noise voltage $v_n(t)$ of (unknown)
+    flat PSD $S_v$. Load with capacitor $C$ — a first-order RC low-pass
+    with transfer function
+
+    $$H(f) = \frac{1}{1 + j 2\pi f RC}.$$
+
+    **Step 3 — Noise bandwidth of the RC filter.** The mean-square
+    voltage on $C$ integrates over all positive frequencies,
+
+    $$\langle V_C^2\rangle = \int_0^\infty S_v\,|H(f)|^2\,df
+    = S_v\int_0^\infty \frac{df}{1+(2\pi fRC)^2} = \frac{S_v}{4RC}.$$
+
+    The integral evaluates to $\arctan(\infty)/(2\pi RC) = 1/(4RC)$; this
+    is the **noise bandwidth** $B_n = 1/(4RC)$ — the bandwidth of an
+    ideal brick-wall filter that would pass the same total noise power.
+    It differs from $f_{-3} = 1/(2\pi RC)$ by the factor $\pi/2$.
+
+    **Step 4 — Solve.** Equating Steps 1 and 3,
+
+    $$\frac{S_v}{4RC} = \frac{kT}{C}
+    \;\Longrightarrow\;
+    \boxed{S_v = 4kT R}
+    \quad \text{[Nyquist formula, theorem]}.$$
+
+    The capacitance $C$ drops out — as it must, since the noise is a
+    property of the resistor, not of the load.
+
+    **Why "one mode".** The lumped RC has a single energy-storing
+    element (the capacitor): one quadratic degree of freedom, one
+    factor of $\tfrac{1}{2}kT$. A transmission line of length $\ell$
+    supports modes spaced by $\Delta f = c/(2\ell)$; a sum over all
+    modes recovers the same $S_v = 4kTR$. Both pictures agree because
+    the total energy per mode is fixed by temperature, not geometry.
+
+    #### Microscopic check from $f(1-f)$ — sketched
+
+    A conductor of conductance $G = 1/R$ has, microscopically, current
+    fluctuations driven by occupancy fluctuations of states near $E_F$
+    — the partition noise of §2.3. The Landauer-Büttiker scattering
+    formalism (full derivation: §6.3) gives, in equilibrium,
+
+    $$S_I = \frac{8e^2}{h}\sum_n \mathcal{T}_n
+    \int f(1-f)\,d\varepsilon
+    = \frac{8e^2}{h}\sum_n \mathcal{T}_n \cdot kT = 4kT\,G,$$
+
+    using the Fermi-edge integral from §2.3 and the Landauer
+    conductance $G = (2e^2/h)\sum_n \mathcal{T}_n$ (spin-doubled).
+    Inverting, $S_v = S_I/G^2 = 4kTR$ — **Nyquist recovered from pure
+    occupancy statistics.**
+
+    The two derivations consume *the same input*: equipartition's
+    $\tfrac{1}{2}kT$ per quadratic mode and the FD integral
+    $\int f(1-f)\,d\varepsilon = kT$ are the same $kT$ entering by
+    different routes. The FDT is the formal guarantee that they must
+    agree for any equilibrium system.
+
+    #### Available noise power and the link-budget consequence
+
+    A source $R_s$ delivers fraction $1/4$ of its open-circuit noise
+    power into a matched load $R_L = R_s$:
+
+    $$P_\text{avail}
+    = \frac{\langle v_n^2\rangle}{4R_s}\,\Delta f
+    = \frac{4kTR_s}{4R_s}\,\Delta f = kT\,\Delta f.$$
+
+    At $T_0 = 290$ K: $N_0 \equiv kT_0 = -174$ dBm/Hz — a hard floor no
+    passive network can beat.
+
+    Receiver sensitivity in bandwidth $B$:
+
+    $$S_{\min} = k T_0 B \cdot F \cdot \mathrm{SNR}_{\min},$$
+
+    where $F$ is the receiver noise factor (linear). At $B = 100$ MHz,
+    $\mathrm{SNR}_{\min} = 10$ dB: floor $= -174 + 80 + 10 = -84$ dBm;
+    a 2 dB NF raises this to $-82$ dBm, 6 dB NF to $-78$ dBm — already
     four times more transmit power required to close the link.
     """)
     return
@@ -490,45 +787,161 @@ def _(go, make_subplots, mo, np):
 @app.cell
 def _(mo):
     mo.md(r"""
-    ### 2.3 Physical noise sources
+    ### 2.5 The counting limit — shot noise and the thermal↔shot crossover
 
-    #### 2.3.1 Thermal (Nyquist) noise
+    The Nyquist derivation of §2.4 treats the resistor's noise as a
+    *continuous* random voltage — appropriate when the number of carriers
+    per measurement window is huge ($\gg 1$). At a **potential barrier**
+    (diode junction, BJT emitter, MOS subthreshold) each carrier crossing
+    is an *independent event*, and the discreteness of the electron
+    becomes visible in the noise.
 
-    A resistor $R$ at temperature $T$ has an equivalent series voltage-noise
-    source with one-sided PSD
-    $$\langle v_n^2 \rangle / \Delta f = 4\,k\,T\,R,$$
-    or equivalently a shunt current source $\langle i_n^2 \rangle / \Delta f = 4kT/R$.
+    #### Poisson statistics at a barrier — derivation of $2qI$
 
-    Derivation sketch: equipartition assigns $\tfrac{1}{2}kT$ to each mode
-    of the transmission-line cavity; summing modes up to a bandwidth $\Delta f$
-    recovers the Nyquist formula.
+    Consider $N$ independent carriers crossing a barrier in observation
+    window $\tau$. The arrival process is Poisson:
 
-    #### 2.3.2 Shot noise
+    $$P(N) = \frac{\bar{N}^{N}\,e^{-\bar{N}}}{N!}, \qquad
+    \langle N\rangle = \bar{N}, \quad \mathrm{Var}(N) = \bar{N}
+    \quad \text{[Poisson, theorem]}.$$
 
-    A DC current $I$ carried by discrete charges $q$ has current-noise PSD
-    $$\langle i_n^2 \rangle / \Delta f = 2\,q\,I.$$
+    The time-averaged current is $I = qN/\tau$, so
+    $\langle I\rangle = q\bar{N}/\tau$ and
 
-    Applies across **potential barriers** — diode junctions, BJT emitter-base.
-    Does **not** apply to ohmic resistors (carriers are not barrier-limited;
-    there only thermal noise is present).
+    $$\mathrm{Var}(I) = \frac{q^2}{\tau^2}\,\mathrm{Var}(N)
+    = \frac{q^2\bar{N}}{\tau^2} = \frac{q\,\langle I\rangle}{\tau}.$$
 
-    #### 2.3.3 Flicker (1/f) noise
+    Converting from variance over a single window of length $\tau$ to a
+    one-sided PSD (Carson's theorem: a Poisson impulse train with rate
+    $\lambda$ has flat current PSD $S_I = q^2\lambda \cdot 2 = 2q^2\lambda$,
+    where $\lambda = \langle I\rangle/q$),
 
-    Empirical PSD
-    $$S_v(f) = \frac{K_v}{f},\quad S_i(f) = \frac{K_i}{f}$$
-    with a device-specific constant. In MOS:
+    $$\boxed{S_I = 2qI}
+    \quad \text{[Schottky shot noise, theorem]}.$$
+
+    This applies wherever carriers cross a barrier independently — diodes,
+    BJTs in forward active, MOS in subthreshold, photodetectors. It does
+    **not** apply to ohmic resistors: carriers there suffer many
+    scatterings per transit, the crossings are not independent, and only
+    thermal noise survives.
+
+    > **Note — the "counting electrons" picture, quantitatively.** With
+    > $I = 1$ μA and observation window $\tau = 1$ ns, $\bar{N} = I\tau/q
+    > \approx 6\,000$ carriers per window. Relative fluctuation
+    > $\sigma_N/\bar{N} = 1/\sqrt{\bar{N}} \approx 1.3\%$ — the current
+    > looks smooth. At $I = 1$ pA the same window has $\bar{N} \approx 6$
+    > carriers and $\sigma_N/\bar{N} \approx 40\%$ — the noise is dominated
+    > by the integer count itself. This is what "we're counting electrons"
+    > means. See panel 3 of the Fermi-Dirac figure above.
+
+    #### The thermal ↔ shot crossover — coth interpolation
+
+    A diode junction at bias $V$ in detailed balance has independent
+    forward and reverse Poisson streams:
+
+    $$I_+ = I_s e^{qV/kT}, \quad I_- = I_s, \quad
+    I = I_+ - I_- = I_s(e^{qV/kT} - 1)
+    \quad \text{[Shockley diode equation, theorem]}.$$
+
+    Each stream is independently shot-noisy and they are uncorrelated;
+    variances add:
+
+    $$S_I = 2q(I_+ + I_-) = 2q I_s(e^{qV/kT} + 1).$$
+
+    Two lines of algebra rewrite this in coth form. With $x = qV/2kT$,
+
+    $$e^{qV/kT} + 1 = e^{2x} + 1 = e^x(e^x + e^{-x}),
+    \qquad e^{qV/kT} - 1 = e^x(e^x - e^{-x}),$$
+
+    so $(e^{qV/kT}+1)/(e^{qV/kT}-1) = \coth(x)$. Multiplying numerator and
+    denominator of $S_I$ by $(I_+ - I_-)/(I_+ - I_-)$,
+
+    $$\boxed{S_I = 2qI\,\coth\!\left(\frac{qV}{2kT}\right)}
+    \quad \text{[thermal–shot crossover, theorem]}.$$
+
+    **Limits.**
+    - $qV \to 0$: $\coth(x) \to 1/x = 2kT/qV$, so
+      $S_I \to 2qI\cdot 2kT/(qV) = 4kT\,(I/V)$. At $V \to 0$ the chord
+      conductance $g_d = I/V$ equals the differential conductance
+      $qI_s/kT$, so $S_I \to 4kT g_d$ — pure Johnson noise.
+    - $qV \gg kT$: $\coth(x) \to 1$, so $S_I \to 2qI$ — pure Schottky shot.
+
+    The crossover scale is $V \sim kT/q \approx 26$ mV at room
+    temperature. Below this bias the device "looks thermal" (current is
+    small, both streams contribute equally and average out); above it
+    the device "looks shot" (one stream dominates and discrete crossings
+    set the noise). The same coth form arises for any Poisson barrier in
+    detailed balance — including tunnel junctions and orthodox-regime
+    single-electron transistors. Full algebraic derivation: §6.4.
+
+    > **Note — $kT/q$ as the universal voltage scale.** The factor
+    > $kT/q \approx 26$ mV at $T = 290$ K controls
+    > *(i)* the diode subthreshold slope ($\ln 10 \cdot kT/q = 60$ mV/decade),
+    > *(ii)* the MOS weak-inversion slope,
+    > *(iii)* the width of the Fermi edge where partition noise lives (§2.3),
+    > *(iv)* the thermal $\leftrightarrow$ shot crossover bias derived above,
+    > *(v)* the noise voltage scale of any resistor at thermal equilibrium:
+    > $\sqrt{4kTR\cdot B} \sim kT/q$ whenever $I = V/R \sim q/\tau$ (one
+    > carrier per measurement window).
+    > Every solid-state noise statement reduces, on dimensional grounds,
+    > to a multiple of $kT/q$ — because the Boltzmann factor
+    > $e^{-\Delta E/kT}$ that controls *every* state-jump probability has
+    > $kT$ as its natural energy scale, and $q$ converts to voltage.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ### 2.6 Physical noise sources — summary
+
+    A short catalog of the noise mechanisms that propagate into circuit
+    analysis, each cross-referenced to its first-principles origin above.
+
+    #### 2.6.1 Thermal (Nyquist) noise
+
+    A resistor $R$ at temperature $T$ has equivalent series voltage-noise
+    PSD $S_v = 4kTR$ (or shunt current-noise PSD $S_i = 4kT/R$). White to
+    the phonon cutoff (~10 THz in metals). Derivation: §2.4
+    (macroscopic equipartition + RC, plus microscopic FDT/Landauer
+    sketch). Full Landauer derivation from $f(1-f)$: §6.3.
+
+    #### 2.6.2 Shot noise
+
+    A DC current $I$ crossing a barrier has $S_i = 2qI$. Applies at
+    diodes, BJT emitter, MOS subthreshold, photodetectors; **not** at
+    ohmic resistors. Derivation: §2.5. The full diode formula
+    $S_i = 2qI\,\coth(qV/2kT)$ interpolates to $4kT g_d$ at zero bias
+    and $2qI$ at high bias (§2.5; algebra details: §6.4).
+
+    #### 2.6.3 Flicker (1/f) noise
+
+    Empirical PSD $S_v(f) = K_v/f$, dominant below the corner $f_c$.
+    In MOS,
+
     $$S_{v_g}(f) \approx \frac{K_f}{W L C_{ox}\,f}.$$
-    Corner frequency $f_c$ = crossover with thermal/shot floor.
 
-    Microscopic model (McWhorter): superposition of many surface traps,
-    each a Lorentzian, producing approximately 1/f over decades.
+    **Microscopic origin (McWhorter model).** A surface trap with
+    capture/emission time $\tau$ contributes a Lorentzian
+    $S_v(f) \propto \tau/(1 + (2\pi f\tau)^2)$ — the same generation-
+    recombination shape as §2.6.4. Summing many traps whose $\tau$ is
+    distributed uniformly in $\log\tau$ produces $S_v(f) \propto 1/f$
+    over the spanned decades. The trap times follow Arrhenius
+    $\tau \propto e^{E_a/kT}$ (the same Boltzmann state-jump probability
+    from §2.5), so a uniform distribution of activation energies $E_a$
+    maps to a uniform distribution of $\log\tau$. The "$kT$ controls
+    state-jumps" picture of §2.5 reappears here as the *temporal*
+    origin of $1/f$.
 
-    #### 2.3.4 Generation-recombination noise
+    #### 2.6.4 Generation-recombination (Lorentzian) noise
 
-    A single trap with capture/emission time constant $\tau$ gives a
-    **Lorentzian** PSD $\sim \tau / (1 + (2\pi f \tau)^2)$. Summing a
-    distribution of $\tau$'s spread over decades reproduces 1/f — the
-    microscopic origin story behind §5.3.
+    A single trap with capture/emission time $\tau$ yields a Lorentzian
+    PSD $S(f) \propto \tau/(1 + (2\pi f\tau)^2)$. Each capture/emission
+    is a Poisson event (counting limit, §2.5) at rate $1/\tau$ set by
+    the Boltzmann factor $e^{-E_a/kT}$. A distribution of $\tau$ over
+    decades reproduces $1/f$ (§2.6.3) — the microscopic origin of
+    flicker noise.
     """)
     return
 
@@ -583,7 +996,9 @@ def _(mo):
     ### 2.0 Formal definition
 
     A **random process** (stochastic process) is a function
+
     $$X : \mathcal{T} \times \Omega \;\longrightarrow\; \mathbb{R},$$
+
     where $\mathcal{T} \subseteq \mathbb{R}$ is the time index set and
     $(\Omega, \mathcal{F}, P)$ is a probability space.
 
@@ -766,6 +1181,7 @@ def _(mo):
     ### 3.3 Autocorrelation and Wiener-Khinchin
 
     **Autocorrelation** of a WSS process:
+
     $$R_X(\tau) = E\bigl[X(t)\,X(t+\tau)\bigr].$$
 
     Basic properties: $R_X(0) = E[X^2] \ge 0$; $R_X(-\tau) = R_X(\tau)$;
@@ -773,6 +1189,7 @@ def _(mo):
     $|\tau| \to \infty$.
 
     **Power spectral density**:
+
     $$S_X(f) = \int_{-\infty}^{\infty} R_X(\tau)\,e^{-j2\pi f\tau}\,d\tau.$$
 
     **Wiener-Khinchin theorem:** for a WSS process, $S_X(f)$ equals the
@@ -857,6 +1274,7 @@ def _(mo):
 
     For a vector process $\mathbf{X}(t) = [X_1, X_2]^T$ the relevant
     object is the $2\times 2$ **matrix-valued PSD**:
+
     $$\mathbf{S}_{\mathbf{X}}(f) = \begin{bmatrix} S_{X_1}(f) & S_{X_1 X_2}(f) \\ S_{X_2 X_1}(f) & S_{X_2}(f) \end{bmatrix}.$$
 
     $\mathbf{S}(f)$ is Hermitian positive-semidefinite at every $f$.
@@ -883,6 +1301,7 @@ def _(mo):
     Both describe the *same* physical noise.
 
     **Sum rules** for multiple sources:
+
     $$S_{\text{total}} = \sum_k S_k\quad \text{(uncorrelated)}, \qquad
     S_{\text{total}} = \sum_k S_k + 2\,\mathrm{Re}\!\sum_{k<\ell} S_{k\ell}\quad\text{(with cross-terms)}.$$
 
@@ -971,15 +1390,20 @@ def _(mo):
     **Setup.** A linear noisy n-port is modelled as a noiseless Y-matrix
     $\mathbf{Y}$ with an additive column vector of Norton noise current sources
     $\mathbf{i}_n = [i_{n1},\ldots,i_{nn}]^T$ injected at each port:
+
     $$\mathbf{i} = \mathbf{Y}\,\mathbf{v} + \mathbf{i}_n.$$
+
     Each $i_{nk}$ is a zero-mean WSS random process; its cross-spectral density
     with $i_{nl}$ is the $(k,l)$ entry of the **Y-form noise correlation matrix**:
+
     $$[\mathbf{C}_Y]_{kl}(f) \;\triangleq\; \frac{\langle i_{nk}(f)\,i_{nl}^*(f)\rangle}{\Delta f}.$$
 
     **Hermitian positive-semidefiniteness.** $\mathbf{C}_Y$ is Hermitian by
     construction ($[\mathbf{C}_Y]_{kl} = [\mathbf{C}_Y]_{lk}^*$). For any
     $\mathbf{a} \in \mathbb{C}^n$:
+
     $$\mathbf{a}^\dagger \mathbf{C}_Y \mathbf{a} = \frac{\langle|\mathbf{a}^\dagger \mathbf{i}_n|^2\rangle}{\Delta f} \ge 0,$$
+
     so $\mathbf{C}_Y \succeq 0$. The diagonal entries are PSDs (non-negative);
     the off-diagonal entries are cross-spectral densities bounded by Cauchy-Schwarz.
 
@@ -987,6 +1411,7 @@ def _(mo):
     $\mathbf{P}' = \mathbf{T}\,\mathbf{P}$ (e.g.\ Y $\to$ Z, Y $\to$ ABCD).
     The same linear map applies to the noise sources:
     $\mathbf{s}'_n = \mathbf{T}\,\mathbf{s}_n$. Therefore:
+
     $$\boxed{\mathbf{C}_{P'} = \mathbf{T}\,\mathbf{C}_P\,\mathbf{T}^\dagger.}$$
 
     *Proof.* $\mathbf{C}_{P'} = \langle\mathbf{s}'_n(\mathbf{s}'_n)^\dagger\rangle/\Delta f
@@ -1001,12 +1426,16 @@ def _(mo):
 
     **Noise wave (S-parameter) representation.** Define noise waves at port $k$
     (reference impedance $Z_0$):
+
     $$b_{nk} = \tfrac{1}{2}\!\left(\sqrt{Z_0}\,i_{nk} - \frac{v_{nk}}{\sqrt{Z_0}}\right).$$
+
     The map from $(v_{nk}, i_{nk})$ to $b_{nk}$ is linear; the wave correlation
     matrix $\mathbf{C}_b = \langle\mathbf{b}_n\mathbf{b}_n^\dagger\rangle/\Delta f$
     satisfies the same congruence rule and propagates under S-matrix cascading
     exactly as $\mathbf{C}_A$ propagates under ABCD cascading:
+
     $$\mathbf{C}_{A,\mathrm{cas}} = \mathbf{C}_{A,1} + \mathbf{A}_1\,\mathbf{C}_{A,2}\,\mathbf{A}_1^\dagger.$$
+
     """)
     return
 
@@ -1018,24 +1447,40 @@ def _(mo):
 
     **Statement (Bosma, 1967).** A passive linear n-port at temperature $T$ has
     noise-wave correlation matrix:
+
     $$\mathbf{C}_b = kT \left( \mathbf{I} - \mathbf{S}\mathbf{S}^\dagger \right) \quad \text{[Theorem: Bosma's Fundamental Result]}$$
 
     **Derivation via Detailed Balance.**
     1. *Thermodynamic Equilibrium Constraints:* Let the n-port be terminated at all ports by matched loads at the same physical temperature $T$. The combined system is in thermodynamic equilibrium. According to the Nyquist-Rayleigh-Jeans relation, each port receives an incident noise wave $a_i$ carrying an available power spectral density of:
+
        $$\frac{\langle \mathbf{a} \mathbf{a}^\dagger \rangle}{\Delta f} = kT \mathbf{I}$$
+
     2. *Linear Superposition of Waves:* The outgoing wave vector $\mathbf{b}$ consists of the reflected and transmitted incident waves plus the internally generated noise wave vector $\mathbf{b}_n$:
+
        $$\mathbf{b} = \mathbf{S}\mathbf{a} + \mathbf{b}_n$$
+
        Since the internal noise sources of the network are independent of external terminations, $\mathbf{b}_n$ is uncorrelated with the incident wave vector $\mathbf{a}$:
+
        $$\langle \mathbf{b}_n \mathbf{a}^\dagger \rangle = \mathbf{0} \quad \text{and} \quad \langle \mathbf{a} \mathbf{b}_n^\dagger \rangle = \mathbf{0}$$
+
     3. *Detailed Balance Principle:* In thermodynamic equilibrium, the power outgoing from any port must equal the power incident on it to prevent net heat transfer:
+
        $$\frac{\langle \mathbf{b} \mathbf{b}^\dagger \rangle}{\Delta f} = \frac{\langle \mathbf{a} \mathbf{a}^\dagger \rangle}{\Delta f} = kT \mathbf{I}$$
+
     4. *Algebraic Derivation:* Substituting the superposition relation into the detailed balance expression:
+
        $$\frac{\langle (\mathbf{S}\mathbf{a} + \mathbf{b}_n)(\mathbf{S}\mathbf{a} + \mathbf{b}_n)^\dagger \rangle}{\Delta f} = kT \mathbf{I}$$
+
        Expanding the product:
+
        $$\frac{1}{\Delta f} \left( \mathbf{S}\langle \mathbf{a}\mathbf{a}^\dagger \rangle\mathbf{S}^\dagger + \mathbf{S}\langle \mathbf{a}\mathbf{b}_n^\dagger \rangle + \langle \mathbf{b}_n\mathbf{a}^\dagger \rangle\mathbf{S}^\dagger + \langle \mathbf{b}_n\mathbf{b}_n^\dagger \rangle \right) = kT \mathbf{I}$$
+
        Applying the lack of correlation ($\langle \mathbf{b}_n \mathbf{a}^\dagger \rangle = \mathbf{0}$) and the covariance of incident waves ($\langle \mathbf{a} \mathbf{a}^\dagger \rangle = kT \Delta f \mathbf{I}$):
+
        $$kT \mathbf{S}\mathbf{S}^\dagger + \mathbf{C}_b = kT \mathbf{I}$$
+
        Isolating $\mathbf{C}_b$ yields:
+
        $$\mathbf{C}_b = kT \left( \mathbf{I} - \mathbf{S}\mathbf{S}^\dagger \right) \quad \square$$
 
     **Consistency checks.**
@@ -1070,6 +1515,7 @@ def _(mo):
 ### 4.1 Noise figure F
 
     **Classical definition (Friis, 1944):**
+
     $$F \;\triangleq\; \frac{\mathrm{SNR}_{\text{in}}}{\mathrm{SNR}_{\text{out}}}
     \quad\text{at source temperature } T_0 = 290\text{ K.}$$
 
@@ -1078,6 +1524,7 @@ def _(mo):
     $F = 1$ means noiseless.
 
     **Equivalent noise temperature:**
+
     $$T_e \;=\; (F - 1)\,T_0.$$
 
     $T_e$ is the temperature a noiseless copy of the two-port would need
@@ -1154,6 +1601,7 @@ def _(mo):
     equivalent $(v_n, i_n)$ pair at the input.
 
     The **noise correlation matrix** in ABCD form:
+
     $$\mathbf{C_A} = \left\langle\begin{bmatrix} v_n \\ i_n \end{bmatrix}\begin{bmatrix} v_n^* & i_n^* \end{bmatrix}\right\rangle = \begin{bmatrix} \overline{|v_n|^2} & \overline{v_n i_n^*} \\ \overline{v_n^* i_n} & \overline{|i_n|^2} \end{bmatrix}$$
 
     Hermitian, positive-semidefinite, 2×2 — exactly the matrix PSD
@@ -1410,6 +1858,7 @@ def _(mo):
     ### 4.7 Cascaded noise — the Friis formula
 
     **Noise-temperature form** (simpler to derive):
+
     $$T_{e,\text{tot}} \;=\; T_{e,1} \;+\; \frac{T_{e,2}}{G_{A,1}} \;+\; \frac{T_{e,3}}{G_{A,1}\,G_{A,2}} \;+\; \cdots$$
 
     Derivation: each stage adds $T_{e,k}$ of noise *referred to its own input*;
@@ -1417,6 +1866,7 @@ def _(mo):
     gains of all preceding stages.
 
     **Noise-figure form** (substitute $T_e = (F-1)T_0$ and simplify):
+
     $$\boxed{\;F_{\text{tot}} \;=\; F_1 \;+\; \frac{F_2 - 1}{G_{A,1}} \;+\; \frac{F_3 - 1}{G_{A,1}\,G_{A,2}} \;+\; \cdots\;}$$
 
     **Why available gain $G_A$ and not $G_T$ or $G$?** Each stage is
@@ -1532,26 +1982,47 @@ def _(mo):
 
     **Derivation from First Principles.**
     1. *Outgoing Noise Wave Setup:* Let the noisy two-port be modeled as a noiseless network with scattering matrix $\mathbf{S}$ and internal noise wave vector $\mathbf{b}_n = [b_{n1}, b_{n2}]^T$. We connect a source with reflection coefficient $\Gamma_S$ to Port 1 and terminate Port 2 with a matched load ($\Gamma_L = 0$):
+
        $$a_1 = \Gamma_S b_1$$
+
        $$a_2 = 0$$
+
     2. *Wave Relations:*
+
        $$b_1 = S_{11} a_1 + S_{12} a_2 + b_{n1} = S_{11} \Gamma_S b_1 + b_{n1} \implies b_1 = \frac{b_{n1}}{1 - S_{11}\Gamma_S}$$
+
        The incident wave at Port 1 is:
+
        $$a_1 = \frac{\Gamma_S b_{n1}}{1 - S_{11}\Gamma_S}$$
+
        The outgoing noise wave at Port 2 is:
+
        $$b_2 = S_{21} a_1 + b_{n2} = \frac{S_{21}\Gamma_S}{1 - S_{11}\Gamma_S} b_{n1} + b_{n2}$$
+
     3. *Input Referral:* Divide the outgoing noise wave $b_2$ by the transmission gain term $\frac{S_{21}}{1 - S_{11}\Gamma_S}$ to refer it to the input:
+
        $$b_{n,\text{in}} = \frac{1 - S_{11}\Gamma_S}{S_{21}} b_2 = \Gamma_S b_{n1} + \frac{1 - S_{11}\Gamma_S}{S_{21}} b_{n2}$$
+
        Defining the row vector $\boldsymbol{\alpha}$:
+
        $$\boldsymbol{\alpha} = \begin{bmatrix} \Gamma_S & \frac{1 - S_{11}\Gamma_S}{S_{21}} \end{bmatrix}$$
+
        We obtain the equivalent input-referred noise wave:
+
        $$b_{n,\text{in}} = \boldsymbol{\alpha} \mathbf{b}_n$$
+
     4. *Available Noise Power Referral:* The mean-squared input-referred noise wave is:
+
        $$\overline{|b_{n,\text{in}}|^2} = \boldsymbol{\alpha} \langle \mathbf{b}_n \mathbf{b}_n^\dagger \rangle \boldsymbol{\alpha}^\dagger = \boldsymbol{\alpha} \mathbf{C}_b \boldsymbol{\alpha}^\dagger \Delta f$$
+
        To find the available power at the input, we divide by the source mismatch factor $(1 - |\Gamma_S|^2)$:
+
        $$P_{n,\text{in,avail}} = \frac{\overline{|b_{n,\text{in}}|^2}}{(1 - |\Gamma_S|^2) \Delta f} = \frac{\boldsymbol{\alpha} \mathbf{C}_b \boldsymbol{\alpha}^\dagger}{1 - |\Gamma_S|^2}$$
+
        Equating this to the available thermal noise power from an equivalent source at temperature $T_e$:
+
        $$k T_e = \frac{\boldsymbol{\alpha} \mathbf{C}_b \boldsymbol{\alpha}^\dagger}{1 - |\Gamma_S|^2} \implies T_e = \frac{\boldsymbol{\alpha}\mathbf{C}_b\boldsymbol{\alpha}^\dagger}{k(1 - |\Gamma_S|^2)} \quad \square$$
+
     """)
     return
 
@@ -1597,21 +2068,37 @@ def _(mo):
 
     *Derivation.*
     1. Let the noise measures of Stage A and Stage B be:
+
        $$M_A \triangleq \frac{F_A - 1}{1 - 1/G_A} \quad \text{and} \quad M_B \triangleq \frac{F_B - 1}{1 - 1/G_B} \quad \text{[Definition]}$$
+
     2. Using the Friis cascade formula, the overall noise factors for configurations $AB$ and $BA$ are:
+
        $$F_{AB} = F_A + \frac{F_B - 1}{G_A} \quad \text{and} \quad F_{BA} = F_B + \frac{F_A - 1}{G_B}$$
+
     3. We set the inequality for configuration $AB$ to be superior to $BA$:
+
        $$F_{AB} < F_{BA} \implies F_A + \frac{F_B - 1}{G_A} < F_B + \frac{F_A - 1}{G_B}$$
+
     4. Subtract 1 from both sides to express in terms of excess noise factors:
+
        $$(F_A - 1) + \frac{F_B - 1}{G_A} < (F_B - 1) + \frac{F_A - 1}{G_B}$$
+
     5. Group the $(F_A - 1)$ and $(F_B - 1)$ terms to simplify the inequality:
+
        $$(F_A - 1) - \frac{F_A - 1}{G_B} < (F_B - 1) - \frac{F_B - 1}{G_A}$$
+
     6. Factor the expressions:
+
        $$(F_A - 1) \left( 1 - \frac{1}{G_B} \right) < (F_B - 1) \left( 1 - \frac{1}{G_A} \right)$$
+
     7. Assuming active stages with available gains $G_A > 1$ and $G_B > 1$, the factors $\left(1 - \frac{1}{G_A}\right)$ and $\left(1 - \frac{1}{G_B}\right)$ are positive. Dividing by their product yields:
+
        $$\frac{F_A - 1}{1 - 1/G_A} < \frac{F_B - 1}{1 - 1/G_B}$$
+
        which, by definition, is:
+
        $$M_A < M_B \quad \square$$
+
     """)
     return
 
@@ -1731,6 +2218,7 @@ def _(mo):
     the noise conductance at the optimum point).
 
     **At the device level** (Shaeffer-Lee, §16.4):
+
     $$R_n \approx \frac{\gamma}{\alpha\,g_m\,Z_0}.$$
 
     Increasing $g_m$ (wider device, higher bias current $I_D$) reduces $R_n$
@@ -2709,8 +3197,10 @@ def _(mo):
     A parametric amplifier pumped at $2\omega_0$ (degenerate operation) acts
     phase-sensitively: it amplifies the I-quadrature by $\sqrt{G}$ and
     attenuates the Q-quadrature by $1/\sqrt{G}$. For thermal input noise:
+
     $$\langle n_I^2\rangle \to G\,kTB, \qquad
     \langle n_Q^2\rangle \to \frac{kTB}{G}.$$
+
     The product $\langle n_I^2\rangle\langle n_Q^2\rangle = (kTB)^2$ is
     preserved; total noise power is unchanged. This is **classical noise
     squeezing** — redistribution without destruction.
@@ -2731,13 +3221,16 @@ def _(mo):
     quantum limit (SQL)**, squeezing one quadrature below $\hbar\omega/2$
     violates no physical law, provided the conjugate quadrature satisfies the
     Heisenberg-Robertson uncertainty relation:
+
     $$\Delta n_I \cdot \Delta n_Q \ge \frac{\hbar\omega}{2}.$$
 
     Reaching the quantum regime at microwave frequencies requires
     $kT \lesssim \hbar\omega$, i.e.\ $T \lesssim T^* = \hbar\omega/k$.
     At $\omega/2\pi = 10$ GHz: $T^* \approx 0.5$ K. The thermal photon
     occupation number is
+
     $$\bar{n} = \frac{kT}{\hbar\omega} \approx \frac{4.0\times10^{-21}\,\mathrm{J}}{6.6\times10^{-24}\,\mathrm{J}} \approx 600 \quad \text{at } T = 290\text{ K},$$
+
     so room-temperature microwave fields are deeply classical. At dilution-fridge
     temperatures ($T \lesssim 20$ mK, $\bar{n} \lesssim 0.04$), quantum
     squeezing below the SQL has been demonstrated with Josephson Parametric
@@ -2761,6 +3254,140 @@ def _(mo):
     approach the quantum limit. This is why radio-telescope front ends use
     cryogenic LNAs ($T_e \approx 5$–20 K) and superconducting-qubit readout
     chains operate at dilution-fridge temperatures.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ### 6.3 Microscopic Nyquist — Landauer-Büttiker derivation
+
+    Setup: a conductor connecting two reservoirs (left $L$, right $R$)
+    at temperature $T$ and chemical potentials $\mu_L = \mu_R = \mu$
+    (equilibrium). The conductor supports $M$ transverse modes with
+    energy-dependent transmission probabilities
+    $\{\mathcal{T}_n(\varepsilon)\}_{n=1}^M$.
+
+    **Current per channel.** Each spin-degenerate channel carries a
+    forward current $e\,v(\varepsilon)\,g(\varepsilon)\,n_L\,\mathcal{T}_n$
+    and a backward $e\,v(\varepsilon)\,g(\varepsilon)\,n_R\,\mathcal{T}_n$,
+    where $g(\varepsilon) = 1/(h\,v(\varepsilon))$ is the 1D density of
+    states (one direction). The velocity-DoS product $v\cdot g = 1/h$ is
+    the celebrated cancellation that makes 1D ballistic conductance
+    universal. The net current is
+
+    $$I = \frac{2e}{h}\sum_n \int \mathcal{T}_n(\varepsilon)
+    \bigl[n_L(\varepsilon) - n_R(\varepsilon)\bigr]\,d\varepsilon,$$
+
+    with $n_{L,R}(\varepsilon) = f(\varepsilon; \mu_{L,R}, T)$ Fermi-Dirac
+    (the factor of 2 is spin degeneracy).
+
+    **Linear-response conductance.** Expanding to first order in
+    $V = (\mu_L - \mu_R)/e$ and using $-\partial f/\partial\varepsilon
+    \to \delta(\varepsilon - \mu)$ at $T = 0$,
+
+    $$G = \frac{dI}{dV} = \frac{2e^2}{h}\sum_n \mathcal{T}_n(\mu)
+    \quad \text{[Landauer formula, theorem]}.$$
+
+    **Equilibrium current noise.** Each channel is a two-terminal
+    scattering problem with binomial partition statistics for each
+    energy slice. The general (Lesovik-Levitov) result for the current
+    noise PSD, with the same spin doubling as the current operator and
+    in the one-sided PSD convention, is
+
+    $$S_I = \frac{4e^2}{h}\sum_n \int
+    \Bigl\{\mathcal{T}_n\bigl[n_L(1-n_L) + n_R(1-n_R)\bigr]
+    + \mathcal{T}_n(1-\mathcal{T}_n)(n_L - n_R)^2\Bigr\}d\varepsilon.$$
+
+    At equilibrium $n_L = n_R = f$, the second (quantum-partition) term
+    vanishes and $n_L(1-n_L) + n_R(1-n_R) = 2f(1-f)$, so
+
+    $$S_I^{(\text{eq})} = \frac{8e^2}{h}\sum_n \mathcal{T}_n
+    \int f(\varepsilon)\bigl(1 - f(\varepsilon)\bigr)\,d\varepsilon.$$
+
+    **Evaluation.** Using the universal Fermi-edge integral from §2.3,
+    $\int f(1-f)\,d\varepsilon = kT$, and the Landauer conductance
+    $G = (2e^2/h)\sum_n \mathcal{T}_n$,
+
+    $$\boxed{S_I^{(\text{eq})}
+    = \frac{8e^2}{h}\sum_n \mathcal{T}_n \cdot kT
+    = 4kT\,G}
+    \quad \text{[microscopic Nyquist, theorem]}.$$
+
+    Inverting to a voltage source: $S_V = S_I/G^2 = 4kT/G = 4kTR$.
+    **The Nyquist formula is recovered from purely microscopic
+    partition statistics.**
+
+    The non-equilibrium ($V \ne 0$) contribution
+    $\propto \mathcal{T}_n(1-\mathcal{T}_n)$ — absent at $V = 0$ —
+    is the *quantum partition noise* that distinguishes ballistic
+    conductors from classical wires. For perfect transmission
+    $\mathcal{T} = 1$ it vanishes (a fully open channel has zero
+    partition noise); for tunnelling $\mathcal{T} \ll 1$ it reduces to
+    the full Poisson shot noise $S_I = 2eI$ of §2.5. This single
+    framework therefore *contains* both Nyquist (equilibrium) and
+    Schottky (non-equilibrium tunnelling) as limits.
+    """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ### 6.4 The diode noise crossover — algebra of the coth form
+
+    The result $S_I = 2qI\coth(qV/2kT)$ from §2.5 has two equivalent
+    expressions; the algebra below verifies their identity.
+
+    **Form 1 — sum of forward and reverse Poisson streams.**
+    Detailed balance at the junction:
+
+    $$I_+ = I_s e^{qV/kT}, \quad I_- = I_s,$$
+
+    $$I = I_+ - I_- = I_s\bigl(e^{qV/kT}-1\bigr).$$
+
+    Each stream is independently Poisson at rate $I_\pm/q$. The streams
+    are uncorrelated (independent barriers), so noise variances add:
+
+    $$S_I = 2qI_+ + 2qI_- = 2q I_s\bigl(e^{qV/kT} + 1\bigr).$$
+
+    **Form 2 — coth.** Define $x = qV/2kT$. Then
+
+    $$e^{qV/kT} + 1 = e^{2x} + 1 = e^x\bigl(e^x + e^{-x}\bigr),$$
+
+    $$e^{qV/kT} - 1 = e^{2x} - 1 = e^x\bigl(e^x - e^{-x}\bigr),$$
+
+    giving $(e^{qV/kT}+1)/(e^{qV/kT}-1)
+    = (e^x + e^{-x})/(e^x - e^{-x}) = \coth(x)$. Hence
+
+    $$S_I = 2q I_s\bigl(e^{qV/kT}-1\bigr)
+    \cdot \frac{e^{qV/kT}+1}{e^{qV/kT}-1}
+    = 2qI\,\coth\!\left(\frac{qV}{2kT}\right). \;\;\square$$
+
+    **Limits — algebra check.**
+
+    *Zero bias.* For $x \to 0$, $\coth(x) \to 1/x = 2kT/(qV)$, so
+
+    $$S_I \to 2qI \cdot \frac{2kT}{qV} = 4kT\,\frac{I}{V} = 4kT\,g_d,$$
+
+    where $g_d \equiv I/V$ is the chord conductance. At $V \to 0$ the
+    chord conductance equals the differential conductance
+    $g_d = dI/dV\big|_{V=0} = qI_s/kT$, recovering Johnson noise of the
+    small-signal conductance.
+
+    *High bias.* For $x \gg 1$, $\coth(x) \to 1$, $S_I \to 2qI$ —
+    pure Schottky shot. The crossover scale is $x \sim 1$, i.e.\
+    $V \sim 2kT/q \approx 50$ mV at room temperature.
+
+    **Universality.** The same coth form arises for any Poisson barrier
+    obeying detailed balance — tunnel junctions, ballistic point
+    contacts, single-electron transistors in the orthodox regime — and
+    it generalises to the Landauer framework of §6.3 with
+    $\mathcal{T}(1-\mathcal{T})$ replacing the binomial factor. It is
+    the simplest closed-form expression of the principle that thermal
+    noise and shot noise are limits of the same underlying barrier-
+    crossing statistics, made quantitative in one line.
     """)
     return
 
