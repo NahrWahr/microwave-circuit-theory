@@ -360,138 +360,11 @@ def _(np):
             })
         return solutions
 
-    # v1.0
-    """Pure-Python helpers for cyclostationary noise analysis.
-
-    Used by notebook 05 (Matching Networks and Cyclostationary Noise).
-    No marimo imports. Covers mixer conversion-matrix NF and kT/C sampler noise.
-    """
-
-
-
-
-    # ---------------------------------------------------------------------------
-    # Mixer noise figure (conversion-matrix approximation)
-    # ---------------------------------------------------------------------------
-
-    def mixer_NF_DSB(L_c_dB: float, T0: float = 290.0) -> float:
-        """DSB noise figure of an ideal resistive mixer (dB).
-
-        For a purely resistive mixing element (switches between R_on and R_off),
-        the DSB NF equals the conversion loss in dB.
-        L_c_dB: conversion loss (dB), positive number.
-        """
-        assert L_c_dB >= 0
-        return float(L_c_dB)
-
-
-    def mixer_NF_SSB(L_c_dB: float, IRR_dB: float = 0.0, T0: float = 290.0) -> float:
-        """SSB noise figure of a mixer (dB), accounting for image noise.
-
-        IRR_dB: image rejection ratio (dB). 0 dB = no image rejection (single balanced).
-        For ideal double-balanced mixer with infinite IRR: NF_SSB = NF_DSB + 3 dB.
-        """
-        L_c = 10 ** (L_c_dB / 10)
-        IRR = 10 ** (IRR_dB / 10)
-        F_DSB = L_c  # linear
-        # Image noise contribution: power folds in with factor 1/IRR
-        F_SSB = F_DSB + (1.0 / IRR) * (T0 / T0)  # simplified: image adds kT_0/IRR
-        # For zero IRR (no rejection): F_SSB = 2*F_DSB → NF_SSB = NF_DSB + 3 dB
-        return float(10 * np.log10(F_SSB))
-
-
-    def friis_cascade(stages: list[dict]) -> dict:
-        """Friis noise cascade for a list of stages.
-
-        Each stage dict: {"F_dB": float, "G_dB": float}.
-        Returns: {"F_total_dB": float, "contributions": list[float]}.
-        The contribution list shows (F_i - 1)/prod(G_j, j<i) / (F_total - 1) as a fraction.
-        """
-        Fs = [10 ** (s["F_dB"] / 10) for s in stages]
-        Gs = [10 ** (s["G_dB"] / 10) for s in stages]
-        F_total = Fs[0]
-        G_prod = Gs[0]
-        for k in range(1, len(stages)):
-            F_total += (Fs[k] - 1.0) / G_prod
-            G_prod *= Gs[k]
-        contributions = []
-        G_prod = 1.0
-        for k, (F, G) in enumerate(zip(Fs, Gs)):
-            contrib = (F - 1.0) / G_prod / (F_total - 1.0) if F_total > 1.0 else 0.0
-            contributions.append(float(contrib))
-            G_prod *= G
-        return {"F_total_dB": float(10 * np.log10(F_total)),
-                "F_total_lin": float(F_total),
-                "contributions": contributions}
-
-
-    # ---------------------------------------------------------------------------
-    # kT/C sampler noise
-    # ---------------------------------------------------------------------------
-
-    def ktc_noise_voltage(C_F: float, T: float = 290.0) -> float:
-        """RMS noise voltage on a hold capacitor (V).
-
-        V_n = sqrt(kT / C). Independent of switch resistance.
-        """
-        k = 1.380649e-23
-        return float(np.sqrt(k * T / C_F))
-
-
-    def noise_folding_penalty_dB(N_aliases: int) -> float:
-        """Noise figure penalty (dB) from N-fold aliasing in an under-sampled receiver.
-
-        Assumes the noise is white over the full pre-sample bandwidth.
-        """
-        assert N_aliases >= 1
-        return float(10 * np.log10(N_aliases))
-
-
-    def sampler_settling_requirement(f_s: float, N_bits: int) -> float:
-        """Maximum RC settling time constant (s) for N-bit accuracy at sample rate f_s.
-
-        Condition: exp(-T_s / (2*tau)) < 2^(-N) → tau < T_s / (2 * N * ln2).
-        """
-        T_s = 1.0 / f_s
-        return float(T_s / (2.0 * N_bits * np.log(2.0)))
-
-
-    # ---------------------------------------------------------------------------
-    # Cyclostationary PSD helper
-    # ---------------------------------------------------------------------------
-
-    def cyclo_time_avg_psd(S_n: list[float], f_LO: float,
-                           freqs: np.ndarray) -> np.ndarray:
-        """Time-averaged PSD of a cyclostationary process.
-
-        Given cyclic spectral components S_n (one-sided, n=0,1,...) at
-        IF frequencies near f_IF = freqs, the time-averaged PSD is:
-
-            S_avg(f) = Σ_n S_n * δ-like contribution at f ± n*f_LO
-
-        Here we return a broadened representation: each S_n contributes
-        a Gaussian of width σ=f_LO/50 centred at f_IF + n*f_LO (n=0 term only
-        is at the IF; higher n appear at image-band offsets).
-
-        This is for illustration only — the delta functions are convolved with
-        a narrow Gaussian to be plottable.
-        """
-        psd = np.zeros_like(freqs, dtype=float)
-        sigma = f_LO / 50.0
-        for n, Sn in enumerate(S_n):
-            f_center = n * f_LO
-            psd += Sn * np.exp(-0.5 * ((freqs - f_center) / sigma) ** 2)
-        return psd
-
     return (
         bode_fano_gamma_max,
         chebyshev_prototype,
-        friis_cascade,
         l_network,
         l_network_S,
-        mixer_NF_DSB,
-        mixer_NF_SSB,
-        noise_folding_penalty_dB,
         pi_network,
         pi_network_S,
         qw_transformer,
@@ -504,10 +377,11 @@ def _(np):
 @app.cell
 def _(mo):
     mo.md(r"""
-    # 05 — Matching Networks, Broadband Design, and Cyclostationary Noise
+    # 05 — Matching Networks and Broadband Design
 
     Builds on notebooks 01–04. Lumped and distributed impedance matching,
-    Bode-Fano bandwidth limits, transformer coupling, and mixer/sampler noise.
+    Bode-Fano bandwidth limits, transformer coupling. Mixer and sampler noise
+    (cyclostationary) moved to notebook 04 §3.8, §4.9.
     """)
     return
 
@@ -2248,173 +2122,9 @@ def _(mo):
 @app.cell
 def _(mo):
     mo.md(r"""
-    ## Part VI — Cyclostationary Noise in Mixers and Samplers
+    ## Part VI — Summary
 
-    ### §18. Cyclostationary Processes
-
-    A process $x(t)$ is **wide-sense cyclostationary** with period $T = 1/f_{\text{LO}}$ if its mean and autocorrelation function are periodic:
-
-    $$R_x(t, \tau) \triangleq E[x(t)\,x(t+\tau)] = R_x(t+T, \tau)$$
-
-    Fourier expanding in $t$:
-
-    $$R_x(t, \tau) = \sum_{n=-\infty}^{\infty} R_n(\tau)\,e^{jn\omega_{\text{LO}} t}, \qquad
-      R_n(\tau) = \frac{1}{T}\int_0^T R_x(t,\tau)\,e^{-jn\omega_{\text{LO}} t}\,dt$$
-
-    The **cyclic spectral densities** $S_n(f) = \mathcal{F}\{R_n(\tau)\}$ describe spectral correlation between frequency components separated by $nf_{\text{LO}}$. The $n=0$ term is the ordinary time-averaged power spectral density (PSD).
-
-    **Why stationary analysis fails in a mixer.** Thermal noise at the RF input at frequency $f_{\text{RF}}$ and image frequency $f_{\text{RF}} - 2f_{\text{IF}}$ both mix to the same IF frequency $f_{\text{IF}}$. The **conversion matrix** $\mathbf{C}$ maps input noise spectral vector $\mathbf{a}$ (components at $f \pm nf_{\text{LO}}$) to output vector $\mathbf{b} = \mathbf{C}\mathbf{a}$, with $C_{mn} = g_{m-n}$ (Fourier coefficient of the time-varying conductance).
-    Output noise matrix: $\mathbf{S}_{\text{out}} = \mathbf{C}\,\mathbf{S}_{\text{in}}\,\mathbf{C}^\dagger$.
-    """)
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""
-    ### §19. Mixer Noise Theory
-
-    Model the MOSFET switch as a time-varying conductance $g(t)$ driven by a square-wave LO: $g(t) = g_{\text{on}}$ for $0 < t < T/2$, $g_{\text{off}}$ otherwise.
-    The Fourier coefficients are given by:
-
-    $$g_n = \frac{1}{T}\int_0^T g(t)\,e^{-jn\omega_{\text{LO}} t}\,dt = \frac{g_{\text{on}} - g_{\text{off}}}{j\pi n},\quad n \neq 0$$
-
-    Channel thermal noise current PSD is directly proportional to the instantaneous conductance: $S_i(t,f) = 4kT\,g(t)$ — a fundamental cyclostationary process.
-
-    **DSB noise figure.** The IF output collects noise from both the signal band ($f_{\text{LO}} + f_{\text{IF}}$) and the image band ($f_{\text{LO}} - f_{\text{IF}}$) with equal weight. For a resistive switch, it can be proven that $NF_{\text{DSB}} = L_c$ (conversion loss in dB).
-
-    **SSB noise figure.** Only one sideband carries the signal; the image contributes noise without signal. For an ideal balanced mixer with **no** image rejection:
-
-    $$NF_{\text{SSB}} = NF_{\text{DSB}} + 10\log_{10}(2) \approx NF_{\text{DSB}} + 3\,\text{dB}$$
-
-    With image rejection ratio $\text{IRR}$ (dB), the image noise contribution is suppressed by $10^{-\text{IRR}/10}$, recovering $NF_{\text{SSB}} \to NF_{\text{DSB}}$ as $\text{IRR} \to \infty$.
-
-    **Friis with mixer** (extending notebook 04 §11):
-
-    $$F_{\text{sys}} = F_{\text{LNA}} + \frac{F_{\text{mixer}} - 1}{G_{A,\text{LNA}}}$$
-
-    For $G_{A,\text{LNA}} = 15\,\text{dB}$ (32×) and $F_{\text{mixer}} = 10$ (10 dB SSB):
-    $(10 - 1)/32 = 0.28$ linear → negligible vs. $F_{\text{LNA}} - 1 \approx 0.78$ for 3.5 dB NF.
-    """)
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""
-    ### §20. Switched-Capacitor (Sampler) Noise
-
-    A track-and-hold circuit samples an input voltage with switch resistance $R_{\text{sw}}$ and hold capacitor $C_h$. During track phase, it forms an RC low-pass filter with noise bandwidth $BW_n = 1/(4R_{\text{sw}} C_h)$.
-
-    The total integrated noise charge on the capacitor is the integral of the filtered Johnson noise PSD:
-
-    $$\langle v_n^2 \rangle = \int_0^\infty \frac{4kT R_{\text{sw}}}{1 + (\omega R_{\text{sw}} C_h)^2}\,\frac{d\omega}{2\pi} = \frac{kT}{C_h}$$
-
-    The $R_{\text{sw}}$ cancels entirely — the noise power on the capacitor is fundamentally independent of the switch resistance. This is the **kT/C noise** limit.
-
-    **Noise folding from aliasing.** If the input noise BW is $B$ and the sample rate is $f_s$, then $N = \lceil B/f_s \rceil$ noise images fold into the baseband $[0, f_s/2]$.
-    The effective noise PSD rises by $10\log_{10}(N)\,\text{dB}$:
-
-    $$\text{Noise folding penalty} = 10\log_{10}(N)\,\text{dB}$$
-
-    **Settling requirement** for $N_b$-bit resolution:
-    The track settling error must be less than 1 LSB, so $e^{-T_s/(2\tau)} < 2^{-N_b}$. Thus:
-    $\tau = R_{\text{sw}} C_h \ll \frac{T_s}{2 N_b \ln 2}$.
-
-    At 28 GHz direct RF sampling ($f_s = 56\,\text{GHz}$, $N_b = 8$):
-    $\tau \ll 1.3\,\text{ps}$ → $R_{\text{sw}} C_h \ll 1.3\,\text{ps}$,
-    requiring $R_{\text{sw}} < 10\,\Omega$ for $C_h = 100\,\text{fF}$.
-    Sub-10 Ω switch on-resistance at 28 GHz is feasible but challenging.
-    This motivates heterodyne architecture (down-convert first to a lower IF, then sample).
-    """)
-    return
-
-
-@app.cell
-def _(mo):
-
-    Lc_mx      = mo.ui.slider(3.0, 15.0, value=7.0, step=0.5, label="Conv. Loss (dB)")
-    IRR_mx     = mo.ui.slider(0.0, 60.0, value=20.0, step=1.0, label="Image Reject. (dB)")
-    fLO_mx     = mo.ui.slider(1e9, 100e9, value=28e9, step=1e9, label="f_LO (Hz)")
-    GA_LNA_mx  = mo.ui.slider(0.0, 30.0, value=15.0, step=0.5, label="LNA Gain (dB)")
-    NF_LNA_mx  = mo.ui.slider(0.5, 10.0, value=3.5, step=0.1, label="LNA NF (dB)")
-    N_aliases  = mo.ui.slider(1, 16, value=1, step=1, label="Alias folds N")
-
-    mo.md("### §21. Interactive IV — Mixer Noise Explorer")
-    return GA_LNA_mx, IRR_mx, Lc_mx, NF_LNA_mx, N_aliases, fLO_mx
-
-
-@app.cell
-def _(
-    GA_LNA_mx,
-    IRR_mx,
-    Lc_mx,
-    NF_LNA_mx,
-    N_aliases,
-    fLO_mx,
-    friis_cascade,
-    go,
-    mixer_NF_DSB,
-    mixer_NF_SSB,
-    mo,
-    noise_folding_penalty_dB,
-):
-    _Lc    = float(Lc_mx.value)
-    _IRR   = float(IRR_mx.value)
-    _GA    = float(GA_LNA_mx.value)
-    _NF_L  = float(NF_LNA_mx.value)
-    _N_al  = int(N_aliases.value)
-
-    _NF_DSB_mx = mixer_NF_DSB(_Lc)
-    _NF_SSB_mx = mixer_NF_SSB(_Lc, _IRR)
-    _fold_dB   = noise_folding_penalty_dB(_N_al)
-
-    _stages = [
-        {"F_dB": _NF_L, "G_dB": _GA},
-        {"F_dB": _NF_SSB_mx, "G_dB": -_Lc},
-    ]
-    _res = friis_cascade(_stages)
-    _F_total_dB = _res["F_total_dB"]
-    _contrib = _res["contributions"]
-
-    _fig_mx = go.Figure()
-    _fig_mx.add_trace(go.Bar(
-        x=["LNA", "Mixer (SSB)"],
-        y=[_contrib[0] * 100, _contrib[1] * 100],
-        marker_color=["#636EFA", "#EF553B"],
-        text=[f"{c*100:.1f}%" for c in _contrib],
-        textposition="outside"
-    ))
-    _fig_mx.update_layout(
-        template="plotly_dark", height=400,
-        yaxis_title="Contribution to F_total − 1 (%)",
-        title=f"System NF = {_F_total_dB:.2f} dB | DSB NF = {_NF_DSB_mx:.1f} dB | SSB NF = {_NF_SSB_mx:.1f} dB"
-    )
-
-    _summary = mo.md(f"""
-    | Quantity | Value |
-    |---|---|
-    | Mixer DSB NF | {_NF_DSB_mx:.2f} dB |
-    | Mixer SSB NF | {_NF_SSB_mx:.2f} dB |
-    | System NF (LNA + Mixer) | {_F_total_dB:.2f} dB |
-    | Noise folding penalty ({_N_al}×) | {_fold_dB:.2f} dB |
-    """)
-
-    mo.vstack([
-        mo.hstack([Lc_mx, IRR_mx, fLO_mx]),
-        mo.hstack([GA_LNA_mx, NF_LNA_mx, N_aliases]),
-        mo.ui.plotly(_fig_mx),
-        _summary
-    ])
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""
-    ## Part VII — Summary
-
-    ### §22. Summary and Bridge to Notebook 06
+    ### §18. Summary and Bridge to Notebook 06
 
     The complete receiver design chain is now assembled:
 
@@ -2422,10 +2132,9 @@ def _(mo):
        degeneration → $NF \approx F_{\min}$.
     2. **Input/output matching** (this notebook): Bode-Fano bounds the achievable
        bandwidth; L/π/T or stub/transformer networks realise the target impedance.
-    3. **Mixer** (this notebook): SSB $NF_{\text{mixer}} = NF_{\text{DSB}} + 3\,\text{dB}$
-       (absent image rejection); Friis shows it is suppressed by LNA gain.
-    4. **Sampler** (this notebook): kT/C sets the noise floor; noise folding penalises
-       direct-RF architectures.
+    3. **Switched-circuit noise** (notebook 04 §4.9): mixer SSB NF and sampler kT/C
+       sit in the receiver chain; both are governed by the WSC framework of
+       notebook 04 §3.8.
 
     **Open problems for notebook 06:**
 
@@ -2437,9 +2146,9 @@ def _(mo):
     Concept-dependency map:
 
     ```
-    05 §4–6  L/π/T synthesis  ──►  06 PA output matching
-    05 §8–10 Bode-Fano / Chebyshev  ──►  06 broadband PA
-    05 §18–20 Cyclostationary  ──►  06 AM-PM / PA nonlinear noise
+    05 §4–6   L/π/T synthesis  ──►  06 PA output matching
+    05 §8–10  Bode-Fano / Chebyshev  ──►  06 broadband PA
+    04 §3.8   Cyclostationary processes  ──►  06 AM-PM / PA nonlinear noise
     ```
     """)
     return

@@ -797,10 +797,10 @@ def _(mo):
     The state-dependence of $B(\mathbf{x})$ encodes
     **cyclostationary noise**: a transistor's white-noise current is
     proportional to its bias current, which itself rides the periodic
-    waveform. This is the same cyclostationary structure that appeared in
-    notebook 05 §18-20 for mixers, and in notebook 04 for LNA noise. The
-    notebook 06 application of it just produces a different number — phase
-    noise instead of mixer SSB noise figure.
+    waveform. This is the same cyclostationary structure defined in
+    notebook 04 §3.8 and applied to mixers/samplers in §4.9. The notebook 06
+    application of it just produces a different number — phase noise instead
+    of mixer SSB noise figure.
 
     **The unperturbed orbit.** With $\mathbf{u} = 0$ the system has a
     $T$-periodic solution
@@ -1774,10 +1774,10 @@ def _(mo):
        for lower $\Gamma^2_{\text{rms}}$. Coupled arrays improve PN as
        $-10\log N$ at the cost of coupling-network complexity.
 
-    **Bridge to notebook 07.** Notebook 04 (LNA) handled receive-path
-    noise; notebook 05 (matching) handled passive interfaces and
-    mixer cyclostationarity; notebook 06 (this one) handled local
-    oscillator phase noise. Notebook 07 will close the transmit
+    **Bridge to notebook 07.** Notebook 04 handled receive-path noise — LNA
+    parameters, cyclostationary processes (§3.8), and mixer/sampler noise
+    (§4.9); notebook 05 handled passive interfaces and broadband matching;
+    notebook 06 (this one) handled local oscillator phase noise. Notebook 07 will close the transmit
     chain: PA design, large-signal nonlinearity ($P_{1\text{dB}}$,
     $\text{IIP}_3$, AM-PM conversion), efficiency (Class A/B, Doherty,
     outphasing), and the full mmWave transceiver budget that combines
