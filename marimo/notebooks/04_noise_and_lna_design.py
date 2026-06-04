@@ -2203,39 +2203,51 @@ def _(mo):
     mo.md(r"""
     ## 5. Low-Noise Amplifier Design
 
-### 5.1 The gain-noise tradeoff & Noise measure M
+    ### 5.1 The design problem and the noise measure $M$
 
-    The fundamental design tension: in general
+    **Setup.** The LNA is the first active stage of a receiver. By the Friis
+    cascade (§4.7) the chain noise factor is $F = F_1 + (F_2-1)/G_{A,1} + \dots$:
+    the first stage's $F_1$ enters undivided, and its gain $G_{A,1}$ divides down
+    every stage behind it. The design problem is therefore
 
-    $$\Gamma_{\text{opt}} \;\ne\; S_{11}^*,$$
+    > minimise $F_1$ while supplying enough gain $G_{A,1}$, an acceptable input
+    > match $|S_{11}|$, inside a DC-power budget $P_{DC}$ and a linearity bound.
 
-    so noise-matching ($\Gamma_s = \Gamma_{\text{opt}}$) costs input
-    reflection (and hence gain), and power-matching ($\Gamma_s = S_{11}^*$)
-    costs noise figure. Overlay available-gain circles (notebook 03)
-    on noise circles — the geometry of the compromise appears directly.
+    **The central tension.** $F$ depends on the source termination, $F=F(\Gamma_s)$
+    (§4.5), and is minimised at $\Gamma_s=\Gamma_{\text{opt}}$; maximum gain instead
+    wants the conjugate power match $\Gamma_s=S_{11}^*$. For a generic two-port
 
-    **Noise measure M (Haus-Adler, 1958):** the invariant that collapses
-    the tradeoff into one number:
+    $$\Gamma_{\text{opt}} \;\neq\; S_{11}^* \qquad \text{[generic fact]},$$
 
-    $$M \;\triangleq\; \frac{F - 1}{1 - 1/G_{A}} \quad \text{[Definition]}$$
+    so noise-matching costs input reflection (hence gain) and power-matching costs
+    noise figure. All of §5 manages this gap; the noise/gain/stability circle
+    explorer (§5.6) shows its geometry directly.
 
-    Two properties worth stating without derivation:
-    - $M$ is **invariant** under lossless reciprocal embedding of the
-      two-port (the same invariance that makes Mason's $U$ a device property
-      — notebook 02).
-    - An infinite cascade of identical stages, each optimised for the
-      cascade's input, achieves $F_\infty = 1 + M$. So **$M$ is the best
-      noise factor per unit of "usable gain"** — the right figure of merit
-      when you plan to cascade.
+    **One number for the tradeoff — the noise measure.** For a stage that will be
+    cascaded, the figure of merit is neither $F$ nor $G_A$ alone but
 
-    At mmWave, $M_\min$ is comparable to $F_{\min} - 1$ (since stage gains
-    are typically 10–15 dB, $1 - 1/G_A \approx 0.9$), so the two figures
-    are usually close — but $M$ is the principled one.
+    $$M \;\triangleq\; \frac{F-1}{\,1 - 1/G_A\,} \qquad \text{[Definition: Haus–Adler noise measure, 1958]}.$$
 
-    **Haus-Adler Optimization Theorem (Cascade Ordering).**
-    For a cascade of two linear amplifier stages, Stage A and Stage B, with noise measures $M_A$ and $M_B$ respectively, the overall noise figure of the cascade is minimized if and only if the stage with the lower noise measure is placed first:
+    It charges the excess noise $(F-1)$ against the *usable* gain $(1-1/G_A)$ — the
+    gain actually available to suppress the stage behind it. Its meaning is the
+    infinite-cascade limit: for $N$ identical stages of factor $F$ and gain $G_A$,
+    Friis sums a geometric series,
 
-    $$M_A < M_B \implies F_{AB} < F_{BA} \quad \text{[Theorem: Haus-Adler Optimization Theorem Result]}$$
+    $$F_N = 1 + (F-1)\sum_{k=0}^{N-1} G_A^{-k} \;\xrightarrow[N\to\infty]{}\; 1 + \frac{F-1}{1-1/G_A} = 1 + M,$$
+
+    so $M$ is the **best attainable noise factor per stage in a long chain**. Two
+    consequences: $M$ is **invariant under lossless reciprocal embedding** of the
+    two-port (proved structurally in §5.3 — the same invariance behind Mason's $U$,
+    §02); and at mmWave, stage gains of 10–15 dB give $1-1/G_A\approx0.9$, so
+    $M\approx F_{\min}-1$ — the two nearly coincide, but $M$ is the principled target.
+
+    ---
+
+    **Theorem (Haus–Adler cascade ordering).** For two stages A, B with noise
+    measures $M_A, M_B$, the cascade noise factor is minimised by placing the
+    lower-measure stage first:
+
+    $$M_A < M_B \iff F_{AB} < F_{BA} \qquad \text{[Theorem]}$$
 
     *Derivation.*
     1. Let the noise measures of Stage A and Stage B be:
@@ -2277,30 +2289,28 @@ def _(mo):
 @app.cell
 def _(mo):
     mo.md(r"""
-    ### 5.2 Simultaneous noise + gain match
+    ### 5.2 When can the two matches coincide?
 
-    **Haus condition:** a lossless feedback embedding can rotate
-    $\Gamma_{\text{opt}}$ to $S_{11}^*$ if and only if a specific
-    inequality between the two-port's noise parameters and its
-    small-signal parameters is satisfied.
+    **Question.** Can a feedback embedding move $\Gamma_{\text{opt}}$ onto
+    $S_{11}^*$, so that one source termination is *simultaneously* the noise and
+    the power match? **Haus condition:** a lossless embedding achieves this iff a
+    specific inequality between the device's noise parameters and its small-signal
+    parameters holds.
 
-    On 65 nm bulk CMOS at 28 GHz the condition **fails**: the intrinsic
-    transistor has $\Gamma_{\text{opt}}$ inside the unit disk but far
-    enough from $S_{11}^*$ that any lossless transformation that
-    moves one still leaves the other poorly matched. The designer's
-    compromise: pick $\Gamma_s$ on the locus minimising a cost
+    On 65 nm bulk CMOS at 28 GHz the condition **fails**: $\Gamma_{\text{opt}}$
+    lies inside the unit disk but far enough from $S_{11}^*$ that no lossless
+    transformation lands both. The compromise is to choose $\Gamma_s$ minimising a
+    weighted cost
 
-    $$J(\Gamma_s) \;=\; \alpha\,[F(\Gamma_s) - F_{\min}] \;+\; \beta\,[G_{A,\max} - G_A(\Gamma_s)],$$
+    $$J(\Gamma_s) = \alpha\,[F(\Gamma_s) - F_{\min}] + \beta\,[G_{A,\max} - G_A(\Gamma_s)] \qquad \text{[design objective]},$$
 
-    where $\alpha, \beta$ are weights chosen by the application
-    (receiver-noise-dominated → large $\alpha$; gain-budget-limited → large $\beta$).
+    with $\alpha,\beta$ set by the application (noise-limited receiver → large
+    $\alpha$; gain-budget-limited → large $\beta$).
 
-    **Feedback trick that makes simultaneous match nearly achievable:**
-    **inductive source degeneration** (§16). The $L_s$ in the source path
-    creates series-series feedback that rotates $\Gamma_{\text{opt}}$
-    toward $S_{11}^*$ **without adding a resistor**. This is why the
-    inductively-degenerated common-source is the canonical mmWave CMOS
-    LNA topology.
+    **What gets us close in practice:** inductive source degeneration (§5.7) —
+    series–series feedback (§5.3.4) that rotates $\Gamma_{\text{opt}}$ toward
+    $S_{11}^*$ **without a resistor**, hence without a noise penalty. This is why
+    the inductively-degenerated common-source is the canonical mmWave CMOS LNA.
     """)
     return
 
@@ -2308,57 +2318,135 @@ def _(mo):
 @app.cell
 def _(mo):
     mo.md(r"""
-    ### 5.3 Feedback and noise — lossy vs lossless
+    ### 5.3 Feedback in the LNA — topology and its effect on noise
 
-    Feedback changes $Y_{\mathrm{opt}}$, $R_n$, and (for lossy feedback) $F_{\min}$.
-    The key distinction:
+    Feedback is how the designer *moves* the input impedance and the noise-optimum
+    $\Gamma_{\text{opt}}$ without inserting a lossy matching network. We (i) classify
+    the four topologies and their effect on port immittance, (ii) derive the single
+    result that governs how *any* feedback changes the noise, and (iii) specialise
+    both to the LNA.
 
-    ### Lossy feedback raises $F_{\min}$
+    #### 5.3.1 The four topologies — sampling and mixing
 
-    A feedback element with series resistance $r_F$ (e.g., a resistive
-    shunt-feedback resistor $R_F$ at the input) contributes thermal noise
-    $\overline{v_{n,F}^2}/\Delta f = 4kT r_F$ at the input. This excess
-    noise is irreducible: it raises $F_{\min}$ by approximately
+    A feedback amplifier is a forward amplifier plus a feedback network. The
+    topology is fixed by two binary choices:
 
-    $$\Delta F_{\min} \approx \frac{r_F}{R_s} \cdot \frac{1}{|1 - \beta A|^2},$$
+    - **output sampling** — sense the output *voltage* (a **shunt** tap across the
+      load) or the output *current* (a **series** element in the load loop);
+    - **input mixing** — subtract a *voltage* in **series** with the input, or a
+      *current* in **shunt** with it.
 
-    where $\beta A$ is the loop gain. No retuning of the source impedance
-    removes this penalty because $F_{\min}$ is the minimum over all sources —
-    a floor set by the device and its noise sources.
+    Naming each (input mixing)–(output sampling), the four cases and their
+    driving-point effects, with $T=\beta A$ the dimensionless loop gain, are:
 
-    **Example:** a transimpedance amplifier with a $200\,\Omega$ shunt-feedback
-    resistor $R_F$ at 50 $\Omega$ source has a noise contribution
-    $\Delta F \approx 4kT/R_F \cdot R_s \approx 1$ at low frequency —
-    roughly doubling the noise figure. This is unavoidable for resistive feedback.
+    | Topology | Samples | Mixes back | $Z_{\text{in}}$ | $Z_{\text{out}}$ | LNA realisation |
+    |---|---|---|---|---|---|
+    | series–series | $i_{\text{out}}$ | voltage | $\times(1+T)$ | $\times(1+T)$ | **$L_s$ degeneration** |
+    | shunt–shunt   | $v_{\text{out}}$ | current | $/(1+T)$ | $/(1+T)$ | **resistive $R_F$** |
+    | series–shunt  | $v_{\text{out}}$ | voltage | $\times(1+T)$ | $/(1+T)$ | voltage buffer (rare) |
+    | shunt–series  | $i_{\text{out}}$ | current | $/(1+T)$ | $\times(1+T)$ | current buffer (rare) |
 
-    ### Lossless (purely reactive) feedback preserves $F_{\min}$
+    **Impedance scaling (series mixing).** Drive the input with a test current $i$.
+    Series mixing returns a voltage $v_f = T\,v_{\text{in}}^{ol}$ opposing the
+    open-loop input drop $v_{\text{in}}^{ol}=i\,Z_{\text{in}}^{ol}$, so the terminal
+    voltage is $v = i\,Z_{\text{in}}^{ol}+v_f = i\,Z_{\text{in}}^{ol}(1+T)$ and
 
-    **Theorem (Haus and Adler, 1958).** $F_{\min}$ is invariant under any
-    lossless, reciprocal embedding of a two-port. That is, adding reactive
-    elements (inductors, capacitors, transmission-line stubs, ideal transformers)
-    around the transistor cannot change $F_{\min}$.
+    $$Z_{\text{in}} = v/i = Z_{\text{in}}^{ol}\,(1+T) \qquad \text{[series mixing raises } Z_{\text{in}}].$$
 
-    **Proof sketch.** The noise measure $M = (F-1)/(1-1/G_A)$ is invariant
-    under lossless embedding (Haus-Adler). At the noise-optimal source,
-    $F = F_{\min}$, and in the limit $G_A \to \infty$ (which is approached by
-    choosing a lossless feedback that maximises available gain), $M \to F_{\min} - 1$.
-    Since $M$ is invariant, $F_{\min}$ cannot change.
+    Shunt mixing is the dual (a returned current divides $Z_{\text{in}}$ by $1+T$);
+    repeating at the output port, with sampling for mixing, gives the $Z_{\text{out}}$
+    column. These are the classical Black relations.
 
-    **What lossless feedback does change:**
+    #### 5.3.2 How feedback changes the noise — the unified result
 
-    - $\Gamma_{\mathrm{opt}}$ rotates to a new location on the Smith chart.
-    - $R_n$ may decrease — tightening or loosening noise circles.
-    - The imaginary part $B_{s,\mathrm{opt}}$ shifts; the real part $G_{s,\mathrm{opt}}$
-      changes very little under purely reactive feedback.
+    *Question.* Wrap a feedback network around a noisy device — what is the noise of
+    the pair? The answer is one line, organised by exactly the series/shunt split
+    above.
 
-    **Inductive source degeneration as the canonical example.**
-    $L_s$ in the source path creates lossless series-series feedback:
-    - $\Gamma_{\mathrm{opt}}$ rotates toward $S_{11}^*$ (§14).
-    - $F_{\min}$ is unchanged (no resistor in the feedback path).
-    - Once $L_s$ has a finite series resistance $r_{L_s} = \omega L_s / Q$,
-      the feedback is no longer lossless and $F_{\min}$ rises by
-      $\Delta F_{\min} \approx r_{L_s} / R_s$. This is why inductor Q is
-      a hard constraint in mmWave LNA design.
+    **Interconnection adds immittances in the matching representation.** Two
+    two-ports joined so port *currents* are shared and *voltages* add (a **series**
+    connection) combine by adding impedance matrices; joined so *voltages* are
+    shared and *currents* add (a **shunt** connection) combine by adding admittance
+    matrices:
+
+    $$\text{series:}\quad Z = Z_{\text{dev}}+Z_{\text{fb}}, \qquad\qquad \text{shunt:}\quad Y = Y_{\text{dev}}+Y_{\text{fb}}.$$
+
+    **Hence the noise correlation matrices add in that same representation.** Append
+    to each two-port its vector of equivalent noise sources, with correlation matrix
+    $C_Z$ (series) or $C_Y$ (shunt). The connection merely *sums* the network
+    variables, so the noise vectors sum; the two networks are physically
+    independent, so their correlation matrices sum (Hillbrand–Russer, 1976):
+
+    $$\boxed{\,C_Z^{\text{tot}} = C_Z^{\text{dev}} + C_Z^{\text{fb}}\ (\text{series}), \qquad C_Y^{\text{tot}} = C_Y^{\text{dev}} + C_Y^{\text{fb}}\ (\text{shunt})\,} \quad \text{[Theorem]}.$$
+
+    This is the unified statement: **feedback adds its own immittance and its own
+    immittance noise, in the representation natural to the topology.** Everything
+    below is a corollary.
+
+    #### 5.3.3 Lossless preserves $F_{\min}$; lossy raises it
+
+    **Lossless feedback injects no noise.** By the fluctuation–dissipation theorem —
+    equivalently Bosma's theorem (§3.7) — the equilibrium noise of a passive
+    immittance is set by its *dissipative* part:
+
+    $$C_Z^{\text{fb}} = 2kT_p\,(Z_{\text{fb}}+Z_{\text{fb}}^{\dagger}) = 4kT_p\,\mathrm{Re}(Z_{\text{fb}}) \quad (\text{scalar form}),$$
+
+    and likewise $C_Y^{\text{fb}}=2kT_p(Y_{\text{fb}}+Y_{\text{fb}}^{\dagger})$. A
+    purely reactive network has $\mathrm{Re}(Z_{\text{fb}})=0$, so $C_Z^{\text{fb}}=0$
+    and $C_Z^{\text{tot}}=C_Z^{\text{dev}}$: the device noise is untouched, only its
+    *immittance* moves.
+
+    **Theorem (Haus–Adler, 1958): $F_{\min}$ is invariant under lossless reciprocal
+    embedding.** Two facts prove it: (a) the embedding adds no noise (just shown);
+    (b) a lossless reciprocal embedding is a *bijection* on the source reflection
+    coefficient — every $\Gamma_s$ the bare device could see remains reachable, just
+    relabelled. So $F_{\min}=\min_{\Gamma_s}F$ minimises the *same* physical
+    noise-to-signal ratios over the *same* source set and cannot change. What moves
+    is the *location* $\Gamma_{\text{opt}}$ of the minimum and the *curvature* $R_n$
+    around it.
+
+    To read off where $\Gamma_{\text{opt}}, R_n$ land, convert the combined $C_Z$
+    (or $C_Y$) to the chain representation — where the four noise parameters live —
+    by the congruence
+
+    $$C_A = T_{\!A}\,C_{(Z\,\text{or}\,Y)}\,T_{\!A}^{\dagger} \qquad \text{[representation conversion, not the embedding]},$$
+
+    with $T_{\!A}$ the standard transformation (§4.4). The role matters: the
+    congruence $T_{\!A}(\cdot)T_{\!A}^{\dagger}$ is bookkeeping *between
+    representations*; the physics — addition of noise — already happened in §5.3.2.
+
+    **Lossy feedback raises $F_{\min}$, quantitatively.** A real feedback element of
+    series resistance $r_F$ has $C_Z^{\text{fb}}=4kT_p r_F\neq0$ — an irreducible
+    input-referred excess. To first order it lifts the floor by
+
+    $$\Delta F_{\min} \approx \frac{r_F}{R_s}\cdot\frac{1}{|1-T|^2} \qquad \text{[lossy-feedback NF penalty]},$$
+
+    the loop-gain factor accounting for feedback's reduction of the referred term.
+    No source tuning removes it — it is added *inside* the device noise. *Example:* a
+    shunt-feedback transimpedance amplifier with $R_F=200\,\Omega$ on a $50\,\Omega$
+    source adds $\Delta F\sim 1$ at low loop gain — an order-of-doubled noise figure.
+    That is the price of resistive feedback.
+
+    #### 5.3.4 The two feedbacks an LNA actually uses
+
+    **Series–series ⇒ inductive source degeneration.** A source inductor $L_s$ is a
+    series element in the source loop that senses output current and returns a series
+    voltage — series–series feedback, so it *adds impedance* (§5.3.2). It synthesises
+    a real input term $\mathrm{Re}(Z_{\text{in}})=\omega_T L_s$ (derived in §5.7.3)
+    **with no resistor**: ideal $L_s$ gives $C_Z^{\text{fb}}=0$, so $F_{\min}$ is
+    preserved while $\Gamma_{\text{opt}}$ rotates toward $S_{11}^*$. That is *the*
+    reason the degenerated CS stage (§5.7) is the canonical mmWave CMOS LNA. A
+    finite-$Q$ inductor has $\mathrm{Re}(Z_{\text{fb}})=r_{L_s}=\omega L_s/Q\neq0$,
+    and the §5.3.3 penalty becomes concrete: $\Delta F_{\min}\approx r_{L_s}/R_s$ —
+    making inductor $Q$ a hard NF constraint (§5.10).
+
+    **Shunt–shunt ⇒ resistive feedback $R_F$.** A resistor from drain to gate senses
+    output voltage and returns a shunt current — shunt–shunt feedback that *lowers*
+    $Z_{\text{in}}$ over a wide band (the basis of broadband and transimpedance front
+    ends). But $R_F$ is dissipative, $C_Y^{\text{fb}}=4kT/R_F\neq0$, so it *raises*
+    $F_{\min}$. The trade is bandwidth and match-robustness bought with noise —
+    acceptable for wideband / instrumentation receivers, generally not for a
+    narrowband mmWave first stage.
     """)
     return
 
@@ -2366,39 +2454,38 @@ def _(mo):
 @app.cell
 def _(mo):
     mo.md(r"""
-    ### 5.4 Noise sensitivity — minimizing $R_n$
+    ### 5.4 Noise sensitivity — minimising $R_n$
 
-    The noise figure formula
+    From §4.5 the source dependence of $F$ is
 
-    $$F(\Gamma_s) = F_{\min} + \frac{4\,R_n/Z_0}{|1+\Gamma_{\mathrm{opt}}|^2} \frac{|\Gamma_s - \Gamma_{\mathrm{opt}}|^2}{1 - |\Gamma_s|^2}$$
+    $$F(\Gamma_s) = F_{\min} + \frac{4\,(R_n/Z_0)}{|1+\Gamma_{\mathrm{opt}}|^2}\,\frac{|\Gamma_s - \Gamma_{\mathrm{opt}}|^2}{1 - |\Gamma_s|^2}.$$
 
-    has two distinct roles for $R_n$:
+    $R_n$ plays two roles:
 
-    1. **Sensitivity:** for a fixed source mismatch $|\Gamma_s - \Gamma_{\mathrm{opt}}|$,
-       $F - F_{\min} \propto R_n$. Large $R_n$ means steep noise circles — a small
-       departure from $\Gamma_{\mathrm{opt}}$ incurs a large NF penalty.
+    1. **Sensitivity** — at fixed mismatch $|\Gamma_s-\Gamma_{\mathrm{opt}}|$, we have
+       $F-F_{\min}\propto R_n$: large $R_n$ ⇒ steep noise circles, so a small miss of
+       $\Gamma_{\mathrm{opt}}$ costs a large NF penalty.
+    2. **Circle radius** — the $F_{\mathrm{target}}$ noise circle has radius set by
+       $N\propto (F_{\mathrm{target}}-F_{\min})/R_n$: small $R_n$ ⇒ large circles, so
+       more source impedances meet the same NF.
 
-    2. **Circle radii:** the noise circle for target $F_{\mathrm{target}}$ has
-       $N \propto (F_{\mathrm{target}} - F_{\min})/R_n$. Small $R_n$ gives large $N$
-       and therefore larger circles — more source impedance choices are within
-       the same NF contour.
+    **Design goal:** make $R_n$ small, so the noise match is *forgiving*.
 
-    **Design goal:** minimise $R_n$ (and its dual $G_n^0 = R_n G_{s,\mathrm{opt}}^2$,
-    the noise conductance at the optimum point).
+    **Derivation (device $R_n$).** The channel thermal noise has one-sided PSD
+    $\overline{i_{nd}^2}/\Delta f = 4kT\gamma g_{d0}$. Refer it to the gate through the
+    transconductance, $\overline{v_n^2}/\Delta f = \overline{i_{nd}^2}/(g_m^2\,\Delta f)
+    = 4kT\gamma g_{d0}/g_m^2$. With the equivalent noise resistance defined by
+    $\overline{v_n^2}/\Delta f \equiv 4kT R_n$,
 
-    **At the device level** (Shaeffer-Lee, §16.4):
+    $$R_n = \frac{\gamma\,g_{d0}}{g_m^2} = \frac{\gamma}{\alpha\,g_m}, \qquad \frac{R_n}{Z_0} = \frac{\gamma}{\alpha\,g_m Z_0}, \qquad \alpha \equiv \frac{g_m}{g_{d0}} \quad \text{[device noise resistance]}.$$
 
-    $$R_n \approx \frac{\gamma}{\alpha\,g_m\,Z_0}.$$
+    $R_n$ falls as $1/g_m$: a forgiving noise match demands high $g_m$, hence high bias
+    current $I_D$ — the **power–noise-sensitivity tradeoff**. (This $R_n/Z_0$ is the one
+    used by the design helper and in §5.7.4.)
 
-    Increasing $g_m$ (wider device, higher bias current $I_D$) reduces $R_n$
-    at the cost of power. This is the fundamental power–noise-sensitivity tradeoff:
-    a low-$R_n$ LNA requires high $g_m$, which demands high $I_D$.
-
-    **At the circuit level:** series feedback (inductive degeneration) also
-    modifies the effective $R_n$ seen from the input by changing the reflection
-    between $\Gamma_s$ and the actual transistor gate. Specifically, source
-    degeneration reduces the effective $R_n$ seen by the source, spreading the
-    noise circles and relaxing the matching precision required.
+    **At the circuit level**, series (inductive) degeneration lowers the *effective*
+    $R_n$ seen from the source: it spreads the noise circles and relaxes the matching
+    precision required — a second benefit beyond input matching.
     """)
     return
 
@@ -2438,20 +2525,20 @@ def _(mo):
        $|B_{s,\mathrm{opt}} / G_{s,\mathrm{opt}}|$ and the rate of $\Gamma_{\mathrm{opt}}$
        variation with frequency.
 
-    3. **Minimize $R_n$ (§14.3).**
+    3. **Minimise $R_n$ (§5.4).**
        Even if $\Gamma_{\mathrm{opt}}$ moves, a small $R_n$ keeps the noise circles
        wide — the designer can accept a moderate $\Gamma_s \neq \Gamma_{\mathrm{opt}}$
-       without incurring large NF penalty. This trades noise-match bandwidth against
-       power consumption.
+       without a large NF penalty. This trades noise-match bandwidth against power.
 
-    **Bode-Fano limit analogy.** Just as there is a fundamental limit to the
-    bandwidth over which a reactive network can match a complex load (Bode-Fano),
-    there is an analogous bound on noise-match bandwidth set by the
-    $Q_{\mathrm{opt}}$ of the device. It is derived from the same causality and
-    analyticity constraints on the noise parameters. At 28 GHz, a 65 nm CMOS
-    transistor with $Q_{\mathrm{opt}} \approx 1$ after source degeneration can
-    achieve $F < F_{\min} + 0.5$ dB over roughly 20–25% relative bandwidth —
-    consistent with the $\sim 6$ GHz 5G NR FR2 channel aggregation window.
+    **A Bode–Fano-type bound (by analogy).** The noise-match locus
+    $Y_{\mathrm{opt}}(f)$ is itself synthesised by a reactive network, so the band
+    over which $\Gamma_s$ can track it is limited exactly as Bode–Fano limits
+    matching a reactive load — both follow from the analyticity (causality) of a
+    passive reflection response. Heuristically the achievable fractional bandwidth
+    scales as $1/Q_{\mathrm{opt}}$. *Illustration:* a 65 nm CMOS device degenerated to
+    $Q_{\mathrm{opt}}\approx1$ at 28 GHz holds $F<F_{\min}+0.5$ dB over a roughly
+    20–25 % band — adequate for an FR2 channel, though the precise figure is
+    model-dependent, not a closed-form guarantee.
     """)
     return
 
@@ -2621,7 +2708,7 @@ def _(mo):
     finite $r_g$ from polysilicon + contacts, substrate resistance,
     pad capacitance. The Shaeffer-Lee treatment keeps the main four
     ($g_m$, $C_{gs}$, $C_{gd}$, $\omega_T$) and handles the rest as
-    NF corrections (§19).
+    NF corrections (§5.10).
     """)
     return
 
@@ -2629,25 +2716,38 @@ def _(mo):
 @app.cell
 def _(mo):
     mo.md(r"""
-    #### 5.7.3 Input impedance
+    #### 5.7.3 Input impedance — derivation
 
-    Neglecting $C_{gd}$ (first-order analysis):
+    Look into the gate with $L_g$ in series, $C_{gd}$ neglected (first order). Let
+    $I_{\text{in}}$ be the gate current and $V_{gs}$ the voltage across $C_{gs}$.
 
-    $$\boxed{\;Z_{\text{in}} \;\approx\; j\omega\,(L_g + L_s) \;+\; \frac{1}{j\omega\,C_{gs}} \;+\; \omega_T\,L_s\;}$$
+    - The gate current is capacitive: $I_{\text{in}} = j\omega C_{gs} V_{gs}$, so
+      $V_{gs} = I_{\text{in}}/(j\omega C_{gs})$.
+    - The source node carries $I_{\text{in}}$ *plus* the controlled current
+      $g_m V_{gs}$, so the drop across $L_s$ is
+      $V_s = j\omega L_s\,(I_{\text{in}} + g_m V_{gs})$.
+    - KVL from gate terminal to ground:
+      $V_{\text{in}} = j\omega L_g I_{\text{in}} + V_{gs} + V_s$.
+
+    Substituting $V_{gs}$ and using the transit frequency $\omega_T \equiv g_m/C_{gs}$
+    (so $g_m L_s/C_{gs} = \omega_T L_s$):
+
+    $$\boxed{\;Z_{\text{in}} = \frac{V_{\text{in}}}{I_{\text{in}}} = j\omega\,(L_g + L_s) \;+\; \frac{1}{j\omega\,C_{gs}} \;+\; \omega_T\,L_s\;}$$
 
     **Three terms:**
-    - $j\omega(L_g+L_s)$ — reactance of the input inductors in series
-    - $1/(j\omega C_{gs})$ — the device's own gate capacitance
-    - $\omega_T L_s$ — the **real** term from source-inductor feedback
-      (dimensionally Ω)
+    - $j\omega(L_g+L_s)$ — the input inductors in series;
+    - $1/(j\omega C_{gs})$ — the device gate capacitance;
+    - $\omega_T L_s$ — the **real** term produced by series–series feedback (§5.3.4),
+      dimensionally Ω, with *no resistor* in the path.
 
     **Design knobs:**
-    - $L_s$ sets $\mathrm{Re}(Z_{\text{in}}) = \omega_T L_s$ → pick
-      $L_s = 50/\omega_T$ for 50 Ω match.
-    - $L_g$ resonates out the imaginary part at the operating frequency
-      → pick $L_g$ such that $\omega^2(L_g+L_s) = 1/C_{gs}$.
+    - $L_s$ sets $\mathrm{Re}(Z_{\text{in}}) = \omega_T L_s$ → pick $L_s = R_s/\omega_T$
+      (here $50/\omega_T$) for a 50 Ω real part.
+    - $L_g$ resonates the reactance at $\omega_0$ → pick $L_g$ with
+      $\omega_0^2\,(L_g+L_s) = 1/C_{gs}$.
 
-    No resistor anywhere in the signal path → no thermal-noise penalty.
+    The real part appears with no resistor → no thermal-noise penalty — exactly the
+    $C_Z^{\text{fb}}=0$ statement of §5.3.4.
     """)
     return
 
@@ -2657,30 +2757,39 @@ def _(mo):
     mo.md(r"""
     #### 5.7.4 Noise analysis
 
-    Two NMOS noise sources:
-    - **Channel thermal noise.** One-sided PSD
-      $\overline{i_{nd}^2}/\Delta f = 4kT\gamma g_{d0}$;
-      short-channel $\gamma \in [1, 2]$, long-channel $\gamma = 2/3$.
-    - **Induced gate noise.** Capacitive coupling of channel fluctuations
-      to the gate:
-      $\overline{i_{ng}^2}/\Delta f = 4kT\delta\,\omega^2 C_{gs}^2 / (5 g_{d0})$
-      with $\delta \approx 2\gamma$, correlated with $i_{nd}$ via a complex
-      coefficient $c \approx j\,0.395$.
+    The intrinsic FET has two *correlated* noise sources:
+    - **Channel thermal noise** (drain): $\overline{i_{nd}^2}/\Delta f = 4kT\gamma g_{d0}$;
+      long-channel $\gamma=2/3$, short-channel $\gamma\in[1,2]$.
+    - **Induced gate noise**: channel fluctuations couple capacitively to the gate,
+      $\overline{i_{ng}^2}/\Delta f = 4kT\,\delta\,\omega^2 C_{gs}^2/(5 g_{d0})$, with
+      $\delta\approx2\gamma$ and partial correlation to $i_{nd}$ through
+      $c \equiv \overline{i_{ng} i_{nd}^*}/\sqrt{\overline{i_{ng}^2}\,\overline{i_{nd}^2}} \approx j\,0.395$.
 
-    Plug into the $\mathbf{C_A}$ machinery (§10), solve for $F_{\min}$,
-    $\Gamma_{\text{opt}}$, $R_n$. The Shaeffer-Lee result:
+    **From the sources to $F_{\min}$.** Both enter the device chain-representation
+    correlation matrix $C_A$ (§3.6); the four noise parameters
+    $(F_{\min},\Gamma_{\text{opt}},R_n)$ are read off $C_A$ as in §4.4–§4.5, and
+    $F_{\min}=\min_{\Gamma_s}F(\Gamma_s)$. The robust, derivation-level result is the
+    **linear scaling**
 
-    $$\boxed{\;F_{\min} \;\approx\; 1 \;+\; \frac{2.4\,\gamma}{\alpha}\,\frac{\omega}{\omega_T}\;}$$
+    $$F_{\min} - 1 \;\propto\; \frac{\omega}{\omega_T} \qquad \text{[structural result]},$$
 
-    where $\alpha = g_m/g_{d0}$ is a short-channel correction ($\alpha \to 1$
-    long-channel, $\alpha \approx 0.8$ at 65 nm mmWave bias).
+    whose origin is concrete: the induced-gate-noise term $\propto\omega^2 C_{gs}^2$,
+    referred to the input through $g_m^2 \propto \omega_T^2 C_{gs}^2$, leaves one net
+    power of $\omega/\omega_T$. The proportionality constant is a model-dependent
+    function of $(\gamma,\delta,c,\alpha)$; the full Shaeffer–Lee algebra is multi-page
+    and published closed forms differ by up to $\sim$2×, so we do not assert a single
+    universal coefficient. The design helper adopts the common short-channel lumped form
 
-    **Structural consequence (the beautiful result):** after the inductive
-    source degeneration, $\Gamma_{\text{opt}}$ is **approximately $S_{11}^*$**
-    — feedback has rotated the noise optimum onto the gain optimum.
-    Simultaneous noise + gain match is nearly achievable without a
-    lossless matching transformation (which would be hard at mmWave
-    anyway due to lossy on-chip inductors).
+    $$\boxed{\;F_{\min} \approx 1 + \frac{2.4\,\gamma}{\alpha}\,\frac{\omega}{\omega_T}\;}, \qquad \alpha \equiv \frac{g_m}{g_{d0}}\ \ (\alpha\to1\ \text{long-channel},\ \approx0.8\ \text{at 65 nm}),$$
+
+    where $2.4$ is an engineering coefficient for this device class, not a
+    derivation-independent universal.
+
+    **Structural consequence (why this topology wins).** After source degeneration,
+    $\Gamma_{\text{opt}}\approx S_{11}^*$: the series–series feedback (§5.3.4) has
+    rotated the noise optimum onto the gain optimum, so simultaneous noise + gain
+    match is nearly achieved with *no* lossless matching transformation — which would
+    itself be lossy, hence noisy, at mmWave (§5.3.3).
     """)
     return
 
@@ -2692,7 +2801,7 @@ def _(mo):
 
     **Spec target:**
     - $\mathrm{NF} < 2.5$ dB
-    - $|S_{21}| > 15$ dB (requires cascode + output matching — see §18)
+    - $|S_{21}| > 15$ dB (requires cascode + output matching — see §5.9)
     - $|S_{11}| < -10$ dB
     - $P_{DC} < 10$ mW
     - 50 Ω source and load at 28 GHz
@@ -2719,29 +2828,29 @@ def _(DeviceParams, F_min_shaeffer_lee, compute_operating_point,
     V_supply     = 1.0
     P_budget     = 10e-3
 
-    # §17.1 Device sizing
+    # §5.8.1 Device sizing
     J_opt        = 0.15e-3
     I_budget     = P_budget / V_supply
     W_design_um  = I_budget / J_opt
     op           = compute_operating_point(W_design_um, J_opt, params_design)
 
-    # §17.2 L_s for Re(Z_in) = 50 Ω
+    # §5.8.2 L_s for Re(Z_in) = 50 Ω
     L_s_design   = 50.0 / op["omega_T"]
 
-    # §17.3 L_g for resonance at f0
+    # §5.8.3 L_g for resonance at f0
     L_g_design   = 1.0 / (omega0 ** 2 * op["C_gs"]) - L_s_design
 
-    # §17.4 Γ_opt location
+    # §5.8.4 Γ_opt location
     Gamma_opt_design = gamma_opt_degenerated_cs(omega0, L_s_design, L_g_design, op, params_design)
     Z_in = input_impedance(omega0, L_s_design, L_g_design, op)
     S11_design   = (Z_in - 50.0) / (Z_in + 50.0)
 
-    # §17.5–17.6 (simplified) — cascode and tapped-cap output match are
-    # documented in prose and exposed through §18. For the verification
-    # computation here we use a simple series-LC load tuned to 28 GHz.
+    # §5.8.5–5.8.6 (simplified) — cascode and tapped-cap output match are
+    # documented in prose and exposed through the studio (§5.9). For the
+    # verification computation here we use a simple series-LC load at 28 GHz.
     L_d_design   = 150e-12
 
-    # §17.7 verification numbers
+    # §5.8.7 verification numbers
     F_design     = F_min_shaeffer_lee(omega0, op, params_design)
     NF_design_db = 10 * math.log10(F_design)
 
@@ -2770,7 +2879,7 @@ def _(DeviceParams, F_min_shaeffer_lee, compute_operating_point,
     | F_min (dB)        | {NF_design_db:.2f} |
 
     Input-match and NF spec targets met ✓.
-    (|S₂₁| > 15 dB requires the cascode + output-match tuning exposed in §18.)
+    (|S₂₁| > 15 dB needs the cascode + output-match tuning explored in the studio, §5.9.)
     """)
     return L_d_design, L_g_design, L_s_design, W_design_um, f0, op, params_design
 
@@ -2916,13 +3025,13 @@ def _(mo):
     #### 5.10.1 Inductor Q
     On-chip spiral or transmission-line inductors have $Q \sim 10$–20 at
     28 GHz. An inductor with reactance $X_L$ contributes loss
-    $r_L = X_L / Q$ in series. The NF penalty from finite-Q $L_g$ can
-    be significant (next cell computes it for $Q = 12$).
+    $r_L = X_L / Q$ in series. The finite-$Q$ $L_g$/$L_s$ penalty is
+    quantified in the parasitics explorer (§5.12).
 
     #### 5.10.2 Gate resistance layout
     $r_g \propto R_\square W_f / (12 N_f^2)$ for double-sided-contact
-    multi-finger layout. The plot below shows ΔNF vs. $N_f$ —
-    diminishing returns past $N_f \approx 20$–40.
+    multi-finger layout; ΔNF vs. $N_f$ shows diminishing returns past
+    $N_f \approx 20$–40 (parasitics explorer, §5.12).
 
     #### 5.10.3 Substrate coupling
     Pattern-ground-shields under inductors, deep-nwell around the LNA —
@@ -2944,56 +3053,6 @@ def _(mo):
 
 
 @app.cell
-def _(compute_operating_point, math, mo):
-    _op_point = compute_operating_point
-
-    _W = 70.0
-    _J = 0.15e-3
-    _Ls = 40e-12
-    _Lg = 260e-12
-    op_q = _op_point(_W, _J)
-    _omega0 = 2 * math.pi * 28e9
-
-    _Q = 12.0
-    _r_Lg = _omega0 * _Lg / _Q
-    _r_Ls = _omega0 * _Ls / _Q
-
-    _Re_Zin = op_q["omega_T"] * _Ls
-    _extra = (_r_Lg + _r_Ls) / _Re_Zin
-    _penalty_db = 10 * math.log10(1.0 + _extra)
-
-    mo.md(
-        f"**Inductor Q=12 penalty at 28 GHz:** +{_penalty_db:.2f} dB NF "
-        f"($r_{{L_g}} \\approx$ {_r_Lg:.1f} Ω, $r_{{L_s}} \\approx$ {_r_Ls:.1f} Ω "
-        f"on top of $\\mathrm{{Re}}(Z_{{in}}) \\approx$ {_Re_Zin:.1f} Ω)."
-    )
-    return
-
-
-@app.cell
-def _(go, mo, np):
-    _R_sq = 10.0          # Ω/□ polysilicon
-    _W_f_total_um = 70.0  # total device width
-    _N_f_range = np.arange(2, 60, 1)
-    _r_g_vals = _R_sq * (_W_f_total_um / _N_f_range) / (12.0 * _N_f_range ** 2)
-
-    _penalty_vs_Nf = 10.0 * np.log10(1.0 + _r_g_vals / 50.0)
-
-    _fig_rg = go.Figure()
-    _fig_rg.add_trace(go.Scatter(x=_N_f_range, y=_penalty_vs_Nf,
-                                 mode="lines+markers", name="ΔNF (dB)"))
-    _fig_rg.update_layout(
-        template="plotly_dark",
-        xaxis_title="Number of fingers N_f",
-        yaxis_title="ΔNF contribution from r_g (dB)",
-        height=340,
-    )
-
-    mo.ui.plotly(_fig_rg)
-    return
-
-
-@app.cell
 def _(mo):
     mo.md(r"""
     ### 5.11 NF budget consumption at high frequencies
@@ -3001,7 +3060,7 @@ def _(mo):
     Three mechanisms eat into the NF budget as frequency rises:
 
     #### 5.11.1 Intrinsic device $F_{\min} \propto f/f_T$.
-    Shaeffer-Lee (§16.4) gives
+    Shaeffer-Lee (§5.7.4) gives
 
     $$F_{\min} \approx 1 + \frac{2.4\,\gamma}{\alpha}\,\frac{f}{f_T}.$$
 
@@ -3030,9 +3089,10 @@ def _(mo):
     equivalent to a noisy attenuator cascaded ahead of the LNA, raising NF
     by the same amount.
 
-    The interactive below shows how these contributions stack from 10 to
-    200 GHz for a representative 65 nm inductively-degenerated CS LNA.
-    The total NF (green) uses the linear sum of input-referred excess noise:
+    The explorer below (default view) stacks these contributions from 10 to
+    200 GHz for a representative 65 nm inductively-degenerated CS LNA; its dropdown
+    also gives the inductor-$Q$ and gate-resistance penalties of §5.10. The total NF
+    (green) is the linear sum of input-referred excess noise,
     $F_{\mathrm{tot}} = F_{\min} + r_{L_s}/R_s + r_{L_g}/R_s + F_{\mathrm{intercon}} - 1$.
     """)
     return
@@ -3040,74 +3100,149 @@ def _(mo):
 
 @app.cell
 def _(mo):
+    view_par = mo.ui.dropdown(
+        options=["NF budget vs frequency", "Inductor-Q penalty (28 GHz)",
+                 "Gate resistance vs N_f"],
+        value="NF budget vs frequency", label="View",
+    )
     fT_GHz_nb = mo.ui.slider(100, 400, step=10, value=200,
-                              label="f_T (GHz)", show_value=True)
+                             label="f_T (GHz)", show_value=True)
     Q_ind_nb  = mo.ui.slider(5, 25, step=1, value=12,
-                              label="Inductor Q", show_value=True)
+                             label="Inductor Q", show_value=True)
     gamma_nb  = mo.ui.slider(0.5, 2.0, step=0.1, value=1.4,
-                              label="γ (channel noise coeff)", show_value=True)
+                             label="γ (channel noise coeff)", show_value=True)
 
     mo.vstack([
-        mo.md("### 5.12 Interactive — NF budget breakdown vs frequency"),
+        mo.md("### 5.12 Interactive — parasitics & NF budget"),
+        mo.md("One explorer for the three parasitic NF mechanisms of §5.10–§5.11. "
+              "$f_T$ and γ set the device floor; $Q$ sets the inductor loss."),
+        view_par,
         mo.hstack([fT_GHz_nb, Q_ind_nb, gamma_nb]),
     ])
-    return fT_GHz_nb, Q_ind_nb, gamma_nb
+    return Q_ind_nb, fT_GHz_nb, gamma_nb, view_par
 
 
 @app.cell
-def _(fT_GHz_nb, Q_ind_nb, gamma_nb, go, math, mo, np):
-    _fT    = fT_GHz_nb.value * 1e9
+def _(Q_ind_nb, compute_operating_point, fT_GHz_nb, gamma_nb, go, math, mo,
+      np, view_par):
     _Q_nb  = float(Q_ind_nb.value)
-    _gamma_nb = gamma_nb.value
-    _alpha_nb = 0.8
-    _Ls_H_nb  = 40e-12
-    _Lg_H_nb  = 260e-12
-    _Rs_nb    = 50.0
+    _Rs_nb = 50.0
+    _Ls_H  = 40e-12
+    _Lg_H  = 260e-12
 
-    _freqs_nb = np.linspace(10e9, 200e9, 300)
+    if view_par.value == "Inductor-Q penalty (28 GHz)":
+        _op = compute_operating_point(70.0, 0.15e-3)
+        _w0 = 2 * math.pi * 28e9
+        _r_Lg = _w0 * _Lg_H / _Q_nb
+        _r_Ls = _w0 * _Ls_H / _Q_nb
+        _Re_Zin = _op["omega_T"] * _Ls_H
+        _pen_db = 10 * math.log10(1.0 + (_r_Lg + _r_Ls) / _Re_Zin)
+        _fig_par = go.Figure()
+        _fig_par.add_trace(go.Bar(
+            x=["Re(Z_in)=ω_T·L_s", "r_Lg", "r_Ls"],
+            y=[_Re_Zin, _r_Lg, _r_Ls],
+            marker_color=["#33AA66", "#CC9933", "#CC6633"]))
+        _fig_par.update_layout(
+            template="plotly_dark", height=380,
+            yaxis_title="Series resistance (Ω)",
+            title=f"Inductor Q={_Q_nb:.0f} at 28 GHz → +{_pen_db:.2f} dB NF "
+                  f"((r_Lg+r_Ls) over Re(Z_in))")
 
-    _Fmin_dev = 1.0 + (2.4 * _gamma_nb / _alpha_nb) * (_freqs_nb / _fT)
-    _NF_dev   = 10.0 * np.log10(_Fmin_dev)
+    elif view_par.value == "Gate resistance vs N_f":
+        _R_sq = 10.0          # Ω/□ polysilicon
+        _W_f_total_um = 70.0  # total device width
+        _N_f = np.arange(2, 60, 1)
+        _r_g = _R_sq * (_W_f_total_um / _N_f) / (12.0 * _N_f ** 2)
+        _dNF = 10.0 * np.log10(1.0 + _r_g / 50.0)
+        _fig_par = go.Figure()
+        _fig_par.add_trace(go.Scatter(x=_N_f, y=_dNF, mode="lines+markers",
+            name="ΔNF (dB)", line=dict(color="#CC9933")))
+        _fig_par.update_layout(
+            template="plotly_dark", height=380,
+            xaxis_title="Number of fingers N_f",
+            yaxis_title="ΔNF from r_g (dB)",
+            title="Gate-resistance NF penalty vs finger count (knee near N_f≈20–40)")
 
-    _r_Ls_nb = 2 * math.pi * _freqs_nb * _Ls_H_nb / _Q_nb
-    _r_Lg_nb = 2 * math.pi * _freqs_nb * _Lg_H_nb / _Q_nb
-    _NF_Ls_nb = 10.0 * np.log10(1.0 + _r_Ls_nb / _Rs_nb)
-    _NF_Lg_nb = 10.0 * np.log10(1.0 + _r_Lg_nb / _Rs_nb)
+    else:  # "NF budget vs frequency"
+        _fT = fT_GHz_nb.value * 1e9
+        _gamma = gamma_nb.value
+        _alpha = 0.8
+        _freqs = np.linspace(10e9, 200e9, 300)
+        _Fmin_dev = 1.0 + (2.4 * _gamma / _alpha) * (_freqs / _fT)
+        _NF_dev   = 10.0 * np.log10(_Fmin_dev)
+        _r_Ls = 2 * math.pi * _freqs * _Ls_H / _Q_nb
+        _r_Lg = 2 * math.pi * _freqs * _Lg_H / _Q_nb
+        _NF_Ls = 10.0 * np.log10(1.0 + _r_Ls / _Rs_nb)
+        _NF_Lg = 10.0 * np.log10(1.0 + _r_Lg / _Rs_nb)
+        _NF_ic = 0.002 * (_freqs / 1e9)
+        _F_ic  = 10 ** (_NF_ic / 10)
+        _F_tot = _Fmin_dev + _r_Ls / _Rs_nb + _r_Lg / _Rs_nb + _F_ic - 1.0
+        _NF_tot = 10.0 * np.log10(np.maximum(_F_tot, 1.0))
+        _fig_par = go.Figure()
+        _fig_par.add_trace(go.Scatter(x=_freqs / 1e9, y=_NF_dev, mode="lines",
+            name="Device F_min", line=dict(color="#3366CC", width=2)))
+        _fig_par.add_trace(go.Scatter(x=_freqs / 1e9, y=_NF_Ls, mode="lines",
+            name="L_s loss (finite Q)", line=dict(color="#CC6633", dash="dash")))
+        _fig_par.add_trace(go.Scatter(x=_freqs / 1e9, y=_NF_Lg, mode="lines",
+            name="L_g loss (finite Q)", line=dict(color="#CC9933", dash="dot")))
+        _fig_par.add_trace(go.Scatter(x=_freqs / 1e9, y=_NF_ic, mode="lines",
+            name="Interconnect / pad", line=dict(color="#888888")))
+        _fig_par.add_trace(go.Scatter(x=_freqs / 1e9, y=_NF_tot, mode="lines",
+            name="Total NF (approx)", line=dict(color="#33AA66", width=2.5)))
+        for _fv, _lbl in [(28, "28 GHz"), (60, "60 GHz"), (140, "140 GHz")]:
+            _fig_par.add_vline(x=_fv, line_dash="dash", line_color="#555",
+                               annotation_text=_lbl, annotation_position="top left")
+        _fig_par.update_layout(
+            template="plotly_dark", height=420,
+            xaxis_title="Frequency (GHz)", yaxis_title="NF contribution (dB)",
+            title="NF budget vs frequency — 65 nm CMOS inductively-degenerated CS LNA")
 
-    _NF_intercon = 0.002 * (_freqs_nb / 1e9)
-    _F_intercon  = 10**(_NF_intercon / 10)
+    mo.ui.plotly(_fig_par)
+    return
 
-    _F_total_nb  = _Fmin_dev + _r_Ls_nb / _Rs_nb + _r_Lg_nb / _Rs_nb + _F_intercon - 1.0
-    _NF_total_nb = 10.0 * np.log10(np.maximum(_F_total_nb, 1.0))
 
-    _fig_nb = go.Figure()
-    _fig_nb.add_trace(go.Scatter(
-        x=_freqs_nb / 1e9, y=_NF_dev, mode="lines",
-        name="Device F_min", line=dict(color="#3366CC", width=2)))
-    _fig_nb.add_trace(go.Scatter(
-        x=_freqs_nb / 1e9, y=_NF_Ls_nb, mode="lines",
-        name="L_s loss (finite Q)", line=dict(color="#CC6633", dash="dash")))
-    _fig_nb.add_trace(go.Scatter(
-        x=_freqs_nb / 1e9, y=_NF_Lg_nb, mode="lines",
-        name="L_g loss (finite Q)", line=dict(color="#CC9933", dash="dot")))
-    _fig_nb.add_trace(go.Scatter(
-        x=_freqs_nb / 1e9, y=_NF_intercon, mode="lines",
-        name="Interconnect / pad", line=dict(color="#888888")))
-    _fig_nb.add_trace(go.Scatter(
-        x=_freqs_nb / 1e9, y=_NF_total_nb, mode="lines",
-        name="Total NF (approx)", line=dict(color="#33AA66", width=2.5)))
-    for _fv, _lbl in [(28, "28 GHz"), (60, "60 GHz"), (140, "140 GHz")]:
-        _fig_nb.add_vline(x=_fv, line_dash="dash", line_color="#555",
-                          annotation_text=_lbl, annotation_position="top left")
-    _fig_nb.update_layout(
-        template="plotly_dark",
-        xaxis_title="Frequency (GHz)",
-        yaxis_title="NF contribution (dB)",
-        height=420,
-        title="NF budget vs frequency — 65 nm CMOS inductively-degenerated CS LNA",
-    )
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ### 5.13 Advanced LNA methods — a glance
 
-    mo.ui.plotly(_fig_nb)
+    The degenerated CS stage is the workhorse, but it couples gain, noise, match,
+    and bandwidth through the same few elements. Each technique below *breaks* one of
+    those couplings; they are sketched, not derived.
+
+    - **Noise-cancelling & $g_m$-boosted common-gate.** A common-gate input gives a
+      wideband real $Z_{\text{in}}=1/g_m$, but the CG device's own channel noise
+      reaches the output. The *noise-cancelling* LNA senses the noise voltage at the
+      input node on an auxiliary path and subtracts it at the output — ideally
+      removing the input device's noise while keeping its signal, decoupling
+      $F_{\min}$ from the $50\,\Omega$ match. $g_m$-*boosting* (a small inverting gain
+      across the CG device) raises the effective transconductance to $g_m(1+A)$,
+      lowering both $1/g_m$ and the noise at fixed current.
+
+    - **Transformer feedback & current-reuse.** An on-chip transformer is *lossless*
+      feedback (§5.3.3) plus a turns-ratio impedance transformation in one magnetic
+      element — an extra degree of freedom to place $\Gamma_{\text{opt}}$ and
+      $S_{11}^*$ together. *Current-reuse / stacked* stages run NMOS and PMOS (or
+      several stages) on one bias current, ~doubling $g_m$ per mW and attacking the
+      power–$R_n$ tradeoff of §5.4 directly.
+
+    - **Distributed & N-path front ends.** A *distributed (travelling-wave)*
+      amplifier absorbs the device capacitances into artificial transmission lines,
+      trading delay for octave-plus flat gain and match — the tool when one resonant
+      stage is too narrow. *N-path / mixer-first* receivers replace the LNA with
+      clocked switched-capacitor filtering for a tunable, highly linear, LNA-light
+      front end in interference-dominated bands.
+
+    - **Linearisation & EM/PDK co-design.** *Derivative superposition* biases
+      auxiliary devices so their third-order nonlinearities cancel, raising $IIP_3$
+      at no extra current — the linearity knob the cost function of §5.2 left out. At
+      mmWave the lumped models of §5.7 break down (§5.10.4), so design closure leans
+      on *EM/PDK co-simulation* and optimisation-driven (increasingly ML-assisted)
+      tuning of the passives against measured device data.
+
+    Each buys one relaxed constraint with complexity, power, or area; the degenerated
+    CS remains the reference against which they are judged.
+    """)
     return
 
 
