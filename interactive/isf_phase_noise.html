@@ -1,0 +1,982 @@
+<!doctype html>
+<!-- microwave-circuit-theory · ISF, Floquet Attenuation & Phase Noise Explorer · v1.0 -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ISF, Floquet Attenuation &amp; Phase Noise</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0f1117;
+      --panel: #171b24;
+      --panel-2: #1d2430;
+      --border: #303848;
+      --grid: #2a3444;
+      --grid-soft: #202836;
+      --text: #e6edf7;
+      --muted: #95a3b8;
+      --blue: #4f8cff;
+      --red: #ff5d67;
+      --orange: #ffb454;
+      --green: #4ed389;
+      --cyan: #41d6d3;
+      --violet: #b48cff;
+      --shadow: 0 18px 45px rgb(0 0 0 / 0.28);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    body { min-width: 1180px; }
+
+    .app {
+      display: grid;
+      grid-template-columns: minmax(440px, 1.12fr) minmax(470px, 1.32fr) minmax(360px, 0.92fr);
+      gap: 10px;
+      height: 100vh;
+      padding: 10px;
+    }
+
+    .left-stack, .center-stack, .right-stack {
+      display: grid;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .left-stack   { grid-template-rows: minmax(250px, 1.05fr) minmax(190px, 0.7fr); }
+    .center-stack { grid-template-rows: minmax(360px, 1.5fr) minmax(190px, 0.68fr); }
+    .right-stack  { grid-template-rows: auto; }
+
+    .panel {
+      min-width: 0;
+      min-height: 0;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .plot-panel { display: grid; grid-template-rows: auto 1fr; }
+
+    .panel-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 38px;
+      padding: 9px 12px 7px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .panel-title span:last-child {
+      color: var(--muted);
+      font-size: 11.5px;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    canvas { display: block; width: 100%; height: 100%; min-width: 0; min-height: 0; background: #111620; }
+
+    .controls { padding: 11px 12px; overflow: auto; }
+    .control-grid { display: grid; gap: 9px; }
+
+    .group-label {
+      font-size: 10.5px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 4px 0 -1px;
+      border-bottom: 1px solid var(--grid-soft);
+      padding-bottom: 3px;
+    }
+
+    .control-row { display: grid; gap: 4px; }
+
+    .label-line {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 11.5px;
+      color: var(--muted);
+    }
+
+    .label-line strong { color: var(--text); font-size: 12px; font-weight: 600; }
+    .label-line .val { color: var(--cyan); font-variant-numeric: tabular-nums; }
+
+    input[type="range"] { width: 100%; accent-color: var(--blue); margin: 0; }
+
+    .theta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+
+    .segmented { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+    .segmented.three { grid-template-columns: repeat(3, 1fr); }
+
+    button {
+      height: 30px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--panel-2);
+      color: var(--text);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0 6px;
+    }
+    button:hover { border-color: #53627a; background: #263041; }
+    button.active { color: var(--cyan); border-color: #53627a; background: #263041; }
+
+    .derived { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 2px; }
+
+    .metric {
+      min-width: 0;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: #111720;
+      padding: 7px 9px;
+    }
+    .metric-label { color: var(--muted); font-size: 10.5px; margin-bottom: 3px; }
+    .metric-value { color: var(--text); font-size: 14px; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .metric-value small { color: var(--muted); font-size: 10px; font-weight: 500; }
+    .metric.flag-on  .metric-value { color: var(--orange); }
+    .metric.flag-off .metric-value { color: var(--green); }
+    .wide { grid-column: 1 / -1; }
+
+    .note { font-size: 10.5px; color: var(--muted); line-height: 1.45; }
+    .note b { color: var(--text); font-weight: 600; }
+
+    @media (max-width: 1280px) {
+      body { min-width: 0; overflow: auto; }
+      .app { height: auto; min-height: 100vh; grid-template-columns: 1fr; grid-template-rows: auto auto auto; }
+      .left-stack   { grid-template-rows: 44vh 32vh; }
+      .center-stack { grid-template-rows: 58vh 32vh; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <!-- LEFT: ISF time-domain + coefficient bars -->
+    <section class="left-stack">
+      <div class="panel plot-panel">
+        <div class="panel-title">
+          <span>ISF &nbsp;Γ(ω₀t)&nbsp; &amp; effective ISF&nbsp; Γ<sub>eff</sub>=Γ·α</span>
+          <span id="isfReadout">one period</span>
+        </div>
+        <canvas id="isfCanvas"></canvas>
+      </div>
+      <div class="panel plot-panel">
+        <div class="panel-title">
+          <span>Fourier coefficients&nbsp; |c<sub>n</sub>|&nbsp; of Γ<sub>eff</sub></span>
+          <span id="barReadout">c₀ drives 1/f³</span>
+        </div>
+        <canvas id="barCanvas"></canvas>
+      </div>
+    </section>
+
+    <!-- CENTER: phase-noise spectrum (centerpiece) + Floquet attenuation -->
+    <section class="center-stack">
+      <div class="panel plot-panel">
+        <div class="panel-title">
+          <span>Phase noise&nbsp; ℒ(Δω)&nbsp; — close-in &amp; flicker corner</span>
+          <span id="pnReadout">dBc/Hz vs offset</span>
+        </div>
+        <canvas id="pnCanvas"></canvas>
+      </div>
+      <div class="panel plot-panel">
+        <div class="panel-title">
+          <span>Floquet attenuation of voltage (amplitude) noise</span>
+          <span id="floquetReadout">μ₁=1 persists · |μ₂|&lt;1 decays</span>
+        </div>
+        <canvas id="floquetCanvas"></canvas>
+      </div>
+    </section>
+
+    <!-- RIGHT: controls + metrics -->
+    <section class="right-stack">
+      <div class="panel controls">
+        <div class="control-grid" id="controlGrid">
+          <div class="group-label">Waveform topology (ISF preset)</div>
+          <div class="segmented" id="presetRow">
+            <button data-preset="sym">Symmetric</button>
+            <button data-preset="asym" class="active">Asymmetric</button>
+            <button data-preset="square">Square / ring</button>
+            <button data-preset="custom">Custom</button>
+          </div>
+
+          <div class="group-label">ISF Fourier magnitudes</div>
+          <div id="coeffRows"></div>
+
+          <div class="group-label">ISF harmonic phases θₙ (deg)</div>
+          <div class="theta-grid" id="thetaRows"></div>
+
+          <div class="group-label">Cyclostationary noise — NMF α(ω₀t)</div>
+          <div class="segmented" id="nmfRow">
+            <button data-nmf="off" class="active">α = 1 (stationary)</button>
+            <button data-nmf="on">α gated in cycle</button>
+          </div>
+          <div id="nmfRows"></div>
+          <div class="note">α normalised to ⟨α²⟩ = 1 (holds total noise power fixed, isolating <b>where</b> in the cycle noise acts). Convention differs from Hajimiri–Lee's max α = 1; here α may exceed 1.</div>
+
+          <div class="group-label">Noise sources &amp; scaling</div>
+          <div id="noiseRows"></div>
+          <div class="segmented" id="floorRow">
+            <button data-floor="on" class="active">Floor on</button>
+            <button data-floor="off">Floor off</button>
+          </div>
+
+          <div class="group-label">Derived (Hajimiri–Lee)</div>
+          <div class="derived">
+            <div class="metric">
+              <div class="metric-label">Γ²<sub>rms</sub> (bare)</div>
+              <div class="metric-value" id="mRms">--</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Γ²<sub>eff,rms</sub></div>
+              <div class="metric-value" id="mRmsEff">--</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">c₀,eff (DC of Γ<sub>eff</sub>)</div>
+              <div class="metric-value" id="mC0eff">--</div>
+            </div>
+            <div class="metric" id="mCornerCard">
+              <div class="metric-label">flicker corner f<sub>1/f³</sub></div>
+              <div class="metric-value" id="mCorner">--</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">ℒ(100 kHz)</div>
+              <div class="metric-value" id="mL100k">--</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">ℒ(1 MHz)</div>
+              <div class="metric-value" id="mL1M">--</div>
+            </div>
+            <div class="metric wide" id="mFlagCard">
+              <div class="metric-label">1/f³ region</div>
+              <div class="metric-value" id="mFlag">--</div>
+            </div>
+          </div>
+
+          <div class="note" id="liveNote"></div>
+
+          <div class="segmented"><button id="resetBtn" class="wide">Reset (asymmetric baseline)</button></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    "use strict";
+
+    /* ============================================================
+       ISF / Floquet / phase-noise math  (Hajimiri & Lee 1999)
+       Pure functions — mirrored in Python by pn_from_isf /
+       isf_rms_squared in notebook 06. Cross-checked offline.
+       ============================================================ */
+
+    const TAU = Math.PI * 2;
+    const F0 = 28e9;                 // carrier (context only; ℒ shape is f0-independent)
+    const NHARM = 6;                 // harmonics tracked for the |cₙ| bars
+    const MFFT = 720;                // samples/period for the effective-coeff DFT
+
+    const COLORS = {
+      bg: "#111620", grid: "#2a3444", gridSoft: "#202836",
+      text: "#e6edf7", muted: "#95a3b8",
+      blue: "#4f8cff", red: "#ff5d67", orange: "#ffb454",
+      green: "#4ed389", cyan: "#41d6d3", violet: "#b48cff", white: "#f4f7fb"
+    };
+
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+    function fmt(v, d) { return Number.isFinite(v) ? v.toFixed(d) : "--"; }
+
+    // Γ(φ) = c0/2 + Σ cₙ cos(nφ + θₙ)
+    function isfSeries(c0, cn, thetaN, phi) {
+      const out = new Float64Array(phi.length);
+      for (let i = 0; i < phi.length; i++) {
+        let s = 0.5 * c0;
+        for (let n = 0; n < cn.length; n++) {
+          s += cn[n] * Math.cos((n + 1) * phi[i] + thetaN[n]);
+        }
+        out[i] = s;
+      }
+      return out;
+    }
+
+    // Noise-modulation function α(φ): raised-cosine "on" window, then rms-normalised
+    // so that ⟨α²⟩ = 1.  Convention isolates *where in the cycle* noise is active
+    // from the *total* noise power (which is held fixed). α may exceed 1.
+    function nmfWindow(phi, on, centerFrac, widthFrac) {
+      const a = new Float64Array(phi.length);
+      if (!on) { a.fill(1); return a; }
+      const c = centerFrac * TAU;
+      const halfW = clamp(widthFrac, 0.02, 1.0) * Math.PI;   // half-width in rad
+      let sumSq = 0;
+      for (let i = 0; i < phi.length; i++) {
+        // shortest angular distance to centre
+        let d = ((phi[i] - c + Math.PI) % TAU + TAU) % TAU - Math.PI;
+        let w = 0;
+        if (Math.abs(d) < halfW) w = 0.5 * (1 + Math.cos(Math.PI * d / halfW)); // raised cosine
+        a[i] = w;
+        sumSq += w * w;
+      }
+      const rms = Math.sqrt(sumSq / phi.length);
+      const inv = rms > 1e-9 ? 1 / rms : 0;
+      for (let i = 0; i < a.length; i++) a[i] *= inv;
+      return a;
+    }
+
+    // DFT of a one-period signal g(φ) sampled on the exclusive grid φ_k = 2πk/M.
+    // Returns the cₙ-convention coefficients:  g = c0/2 + Σ cₙ cos(nφ+θₙ).
+    function effectiveCoeffs(g, nharm) {
+      const M = g.length;
+      let A0 = 0;
+      for (let k = 0; k < M; k++) A0 += g[k];
+      A0 /= M;                              // A0 = c0/2
+      const cn = new Float64Array(nharm);
+      const thetaN = new Float64Array(nharm);
+      let rms2 = A0 * A0;                    // Parseval: (c0/2)² + ½Σcₙ²
+      for (let n = 1; n <= nharm; n++) {
+        let An = 0, Bn = 0;
+        for (let k = 0; k < M; k++) {
+          const ph = TAU * k * n / M;
+          An += g[k] * Math.cos(ph);
+          Bn += g[k] * Math.sin(ph);
+        }
+        An = 2 * An / M;
+        Bn = 2 * Bn / M;
+        cn[n - 1] = Math.hypot(An, Bn);
+        thetaN[n - 1] = Math.atan2(-Bn, An);
+        rms2 += 0.5 * (An * An + Bn * Bn);
+      }
+      return { c0: 2 * A0, cn, thetaN, rms2 };
+    }
+
+    // ℒ(Δf) in dBc/Hz from the effective ISF.
+    //   S_white = i_n² · Γ²_rms / (2 q_max² Δω²)              → 1/Δω²
+    //   S       = S_white·(1 + f_{1/f³}/Δf)  [+ S_floor]      → 1/f³, 1/f², floor
+    //   ℒ       = 10 log10(½ S)
+    function pnSpectrum(fArr, rms2, c0eff, qmax, inWhite, fDevice, floorDb, useFloor) {
+      const fCorner = fDevice * (0.25 * c0eff * c0eff) / Math.max(rms2, 1e-30);
+      const Sfloor = useFloor ? 2 * Math.pow(10, floorDb / 10) : 0;
+      const L = new Float64Array(fArr.length);
+      for (let i = 0; i < fArr.length; i++) {
+        const f = fArr[i];
+        const w = TAU * f;
+        const Swhite = inWhite * rms2 / (2 * qmax * qmax * w * w);
+        const S = Swhite * (1 + fCorner / f) + Sfloor;
+        L[i] = 10 * Math.log10(0.5 * S);
+      }
+      return { L, fCorner };
+    }
+
+    function pnAt(f, rms2, c0eff, qmax, inWhite, fDevice, floorDb, useFloor) {
+      return pnSpectrum([f], rms2, c0eff, qmax, inWhite, fDevice, floorDb, useFloor).L[0];
+    }
+
+    /* ============================================================
+       Control specification & state
+       ============================================================ */
+
+    const PRESETS = {
+      sym:    { c: [0.0, 1.0, 0.0, 0.15, 0.0], th: [0, 0, 0, 0] },   // half-wave symmetric → c0=0
+      asym:   { c: [0.45, 0.9, 0.4, 0.15, 0.0], th: [0, 0, 0, 0] },  // Colpitts-like
+      square: { c: [0.0, 1.0, 0.0, 0.33, 0.0], th: [0, 0, 0, 0] }    // odd-harmonic rich
+    };
+
+    const COEFFS = [
+      { key: "c0", label: "c₀ (DC)", min: -1.0, max: 1.0, step: 0.01 },
+      { key: "c1", label: "c₁", min: 0.0, max: 2.0, step: 0.01 },
+      { key: "c2", label: "c₂", min: 0.0, max: 1.5, step: 0.01 },
+      { key: "c3", label: "c₃", min: 0.0, max: 1.0, step: 0.01 },
+      { key: "c4", label: "c₄", min: 0.0, max: 1.0, step: 0.01 }
+    ];
+    const THETAS = [
+      { key: "th1", label: "θ₁" }, { key: "th2", label: "θ₂" },
+      { key: "th3", label: "θ₃" }, { key: "th4", label: "θ₄" }
+    ];
+    const NMF_CTRL = [
+      { key: "nmfCenter", label: "α centre (t/T)", min: 0.0, max: 1.0, step: 0.005, fmt: v => v.toFixed(3) },
+      { key: "nmfWidth",  label: "α width (frac.)", min: 0.05, max: 1.0, step: 0.01, fmt: v => v.toFixed(2) }
+    ];
+    const NOISE_CTRL = [
+      { key: "fDevLog",  label: "device 1/f corner", min: 3, max: 7, step: 0.05, fmt: v => fmtHz(Math.pow(10, v)) },
+      { key: "inDb",     label: "i_n² white PSD", min: -180, max: -150, step: 0.5, fmt: v => v.toFixed(1) + " dBA²/Hz" },
+      { key: "qmaxPc",   label: "q_max", min: 0.2, max: 5.0, step: 0.05, fmt: v => v.toFixed(2) + " pC" },
+      { key: "floorDb",  label: "noise floor", min: -180, max: -120, step: 1, fmt: v => v.toFixed(0) + " dBc/Hz" },
+      { key: "mu2",      label: "Floquet μ₂ (amp.)", min: 0.05, max: 0.95, step: 0.01, fmt: v => v.toFixed(2) }
+    ];
+
+    function fmtHz(f) {
+      if (f >= 1e9) return (f / 1e9).toFixed(2) + " GHz";
+      if (f >= 1e6) return (f / 1e6).toFixed(2) + " MHz";
+      if (f >= 1e3) return (f / 1e3).toFixed(2) + " kHz";
+      return f.toFixed(0) + " Hz";
+    }
+
+    const state = {
+      preset: "asym",
+      c0: 0.45, c1: 0.9, c2: 0.4, c3: 0.15, c4: 0.0,
+      th1: 0, th2: 0, th3: 0, th4: 0,
+      nmfOn: false, nmfCenter: 0.0, nmfWidth: 0.30,
+      fDevLog: 5, inDb: -168, qmaxPc: 1.0, floorDb: -165,
+      floorOn: true, mu2: 0.45,
+      derived: null
+    };
+
+    const valEls = {};   // key -> value <span>
+    const rangeEls = {}; // key -> <input range>
+
+    /* ---------- build the control DOM from spec ---------- */
+
+    function makeSliderRow(spec, container) {
+      const row = document.createElement("div");
+      row.className = "control-row";
+      const lab = document.createElement("div");
+      lab.className = "label-line";
+      const strong = document.createElement("strong");
+      strong.innerHTML = spec.label;
+      const val = document.createElement("span");
+      val.className = "val";
+      lab.appendChild(strong); lab.appendChild(val);
+      const range = document.createElement("input");
+      range.type = "range";
+      range.min = spec.min; range.max = spec.max; range.step = spec.step;
+      range.value = state[spec.key];
+      row.appendChild(lab); row.appendChild(range);
+      container.appendChild(row);
+      valEls[spec.key] = val;
+      rangeEls[spec.key] = range;
+      range.addEventListener("input", () => {
+        state[spec.key] = Number(range.value);
+        if (spec.onInput) spec.onInput();
+        recompute();
+      });
+      return range;
+    }
+
+    const coeffBox = document.getElementById("coeffRows");
+    COEFFS.forEach(c => makeSliderRow({ ...c, fmt: v => v.toFixed(2),
+      onInput: () => setPreset("custom", false) }, coeffBox));
+
+    const thetaBox = document.getElementById("thetaRows");
+    THETAS.forEach(t => makeSliderRow({ ...t, min: -180, max: 180, step: 1,
+      fmt: v => v.toFixed(0) + "°", onInput: () => setPreset("custom", false) }, thetaBox));
+
+    const nmfBox = document.getElementById("nmfRows");
+    NMF_CTRL.forEach(c => makeSliderRow(c, nmfBox));
+
+    const noiseBox = document.getElementById("noiseRows");
+    NOISE_CTRL.forEach(c => makeSliderRow(c, noiseBox));
+
+    // formatting hooks per key (used by syncControlLabels)
+    const FMT = {};
+    [...COEFFS.map(c => ({ ...c, fmt: v => v.toFixed(2) })),
+     ...THETAS.map(t => ({ ...t, fmt: v => v.toFixed(0) + "°" })),
+     ...NMF_CTRL, ...NOISE_CTRL].forEach(s => { FMT[s.key] = s.fmt; });
+
+    function syncControlLabels() {
+      Object.keys(rangeEls).forEach(k => {
+        rangeEls[k].value = state[k];
+        valEls[k].textContent = FMT[k] ? FMT[k](state[k]) : String(state[k]);
+      });
+    }
+
+    /* ---------- preset / toggle wiring ---------- */
+
+    function setPreset(name, applyValues = true) {
+      state.preset = name;
+      document.querySelectorAll("#presetRow button").forEach(b =>
+        b.classList.toggle("active", b.dataset.preset === name));
+      if (applyValues && PRESETS[name]) {
+        const p = PRESETS[name];
+        ["c0", "c1", "c2", "c3", "c4"].forEach((k, i) => state[k] = p.c[i]);
+        ["th1", "th2", "th3", "th4"].forEach((k, i) => state[k] = p.th[i]);
+      }
+    }
+
+    document.querySelectorAll("#presetRow button").forEach(b =>
+      b.addEventListener("click", () => {
+        const name = b.dataset.preset;
+        if (name === "custom") { setPreset("custom", false); }
+        else { setPreset(name, true); syncControlLabels(); recompute(); }
+      }));
+
+    document.querySelectorAll("#nmfRow button").forEach(b =>
+      b.addEventListener("click", () => {
+        state.nmfOn = b.dataset.nmf === "on";
+        document.querySelectorAll("#nmfRow button").forEach(x =>
+          x.classList.toggle("active", x.dataset.nmf === b.dataset.nmf));
+        recompute();
+      }));
+
+    document.querySelectorAll("#floorRow button").forEach(b =>
+      b.addEventListener("click", () => {
+        state.floorOn = b.dataset.floor === "on";
+        document.querySelectorAll("#floorRow button").forEach(x =>
+          x.classList.toggle("active", x.dataset.floor === b.dataset.floor));
+        recompute();
+      }));
+
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      Object.assign(state, {
+        nmfOn: false, nmfCenter: 0.0, nmfWidth: 0.30,
+        fDevLog: 5, inDb: -168, qmaxPc: 1.0, floorDb: -165, floorOn: true, mu2: 0.45
+      });
+      setPreset("asym", true);
+      document.querySelectorAll("#nmfRow button").forEach(x => x.classList.toggle("active", x.dataset.nmf === "off"));
+      document.querySelectorAll("#floorRow button").forEach(x => x.classList.toggle("active", x.dataset.floor === "on"));
+      syncControlLabels();
+      recompute();
+    });
+
+    /* ============================================================
+       Compute
+       ============================================================ */
+
+    const PHI_PLOT = (() => { const a = new Float64Array(361); for (let i = 0; i < 361; i++) a[i] = TAU * i / 360; return a; })();
+    const PHI_FFT  = (() => { const a = new Float64Array(MFFT); for (let i = 0; i < MFFT; i++) a[i] = TAU * i / MFFT; return a; })();
+    const F_ARR    = (() => { const a = new Float64Array(420); for (let i = 0; i < 420; i++) a[i] = Math.pow(10, 2 + 7 * i / 419); return a; })(); // 100 Hz .. 1 GHz
+
+    function compute() {
+      const cn = [state.c1, state.c2, state.c3, state.c4];
+      const th = [state.th1, state.th2, state.th3, state.th4].map(d => d * Math.PI / 180);
+
+      // --- ISF on plotting grid (display) ---
+      const gammaPlot = isfSeries(state.c0, cn, th, PHI_PLOT);
+      const alphaPlot = nmfWindow(PHI_PLOT, state.nmfOn, state.nmfCenter, state.nmfWidth);
+      const gammaEffPlot = new Float64Array(PHI_PLOT.length);
+      for (let i = 0; i < PHI_PLOT.length; i++) gammaEffPlot[i] = gammaPlot[i] * alphaPlot[i];
+
+      // --- effective coefficients on FFT grid (drives the spectrum) ---
+      const gammaFft = isfSeries(state.c0, cn, th, PHI_FFT);
+      const alphaFft = nmfWindow(PHI_FFT, state.nmfOn, state.nmfCenter, state.nmfWidth);
+      const gammaEffFft = new Float64Array(MFFT);
+      for (let i = 0; i < MFFT; i++) gammaEffFft[i] = gammaFft[i] * alphaFft[i];
+
+      const eff = effectiveCoeffs(gammaEffFft, NHARM);
+      const bare = effectiveCoeffs(gammaFft, NHARM);   // α=1 reference (matches input cₙ)
+
+      const qmax = state.qmaxPc * 1e-12;
+      const inWhite = Math.pow(10, state.inDb / 10);
+      const fDev = Math.pow(10, state.fDevLog);
+
+      const eff_spec  = pnSpectrum(F_ARR, eff.rms2,  eff.c0,  qmax, inWhite, fDev, state.floorDb, state.floorOn);
+      const bare_spec = pnSpectrum(F_ARR, bare.rms2, bare.c0, qmax, inWhite, fDev, state.floorDb, state.floorOn);
+
+      const metricL = f => pnAt(f, eff.rms2, eff.c0, qmax, inWhite, fDev, state.floorDb, state.floorOn);
+
+      state.derived = {
+        gammaPlot, alphaPlot, gammaEffPlot,
+        eff, bare,
+        Lcurve: eff_spec.L, LcurveBare: bare_spec.L,
+        fCorner: eff_spec.fCorner, fDev,
+        L100k: metricL(1e5), L1M: metricL(1e6),
+        mu2: state.mu2
+      };
+    }
+
+    /* ============================================================
+       Canvas plumbing
+       ============================================================ */
+
+    const ids = ["isfCanvas", "barCanvas", "pnCanvas", "floquetCanvas"];
+    const C = {}; ids.forEach(id => C[id] = document.getElementById(id));
+
+    function setup(canvas) {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const w = Math.max(1, Math.floor(rect.width * dpr));
+      const h = Math.max(1, Math.floor(rect.height * dpr));
+      if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { ctx, w: rect.width, h: rect.height };
+    }
+    function clear(ctx, w, h) { ctx.fillStyle = COLORS.bg; ctx.fillRect(0, 0, w, h); }
+
+    function gridRect(ctx, L, T, W, H, nx, ny) {
+      ctx.save();
+      ctx.strokeStyle = COLORS.gridSoft; ctx.lineWidth = 1;
+      for (let i = 0; i <= nx; i++) { const x = L + W * i / nx; ctx.beginPath(); ctx.moveTo(x, T); ctx.lineTo(x, T + H); ctx.stroke(); }
+      for (let i = 0; i <= ny; i++) { const y = T + H * i / ny; ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(L + W, y); ctx.stroke(); }
+      ctx.strokeStyle = COLORS.grid; ctx.strokeRect(L, T, W, H);
+      ctx.restore();
+    }
+
+    function text(ctx, s, x, y, color, size, align = "left", bg = true) {
+      ctx.save();
+      ctx.font = `${size}px Inter, system-ui, sans-serif`;
+      ctx.textAlign = align; ctx.textBaseline = "middle";
+      if (bg) {
+        const wd = ctx.measureText(s).width, pad = 4;
+        const left = align === "center" ? x - wd / 2 : align === "right" ? x - wd : x;
+        ctx.fillStyle = "rgba(17,22,32,0.82)";
+        ctx.fillRect(left - pad, y - size / 2 - 2, wd + 2 * pad, size + 4);
+      }
+      ctx.fillStyle = color; ctx.fillText(s, x, y);
+      ctx.restore();
+    }
+
+    function polyline(ctx, xs, ys, xf, yf, color, width, dash) {
+      ctx.save();
+      ctx.strokeStyle = color; ctx.lineWidth = width;
+      if (dash) ctx.setLineDash(dash);
+      ctx.beginPath();
+      let started = false;
+      for (let i = 0; i < xs.length; i++) {
+        const X = xf(xs[i]), Y = yf(ys[i]);
+        if (!Number.isFinite(X) || !Number.isFinite(Y)) continue;
+        if (!started) { ctx.moveTo(X, Y); started = true; } else ctx.lineTo(X, Y);
+      }
+      ctx.stroke(); ctx.restore();
+    }
+
+    /* ============================================================
+       Panel 1 — ISF Γ and Γeff (with α shaded)
+       ============================================================ */
+
+    function drawISF() {
+      const { ctx, w, h } = setup(C.isfCanvas);
+      clear(ctx, w, h);
+      const d = state.derived;
+      const pad = { l: 46, r: 14, t: 16, b: 28 };
+      const L = pad.l, T = pad.t, W = w - pad.l - pad.r, H = h - pad.t - pad.b;
+
+      // y-range over Γ and Γeff
+      let ymax = 0.6;
+      for (const arr of [d.gammaPlot, d.gammaEffPlot]) for (const v of arr) ymax = Math.max(ymax, Math.abs(v));
+      ymax *= 1.12;
+      const xf = t => L + t * W;                         // t in [0,1]
+      const yf = v => T + H * (0.5 - 0.5 * v / ymax);
+      gridRect(ctx, L, T, W, H, 8, 4);
+
+      // zero line
+      ctx.strokeStyle = COLORS.grid; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(L, yf(0)); ctx.lineTo(L + W, yf(0)); ctx.stroke();
+
+      // α shaded region (arb. scale, bottom band) when active
+      if (state.nmfOn) {
+        let amax = 1e-6; for (const v of d.alphaPlot) amax = Math.max(amax, v);
+        const bandH = H * 0.26, base = T + H;
+        ctx.save();
+        ctx.fillStyle = "rgba(255,180,84,0.16)";
+        ctx.beginPath(); ctx.moveTo(L, base);
+        for (let i = 0; i < PHI_PLOT.length; i++) {
+          const x = xf(i / 360), y = base - bandH * d.alphaPlot[i] / amax;
+          ctx.lineTo(x, y);
+        }
+        ctx.lineTo(L + W, base); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = "rgba(255,180,84,0.7)"; ctx.lineWidth = 1.2; ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        for (let i = 0; i < PHI_PLOT.length; i++) {
+          const x = xf(i / 360), y = base - bandH * d.alphaPlot[i] / amax;
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke(); ctx.restore();
+      }
+
+      const ts = PHI_PLOT; const tfrac = i => i / 360;
+      polyline(ctx, [...ts.keys()], d.gammaPlot, i => xf(tfrac(i)), v => yf(v), COLORS.green, 2.0);
+      if (state.nmfOn)
+        polyline(ctx, [...ts.keys()], d.gammaEffPlot, i => xf(tfrac(i)), v => yf(v), COLORS.cyan, 2.2);
+
+      // centre marker for α
+      if (state.nmfOn) {
+        const xc = xf(state.nmfCenter);
+        ctx.strokeStyle = "rgba(255,180,84,0.5)"; ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
+        ctx.beginPath(); ctx.moveTo(xc, T); ctx.lineTo(xc, T + H); ctx.stroke(); ctx.setLineDash([]);
+      }
+
+      // axes labels
+      text(ctx, `+${fmt(ymax, 2)}`, L - 6, T + 8, COLORS.muted, 10, "right");
+      text(ctx, "0", L - 6, yf(0), COLORS.muted, 10, "right");
+      text(ctx, `−${fmt(ymax, 2)}`, L - 6, T + H - 8, COLORS.muted, 10, "right");
+      text(ctx, "t / T", L + W - 4, h - 12, COLORS.muted, 11, "right");
+      text(ctx, "Γ  (bare ISF)", L + 8, T + 12, COLORS.green, 11);
+      if (state.nmfOn) {
+        text(ctx, "Γ_eff = Γ·α", L + 8, T + 28, COLORS.cyan, 11);
+        text(ctx, "α (noise active, arb.)", L + W - 4, T + H - 10, COLORS.orange, 10, "right");
+      }
+      document.getElementById("isfReadout").textContent =
+        state.nmfOn ? "Γ, Γ_eff, α  ·  one period" : "Γ  ·  one period (α = 1)";
+    }
+
+    /* ============================================================
+       Panel 2 — |cₙ| coefficient bars (effective vs bare)
+       ============================================================ */
+
+    function drawBars() {
+      const { ctx, w, h } = setup(C.barCanvas);
+      clear(ctx, w, h);
+      const d = state.derived;
+      const pad = { l: 40, r: 14, t: 18, b: 30 };
+      const L = pad.l, T = pad.t, W = w - pad.l - pad.r, H = h - pad.t - pad.b;
+
+      const effMags = [Math.abs(d.eff.c0), ...d.eff.cn];
+      const bareMags = [Math.abs(d.bare.c0), ...d.bare.cn];
+      const N = effMags.length;
+      let ymax = 0.3;
+      for (const v of effMags) ymax = Math.max(ymax, v);
+      for (const v of bareMags) ymax = Math.max(ymax, v);
+      ymax *= 1.15;
+
+      gridRect(ctx, L, T, W, H, 1, 4);
+      const yf = v => T + H * (1 - v / ymax);
+      // y ticks
+      for (let i = 0; i <= 4; i++) { const v = ymax * i / 4; text(ctx, fmt(v, 2), L - 6, yf(v), COLORS.muted, 9.5, "right"); }
+
+      const slot = W / N;
+      for (let i = 0; i < N; i++) {
+        const cx = L + slot * (i + 0.5);
+        const bw = Math.min(34, slot * 0.5);
+        // bare reference (outline)
+        if (state.nmfOn) {
+          const yb = yf(bareMags[i]);
+          ctx.strokeStyle = "rgba(149,163,184,0.7)"; ctx.lineWidth = 1.2; ctx.setLineDash([3, 2]);
+          ctx.strokeRect(cx - bw / 2, yb, bw, T + H - yb); ctx.setLineDash([]);
+        }
+        // effective (filled)
+        const ye = yf(effMags[i]);
+        ctx.fillStyle = i === 0 ? COLORS.red : COLORS.blue;
+        ctx.fillRect(cx - bw / 2, ye, bw, T + H - ye);
+        text(ctx, i === 0 ? "c₀" : "c" + i, cx, T + H + 13, i === 0 ? COLORS.red : COLORS.muted, 11, "center", false);
+        if (effMags[i] > 0.02) text(ctx, fmt(effMags[i], 2), cx, ye - 8, COLORS.text, 9.5, "center");
+      }
+      text(ctx, "|cₙ|", L - 6, T + 8, COLORS.muted, 10, "right");
+      text(ctx, "c₀ ⇒ 1/f³ upconversion", L + W - 4, T + 12, COLORS.red, 10.5, "right");
+      if (state.nmfOn) text(ctx, "dashed = bare (α=1)", L + W - 4, T + 28, COLORS.muted, 10, "right");
+      document.getElementById("barReadout").textContent =
+        `c₀,eff = ${fmt(d.eff.c0, 3)}  ·  Γ²_eff,rms = ${fmt(d.eff.rms2, 3)}`;
+    }
+
+    /* ============================================================
+       Panel 3 — ℒ(Δω) phase noise (centerpiece)
+       ============================================================ */
+
+    function drawPN() {
+      const { ctx, w, h } = setup(C.pnCanvas);
+      clear(ctx, w, h);
+      const d = state.derived;
+      const pad = { l: 54, r: 16, t: 18, b: 34 };
+      const L = pad.l, T = pad.t, W = w - pad.l - pad.r, H = h - pad.t - pad.b;
+
+      const fx0 = 2, fx1 = 9;        // log10 Hz extent: 100 Hz .. 1 GHz
+      // y-range from data
+      let ymin = Infinity, ymax = -Infinity;
+      for (const v of d.Lcurve) { if (Number.isFinite(v)) { ymin = Math.min(ymin, v); ymax = Math.max(ymax, v); } }
+      ymax = Math.min(0, ymax + 6); ymin = Math.max(-220, ymin - 6);
+      // round to 20s
+      ymax = Math.ceil(ymax / 20) * 20; ymin = Math.floor(ymin / 20) * 20;
+
+      const xf = f => L + (Math.log10(f) - fx0) / (fx1 - fx0) * W;
+      const yf = db => T + (1 - (db - ymin) / (ymax - ymin)) * H;
+
+      // grid: decades x, 20 dB y
+      ctx.save(); ctx.strokeStyle = COLORS.gridSoft; ctx.lineWidth = 1;
+      for (let e = fx0; e <= fx1; e++) { const x = xf(Math.pow(10, e)); ctx.beginPath(); ctx.moveTo(x, T); ctx.lineTo(x, T + H); ctx.stroke(); }
+      for (let db = ymin; db <= ymax; db += 20) { const y = yf(db); ctx.beginPath(); ctx.moveTo(L, y); ctx.lineTo(L + W, y); ctx.stroke(); }
+      ctx.strokeStyle = COLORS.grid; ctx.strokeRect(L, T, W, H); ctx.restore();
+
+      // axis labels
+      for (let e = fx0; e <= fx1; e++) {
+        const x = xf(Math.pow(10, e));
+        const lab = e >= 9 ? "1G" : e >= 6 ? (Math.pow(10, e - 6)) + "M" : e >= 3 ? (Math.pow(10, e - 3)) + "k" : Math.pow(10, e) + "";
+        text(ctx, lab, x, T + H + 12, COLORS.muted, 9.5, "center", false);
+      }
+      for (let db = ymin; db <= ymax; db += 20) text(ctx, db.toFixed(0), L - 6, yf(db), COLORS.muted, 9.5, "right");
+      text(ctx, "dBc/Hz", L - 6, T + 8, COLORS.muted, 10, "right");
+      text(ctx, "offset Δf (Hz)", L + W - 4, h - 12, COLORS.muted, 11, "right");
+
+      // slope guide lines (−30, −20 dB/dec) anchored near the curve
+      drawSlopeGuides(ctx, xf, yf, fx0, fx1, ymin, ymax, d);
+
+      // device flicker corner (faint)
+      const xd = xf(clamp(d.fDev, 1e2, 1e9));
+      ctx.strokeStyle = "rgba(180,140,255,0.55)"; ctx.lineWidth = 1.2; ctx.setLineDash([3, 4]);
+      ctx.beginPath(); ctx.moveTo(xd, T); ctx.lineTo(xd, T + H); ctx.stroke(); ctx.setLineDash([]);
+      text(ctx, "device 1/f", xd, T + H - 10, COLORS.violet, 9.5, "center");
+
+      // bare (α=1) reference, dashed
+      if (state.nmfOn)
+        polyline(ctx, [...F_ARR.keys()], d.LcurveBare, i => xf(F_ARR[i]), v => yf(v), "rgba(149,163,184,0.75)", 1.6, [5, 4]);
+
+      // effective ℒ(Δω) — the curve
+      polyline(ctx, [...F_ARR.keys()], d.Lcurve, i => xf(F_ARR[i]), v => yf(v), COLORS.cyan, 2.4);
+
+      // phase-noise 1/f³ corner marker (the headline interaction)
+      if (d.fCorner >= Math.pow(10, fx0) && d.fCorner <= Math.pow(10, fx1)) {
+        const xc = xf(d.fCorner);
+        ctx.strokeStyle = COLORS.orange; ctx.lineWidth = 1.6;
+        ctx.beginPath(); ctx.moveTo(xc, T); ctx.lineTo(xc, T + H); ctx.stroke();
+        // value on curve
+        const yc = yf(pnAt(d.fCorner, d.eff.rms2, d.eff.c0, state.qmaxPc * 1e-12,
+                           Math.pow(10, state.inDb / 10), d.fDev, state.floorDb, state.floorOn));
+        ctx.fillStyle = COLORS.orange; ctx.beginPath(); ctx.arc(xc, yc, 4.5, 0, TAU); ctx.fill();
+        text(ctx, "f₁/f³ = " + fmtHz(d.fCorner), xc + 6, T + 14, COLORS.orange, 11, "left");
+      } else if (d.fCorner < Math.pow(10, fx0)) {
+        text(ctx, "f₁/f³ below scale (c₀≈0 ⇒ no 1/f³)", L + 10, T + 14, COLORS.green, 11);
+      }
+
+      // region tags
+      text(ctx, "1/f³", xf(Math.max(d.fCorner * 0.18, 1.5e2)), yf(ymax) + 14, "rgba(255,180,84,0.9)", 11, "center");
+      text(ctx, "1/f²", xf(3e5), yf(ymax) + 14, "rgba(65,214,211,0.9)", 11, "center");
+      text(ctx, "floor", xf(4e8), yf(ymin) - 12, COLORS.muted, 10.5, "center");
+
+      document.getElementById("pnReadout").textContent =
+        `ℒ(100k)=${fmt(d.L100k, 1)}  ·  ℒ(1M)=${fmt(d.L1M, 1)} dBc/Hz`;
+    }
+
+    // −30 / −20 dB/dec reference slopes, lightly drawn
+    function drawSlopeGuides(ctx, xf, yf, fx0, fx1, ymin, ymax, d) {
+      ctx.save();
+      ctx.setLineDash([2, 4]); ctx.lineWidth = 1; ctx.strokeStyle = "rgba(230,237,247,0.28)";
+      // anchor at f=1e4 on the curve
+      const fa = 1e4;
+      let La = interpL(d.Lcurve, fa);
+      // −30 dB/dec to the left of corner
+      const f1 = 3e2, f2 = Math.min(Math.max(d.fCorner, 2e3), 1e6);
+      ctx.beginPath();
+      ctx.moveTo(xf(f1), yf(La + 30 * (Math.log10(fa) - Math.log10(f1))));
+      ctx.lineTo(xf(f2), yf(La + 30 * (Math.log10(fa) - Math.log10(f2))));
+      ctx.stroke();
+      // −20 dB/dec around the white region
+      const g1 = Math.max(d.fCorner, 5e3), g2 = 2e7;
+      let Lb = interpL(d.Lcurve, 1e5);
+      ctx.beginPath();
+      ctx.moveTo(xf(g1), yf(Lb + 20 * (Math.log10(1e5) - Math.log10(g1))));
+      ctx.lineTo(xf(g2), yf(Lb + 20 * (Math.log10(1e5) - Math.log10(g2))));
+      ctx.stroke();
+      ctx.restore();
+    }
+    function interpL(Larr, f) {
+      const lf = Math.log10(f);
+      const t = (lf - 2) / 7 * (Larr.length - 1);
+      const i = clamp(Math.floor(t), 0, Larr.length - 2);
+      const frac = t - i;
+      return Larr[i] * (1 - frac) + Larr[i + 1] * frac;
+    }
+
+    /* ============================================================
+       Panel 4 — Floquet attenuation of voltage (amplitude) noise
+       ============================================================ */
+
+    function drawFloquet() {
+      const { ctx, w, h } = setup(C.floquetCanvas);
+      clear(ctx, w, h);
+      const mu2 = state.mu2;
+      const pad = { l: 46, r: 150, t: 18, b: 30 };
+      const L = pad.l, T = pad.t, W = w - pad.l - pad.r, H = h - pad.t - pad.b;
+      const Ncyc = 8;
+      const xf = n => L + n / Ncyc * W;
+      const yf = v => T + H * (1 - v);          // v in [0,1]
+      gridRect(ctx, L, T, W, H, Ncyc, 4);
+      for (let i = 0; i <= 4; i++) text(ctx, (1 - i / 4).toFixed(2), L - 6, T + H * i / 4, COLORS.muted, 9.5, "right");
+
+      // phase mode: μ1 = 1 (persists)
+      ctx.strokeStyle = COLORS.green; ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.moveTo(xf(0), yf(1)); ctx.lineTo(xf(Ncyc), yf(1)); ctx.stroke();
+
+      // amplitude / voltage mode: μ2^n (decays) — continuous envelope + per-period dots
+      ctx.strokeStyle = COLORS.red; ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      for (let s = 0; s <= 200; s++) { const n = Ncyc * s / 200; const v = Math.pow(mu2, n); const X = xf(n), Y = yf(v); if (s === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y); }
+      ctx.stroke();
+      for (let n = 0; n <= Ncyc; n++) { ctx.fillStyle = COLORS.red; ctx.beginPath(); ctx.arc(xf(n), yf(Math.pow(mu2, n)), 3.2, 0, TAU); ctx.fill(); }
+
+      text(ctx, "phase mode  μ₁ = 1  → persists, integrates to ϕ-noise", L + 8, T + 12, COLORS.green, 10.5);
+      text(ctx, "amplitude/voltage mode  ×μ₂ each period → attenuated", L + 8, T + 28, COLORS.red, 10.5);
+      text(ctx, "perturbation amplitude", L - 6, T + 8, COLORS.muted, 10, "right");
+      text(ctx, "periods after impulse", L + W - 4, h - 12, COLORS.muted, 10.5, "right");
+
+      // relaxation time
+      const tau = -1 / Math.log(mu2);
+      // inset: Floquet multiplier plane (unit circle)
+      const ix = w - pad.r + 18, iy = T + 8, iR = Math.min(58, H * 0.42);
+      const icx = ix + iR + 6, icy = iy + iR + 6;
+      ctx.save();
+      ctx.strokeStyle = "rgba(220,220,220,0.5)"; ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
+      ctx.beginPath(); ctx.arc(icx, icy, iR, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+      ctx.strokeStyle = COLORS.grid; ctx.beginPath();
+      ctx.moveTo(icx - iR - 6, icy); ctx.lineTo(icx + iR + 6, icy);
+      ctx.moveTo(icx, icy - iR - 6); ctx.lineTo(icx, icy + iR + 6); ctx.stroke();
+      ctx.fillStyle = COLORS.green; ctx.beginPath(); ctx.arc(icx + iR, icy, 5, 0, TAU); ctx.fill();
+      ctx.fillStyle = COLORS.red; ctx.beginPath(); ctx.arc(icx + iR * mu2, icy, 5, 0, TAU); ctx.fill();
+      ctx.restore();
+      text(ctx, "Floquet μ-plane", icx, icy + iR + 18, COLORS.muted, 10, "center", false);
+      text(ctx, "μ₁=1", icx + iR, icy - 12, COLORS.green, 9.5, "center");
+      text(ctx, "μ₂", icx + iR * mu2, icy + 14, COLORS.red, 9.5, "center");
+
+      document.getElementById("floquetReadout").textContent =
+        `μ₂ = ${fmt(mu2, 2)}  ·  τ_relax = ${fmt(tau, 2)} periods`;
+    }
+
+    /* ============================================================
+       Metrics & live note
+       ============================================================ */
+
+    function updateMetrics() {
+      const d = state.derived;
+      document.getElementById("mRms").innerHTML = fmt(d.bare.rms2, 3);
+      document.getElementById("mRmsEff").innerHTML = fmt(d.eff.rms2, 3);
+      document.getElementById("mC0eff").innerHTML = fmt(d.eff.c0, 3);
+      document.getElementById("mCorner").innerHTML = d.fCorner > 0 ? fmtHz(d.fCorner) : "—";
+      document.getElementById("mL100k").innerHTML = fmt(d.L100k, 1) + " <small>dBc/Hz</small>";
+      document.getElementById("mL1M").innerHTML = fmt(d.L1M, 1) + " <small>dBc/Hz</small>";
+
+      const active = Math.abs(d.eff.c0) > 1e-3 && d.fCorner > 1;
+      const flagCard = document.getElementById("mFlagCard");
+      flagCard.classList.toggle("flag-on", active);
+      flagCard.classList.toggle("flag-off", !active);
+      document.getElementById("mFlag").textContent = active
+        ? "ACTIVE — corner " + fmtHz(d.fCorner)
+        : "suppressed (c₀,eff ≈ 0)";
+      document.getElementById("mCornerCard").classList.toggle("flag-on", active);
+
+      // live narrative
+      const note = document.getElementById("liveNote");
+      const symBare = Math.abs(d.bare.c0) < 1e-3;
+      let msg = "";
+      if (symBare && state.nmfOn && active) {
+        msg = "<b>Cyclostationary DC creation:</b> the bare ISF is symmetric (c₀=0, no 1/f³), " +
+              "yet gating the noise off-centre makes c₀,eff ≠ 0 — a 1/f³ corner appears at " +
+              fmtHz(d.fCorner) + " even though the waveform is symmetric.";
+      } else if (active) {
+        msg = "<b>1/f³ active:</b> c₀,eff upconverts device flicker to a Δω⁻³ skirt; corner " +
+              "f₁/f³ = ω₁/f·(c₀,eff²/4)/Γ²_eff,rms = " + fmtHz(d.fCorner) +
+              ". Lower c₀ ⇒ corner slides left as c₀².";
+      } else {
+        msg = "<b>1/f³ suppressed:</b> c₀,eff ≈ 0, so flicker is not upconverted — ℒ rolls along " +
+              "Δω⁻² to the floor. Raising harmonics lifts Γ²_eff,rms and the whole skirt.";
+      }
+      note.innerHTML = msg;
+    }
+
+    /* ============================================================
+       Orchestration
+       ============================================================ */
+
+    function drawAll() { drawISF(); drawBars(); drawPN(); drawFloquet(); }
+
+    function recompute() { syncControlLabels(); compute(); updateMetrics(); drawAll(); }
+
+    window.addEventListener("resize", () => { if (state.derived) drawAll(); });
+
+    // init
+    setPreset("asym", true);
+    recompute();
+  </script>
+</body>
+</html>
