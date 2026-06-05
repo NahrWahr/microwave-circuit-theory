@@ -65,8 +65,9 @@ def _(np):
             S = S_white * (1.0 + df_corner_1f3 / np.maximum(df, 1e-30))
         else:
             S = S_white
-        # L = 10 log10(S/2) for SSB phase noise; absorb the 1/2 into prefactor
-        L_db = 10.0 * np.log10(0.5 * S)
+        # Canonical Leeson: the 2FkT prefactor already carries both sidebands,
+        # so S is the SSB phase noise L(Δω) itself — no further halving.
+        L_db = 10.0 * np.log10(S)
         return L_db
 
 
@@ -169,15 +170,89 @@ def _(np):
         df = np.asarray(df, dtype=float)
         gamma2_rms = isf_rms_squared(c0, c_array)
         omega = 2.0 * np.pi * df
-        # 1/f^2 base from white noise
-        S_phi_white = in_white * gamma2_rms / (2.0 * q_max * q_max * omega ** 2)
-        # 1/f^3 from c0 upconverting flicker noise
+        # One-sided phase PSD S_phi = Γ²_rms·(i_n²/Δf)/(q_max²·Δω²) — the
+        # white-noise 1/f^2 region (Hajimiri & Lee; matches §13's 2D/Δω²).
+        S_phi_white = in_white * gamma2_rms / (q_max * q_max * omega ** 2)
+        # 1/f^3 region: only the DC ISF coefficient Γ_dc=c0/2 upconverts flicker.
         if df_corner_1f3 is None:
-            # Hajimiri & Lee: f_{1/f^3} = f_{1/f, device} · (c0² / 4Γ²_rms)
+            # Hajimiri & Lee: Δf_{1/f^3} = f_{1/f, device} · (c0²/4) / Γ²_rms
             ratio = (0.25 * c0 * c0) / max(gamma2_rms, 1e-30)
             df_corner_1f3 = in_flicker_corner * ratio
         S_phi = S_phi_white * (1.0 + df_corner_1f3 / np.maximum(df, 1e-30))
+        # SSB phase noise L(Δω) = S_phi / 2 (dBc/Hz)
         return 10.0 * np.log10(0.5 * S_phi)
+
+
+    def welch_psd_np(x, fs, nperseg):
+        """One-sided PSD via Welch's method (Hann window, 50% overlap).
+
+        numpy-only (the notebook ships without scipy); matches
+        scipy.signal.welch density scaling. Returns (freqs, psd).
+        """
+        win = np.hanning(nperseg)
+        renorm = fs * np.sum(win ** 2)
+        acc = np.zeros(nperseg // 2 + 1)
+        n_seg = 0
+        for start in range(0, len(x) - nperseg + 1, nperseg // 2):
+            acc += np.abs(np.fft.rfft(x[start:start + nperseg] * win)) ** 2
+            n_seg += 1
+        psd = acc / (n_seg * renorm)
+        psd[1:-1] *= 2.0                       # fold negative frequencies
+        return np.fft.rfftfreq(nperseg, 1.0 / fs), psd
+
+
+    def _logbin(f, p, n_bins=80):
+        """Geometric-mean log-frequency binning for a clean log-log overlay."""
+        keep = f > 0
+        f, p = f[keep], p[keep]
+        edges = np.logspace(np.log10(f[0]), np.log10(f[-1]), n_bins + 1)
+        which = np.digitize(f, edges)
+        fo, po = [], []
+        for b in range(1, n_bins + 1):
+            sel = which == b
+            if sel.any():
+                fo.append(np.exp(np.mean(np.log(f[sel]))))
+                po.append(np.mean(p[sel]))
+        return np.array(fo), np.array(po)
+
+
+    def langevin_phase_psd(c0, c_array, flicker_corner, in_white=1.0,
+                           fs=64.0, n_pow=21, seg_pow=16, seed=7):
+        """Convention-free Monte-Carlo check of the §9 phase-noise formulas.
+
+        Integrates the phase Langevin equation φ̇ = Γ(ω₀t)·i_n(t)/q_max in
+        normalised units (carrier f0=1, q_max=1) for a current whose one-sided
+        PSD is in_white·(1+flicker_corner/f), estimates S_φ̇ by Welch, then
+        forms S_φ = S_φ̇/Δω² and L = S_φ/2. No spectral bookkeeping is assumed,
+        so the recovered Γ²_rms coefficient and 1/f³ corner test the analytic
+        derivation independently. Returns a dict of binned arrays.
+        """
+        rng = np.random.default_rng(seed)
+        N = 1 << n_pow
+        c_array = np.asarray(c_array, dtype=float)
+        t = np.arange(N) / fs
+        w0 = 2.0 * np.pi                        # f0 = 1
+        gamma = (c0 / 2.0) + sum(cc * np.cos(n * w0 * t)
+                                 for n, cc in enumerate(c_array, 1))
+        g2 = isf_rms_squared(c0, c_array)
+        g_dc2 = 0.25 * c0 * c0
+        # white noise shaped to one-sided PSD in_white·(1 + f_1f/f)
+        wn = rng.standard_normal(N) * np.sqrt(in_white * fs / 2.0)
+        spec = np.fft.rfft(wn)
+        fr = np.fft.rfftfreq(N, 1.0 / fs)
+        shape = np.sqrt(1.0 + flicker_corner / np.maximum(fr, fr[1]))
+        shape[0] = 1.0
+        i_n = np.fft.irfft(spec * shape, N)
+        phidot = gamma * i_n                    # q_max = 1
+        f, Sdd = welch_psd_np(phidot, fs, 1 << seg_pow)
+        fb, Sb = _logbin(f, Sdd)
+        corner = flicker_corner * g_dc2 / max(g2, 1e-30)
+        w2 = (2.0 * np.pi * fb) ** 2
+        Sdd_an = g2 * in_white * (1.0 + corner / fb)
+        return dict(f=fb, Sdd_sim=Sb, Sdd_an=Sdd_an,
+                    L_sim=(Sb / w2) / 2.0,
+                    L_an=(g2 * in_white) / (2.0 * w2) * (1.0 + corner / fb),
+                    corner=corner, gamma2=g2, gamma_dc2=g_dc2)
 
 
     # ---------------------------------------------------------------------------
@@ -393,6 +468,7 @@ def _(np):
         fom_oscillator,
         inductor_Q,
         isf_from_harmonics, isf_rms_squared,
+        langevin_phase_psd,
         leeson_pn,
         pn_from_isf,
         poincare_section,
@@ -577,7 +653,7 @@ def _(go, leeson_pn, mo, np):
     _df_corner = 1e5                     # 100 kHz flicker corner
     _L_full = leeson_pn(_df, _F, _Psig, _Q, _f0, _df_corner)
     _L_white = leeson_pn(_df, _F, _Psig, _Q, _f0, 0.0)
-    _floor_db = 10.0 * np.log10(0.5 * 2 * _F * 1.380649e-23 * 290 / _Psig)
+    _floor_db = 10.0 * np.log10(2 * _F * 1.380649e-23 * 290 / _Psig)
 
     _fig = go.Figure()
     _fig.add_trace(go.Scatter(x=_df, y=_L_full, mode="lines",
@@ -1446,63 +1522,213 @@ def _(mo):
     mo.md(r"""
     ## 9. From ISF to phase-noise spectrum
 
-    The ISF is $T$-periodic, so expand it as a Fourier series:
+    §8 ended with the **phase impulse response** — every result below is a
+    corollary of this one expression:
 
-    $$
-    \boxed{\;
-    \Gamma(\omega_0 t) \;=\; \frac{c_0}{2}
-    \;+\; \sum_{n=1}^{\infty} c_n\,\cos(n\omega_0 t + \theta_n).
-    \;}
-    $$
+    $$ \delta\phi(t) \;=\; \frac{1}{q_{\text{max}}}\int_{-\infty}^{t}\Gamma(\omega_0\tau)\,i_n(\tau)\,d\tau. \qquad\text{[from §8]} $$
 
-    A cyclostationary noise current with PSD $\overline{i_n^2}/\Delta f$
-    drives the integral above. The standard derivation (Hajimiri & Lee,
-    1999) decomposes the cosine multiplications into upconversion and
-    downconversion terms and reads off the spectrum at offset
-    $\Delta\omega$:
+    Differentiating, the excess phase is driven by a **linear time-varying**
+    (LTV) gain — the ISF itself — sampling the noise current:
 
-    $$\boxed{\; S_\phi(\Delta\omega) \;=\; \frac{\overline{i_n^2}/\Delta f}{2\,q_{\text{max}}^{\,2}\,\Delta\omega^2}\,\Gamma_{\text{rms}}^{\,2}, \quad \Gamma_{\text{rms}}^{\,2} \;=\; \frac{c_0^2}{4} + \sum_{n\ge 1}\frac{c_n^{\,2}}{2}. \;}$$
+    $$ \dot\phi(t) \;=\; \frac{\Gamma(\omega_0 t)}{q_{\text{max}}}\,i_n(t). \qquad\text{[phase Langevin equation]} $$
 
-    **Interpretation by harmonic.** A noise component at $n\omega_0 +
-    \Delta\omega$ enters the phase output with weight $c_n^2/2$ at
-    offset $\Delta\omega$. Each harmonic of $\Gamma$ thus
-    **downconverts** noise from a different frequency band:
+    The plan: push a noise PSD through this LTV map, read off $S_\phi$, and show
+    that all three *empirical* Leeson knobs — the noise factor $F$, the loaded
+    $Q_L$, and the $1/f^3$ corner — fall out as closed forms of the waveform.
 
-    | Harmonic | Source band | Output region |
-    |----------|-------------|---------------|
-    | $c_0$ | DC (1/$f$ flicker) | upconverted to carrier → $1/\Delta\omega^3$ |
-    | $c_1$ | $\omega_0 \pm \Delta\omega$ | direct → $1/\Delta\omega^2$ (dominant) |
-    | $c_2$ | $2\omega_0 \pm \Delta\omega$ | even harmonic mixing |
-    | $c_n$ | $n\omega_0 \pm \Delta\omega$ | usually negligible for $n \ge 3$ |
+    **Conventions** (fixed once, used everywhere). $\overline{i_n^2}/\Delta f$
+    is the **one-sided** current PSD (A²/Hz); $S_\phi(\Delta\omega)$ is the
+    **one-sided** PSD of $\phi$ (rad²/Hz); the measured **single-sideband phase
+    noise** is $\mathcal{L}(\Delta\omega)\equiv\tfrac12 S_\phi(\Delta\omega)$
+    (dBc/Hz) [definition], valid while $\overline{\delta\phi^2}\ll1\,$rad².
 
-    **The 1/$f^3$ corner is computable.** Hajimiri & Lee showed that the
-    flicker-induced corner in the *phase noise* spectrum is
+    ### 9.1 Fourier content of the ISF
 
-    $$
-    \boxed{\;
-    \Delta\omega_{1/f^3}
-    \;=\; \omega_{1/f,\text{device}}\,\frac{c_0^{\,2}/4}{\Gamma_{\text{rms}}^{\,2}},
-    \;}
-    $$
+    $\Gamma$ is $T$-periodic; expand it as a real cosine series and, equivalently,
+    as a complex series whose coefficients $\Gamma_m$ are the mixing weights of §9.2:
 
-    where $\omega_{1/f,\text{device}}$ is the device flicker corner. **If
-    $c_0 = 0$, the 1/$f^3$ region disappears.** This identity will drive
-    the topology comparison in §17-18.
+    $$ \Gamma(\omega_0 t) \;=\; \frac{c_0}{2} + \sum_{n\ge1}c_n\cos(n\omega_0 t+\theta_n) \;=\; \sum_{m=-\infty}^{\infty}\Gamma_m\,e^{\,jm\omega_0 t}, \qquad \Gamma_0=\frac{c_0}{2},\;\; \Gamma_{\pm m}=\frac{c_m}{2}\,e^{\pm j\theta_m}. $$
 
-    **Reduction to Leeson.** Comparing with the Leeson formula identifies
-    the effective noise factor:
+    Two moments of the waveform control everything that follows [definitions]:
 
-    $$
-    F_{\text{eff}}
-    \;=\; \frac{\Gamma_{\text{rms}}^{\,2}}{q_{\text{max}}^{\,2}}
-        \cdot \frac{1}{kT R_p}
-        \cdot \sum_{\text{sources}} \overline{i_{n,k}^{\,2}}/\Delta f.
-    $$
+    $$ \Gamma_{\text{dc}} \;\equiv\; \Gamma_0 \;=\; \frac{c_0}{2} \quad(\text{cycle average}), \qquad \Gamma_{\text{rms}}^{\,2} \;\equiv\; \frac{1}{2\pi}\!\int_0^{2\pi}\!\Gamma^2\,dx \;=\; \frac{c_0^2}{4}+\frac12\sum_{n\ge1}c_n^2 \;=\; \sum_{m}\big|\Gamma_m\big|^2 \quad\text{[Parseval]}. $$
 
-    All three Leeson empirical parameters — $F$, the loaded $Q$ via
-    $R_p$, and the 1/$f^3$ corner — are now closed-form functions of the
-    waveform shape (encoded in $c_n$) and the device noise PSD.
+    ### 9.2 Cyclostationary conversion → the master spectrum
+
+    A noise tone at $m\omega_0+\Delta\omega$ multiplied by the $\Gamma_m$ harmonic
+    beats down to the baseband offset $\Delta\omega$; the §8 integration then
+    writes it onto the phase. Because the harmonics excite **disjoint** noise
+    bands, their contributions add in power, giving the output PSD of $\dot\phi$
+    [theorem — cyclostationary / LTV folding]:
+
+    $$ S_{\dot\phi}(\Delta\omega) \;=\; \frac{1}{q_{\text{max}}^{\,2}}\sum_{m=-\infty}^{\infty}\big|\Gamma_m\big|^2\,S_i(\Delta\omega+m\omega_0). $$
+
+    Each ISF harmonic acts as a mixer LO; the table is just this sum read line by line:
+
+    | ISF harmonic $\Gamma_m$ | Source band | Folds to | Power weight |
+    |---|---|---|---|
+    | $\Gamma_0=c_0/2$ | baseband (DC, $1/f$) | $1/\Delta\omega^3$ | $c_0^2/4$ |
+    | $\Gamma_{\pm1}=c_1/2$ | $\omega_0\pm\Delta\omega$ | $1/\Delta\omega^2$ (dominant) | $c_1^2/2$ |
+    | $\Gamma_{\pm n}$ | $n\omega_0\pm\Delta\omega$ | $1/\Delta\omega^2$ | $c_n^2/2$ |
+
+    For **white** device noise $S_i$ is flat across every band, so by Parseval the
+    sum collapses to $\sum_m|\Gamma_m|^2=\Gamma_{\text{rms}}^2$. Integrating
+    $\dot\phi\to\phi$ divides the spectrum by $\Delta\omega^2$:
+
+    $$ \boxed{\; S_\phi(\Delta\omega)=\frac{\Gamma_{\text{rms}}^{\,2}}{q_{\text{max}}^{\,2}}\,\frac{\overline{i_n^2}/\Delta f}{\Delta\omega^2}, \qquad \mathcal{L}(\Delta\omega)=\tfrac12 S_\phi=\frac{\Gamma_{\text{rms}}^{\,2}}{q_{\text{max}}^{\,2}}\,\frac{\overline{i_n^2}/\Delta f}{2\,\Delta\omega^2} \;} \qquad\text{[Hajimiri–Lee]} $$
+
+    This is the §13 diffusion result by another route: $S_\phi=2D/\Delta\omega^2$
+    with $D=\Gamma_{\text{rms}}^2\,\overline{(i_n^2/\Delta f)}/2q_{\text{max}}^2$.
+    Same physics, computed two ways — which is the cross-check §9.6 makes numerical.
+
+    ### 9.3 Cyclostationary noise: the effective ISF
+
+    Real device noise is not stationary — a transistor that conducts over only
+    part of the cycle injects noise only then. Write the instantaneous noise PSD
+    as a periodic envelope, $\overline{i_n^2}(t)/\Delta f=\big(\overline{i_{n0}^2}/\Delta f\big)\,\alpha^2(\omega_0 t)$,
+    with $\alpha$ the **noise-modulating function** ($0\le\alpha\le1$). The product
+    $\Gamma\,i_n$ then depends only on the **effective ISF** [definition]:
+
+    $$ \Gamma_{\text{eff}}(\omega_0 t)\;\equiv\;\Gamma(\omega_0 t)\,\alpha(\omega_0 t), \qquad c_n\to c_n^{\text{eff}}. $$
+
+    Every formula here holds verbatim with $\Gamma\to\Gamma_{\text{eff}}$. The
+    consequence is sharp: a waveform with $c_0=0$ still acquires a nonzero
+    $c_0^{\text{eff}}=\langle\Gamma\alpha\rangle$ whenever the conduction window
+    $\alpha$ is asymmetric — which is why real "symmetric" oscillators show a
+    residual $1/f^3$ rather than none.
+
+    ### 9.4 The $1/f^3$ corner (the explicit calculation)
+
+    Device flicker noise is a **baseband** process,
+    $\overline{i_{n,1/f}^2}/\Delta f=\big(\overline{i_n^2}/\Delta f\big)\,\omega_{1/f}/\Delta\omega$,
+    where $\omega_{1/f}$ is the device corner (flicker $=$ white). In the folding
+    sum only the $m=0$ term reaches baseband, so flicker enters the phase weighted
+    by $|\Gamma_0|^2=\Gamma_{\text{dc}}^2=c_0^2/4$ **alone**:
+
+    $$ S_{\phi,\,1/f^3}(\Delta\omega) \;=\; \frac{\Gamma_{\text{dc}}^{\,2}}{q_{\text{max}}^{\,2}}\,\frac{\overline{i_n^2}/\Delta f}{\Delta\omega^2}\,\frac{\omega_{1/f}}{\Delta\omega}. $$
+
+    The corner is, by definition, where this equals the white $1/\Delta\omega^2$
+    term $S_{\phi,\text{white}}=\Gamma_{\text{rms}}^2\,(\overline{i_n^2}/\Delta f)/q_{\text{max}}^2\Delta\omega^2$.
+    Setting $S_{\phi,1/f^3}=S_{\phi,\text{white}}$, the entire prefactor
+    $(\overline{i_n^2}/\Delta f)/q_{\text{max}}^2\Delta\omega^2$ cancels — so the
+    corner is independent of bias, power, $q_{\text{max}}$, and even the
+    factor-of-two convention:
+
+    $$ \boxed{\; \Delta\omega_{1/f^3} \;=\; \omega_{1/f}\,\frac{\Gamma_{\text{dc}}^{\,2}}{\Gamma_{\text{rms}}^{\,2}} \;=\; \omega_{1/f}\,\frac{c_0^{\,2}/4}{\Gamma_{\text{rms}}^{\,2}} \;} \qquad\text{[Hajimiri–Lee]} $$
+
+    If $c_0=0$ (or $c_0^{\text{eff}}=0$) the $1/f^3$ region vanishes. This one
+    identity drives §17–18: a half-wave-symmetric tank has $c_0=0$ and is
+    flicker-quiet; a Colpitts waveform is not.
+
+    ### 9.5 Reduction to Leeson — deriving the empirical $F$
+
+    Leeson (§2) *posits* $\mathcal{L}=\frac{2FkT}{P_{\text{sig}}}\big[1+\frac{\omega_0^2}{4Q_L^2\Delta\omega^2}\big]\big[1+\frac{\Delta\omega_{1/f^3}}{|\Delta\omega|}\big]$
+    with $F$ an **unexplained fit parameter** read off a measured plot. The ISF
+    makes it computable. Equate the two $1/\Delta\omega^2$ regions,
+    $\mathcal{L}_{\text{Leeson}}=\mathcal{L}_{\text{ISF}}$ (summing over noise
+    sources $k$):
+
+    $$ \frac{2FkT}{P_{\text{sig}}}\,\frac{\omega_0^2}{4Q_L^2\Delta\omega^2} \;=\; \frac{\Gamma_{\text{rms}}^{\,2}}{q_{\text{max}}^{\,2}}\,\frac{1}{2\Delta\omega^2}\sum_k\overline{i_{n,k}^2}/\Delta f. $$
+
+    Substitute the tank identities [definitions]: $Q_L=\omega_0 R_p C$, peak swing
+    $V_0=q_{\text{max}}/C$, signal power $P_{\text{sig}}=V_0^2/2R_p=q_{\text{max}}^2/2R_pC^2$,
+    so that $P_{\text{sig}}Q_L^2/\omega_0^2=q_{\text{max}}^2R_p/2$. The charge
+    $q_{\text{max}}^2$ cancels and
+
+    $$ \boxed{\; F_{\text{eff}} \;=\; \frac{\Gamma_{\text{rms}}^{\,2}\,R_p}{2kT}\sum_{\text{sources }k}\overline{i_{n,k}^2}/\Delta f \;} \qquad\text{[theorem]} $$
+
+    $F$ is nothing but the waveform-weighted ($\Gamma_{\text{rms}}^2$) ratio of
+    total device-noise power to the tank's thermal reference $kT/R_p$. The
+    "fudge factor" is now first-principles.
+
+    **The three Leeson knobs, no longer empirical.**
+
+    | Leeson knob | Status in §2 | ISF closed form |
+    |---|---|---|
+    | noise factor $F$ | fit to data | $\Gamma_{\text{rms}}^2\,R_p\,(\sum_k\overline{i_{n,k}^2}/\Delta f)\,/\,2kT$ |
+    | loaded $Q_L$ | measured | tank: $Q_L=\omega_0 R_p C$ |
+    | $1/f^3$ corner | empirical patch | $\omega_{1/f}\,(c_0^2/4)/\Gamma_{\text{rms}}^2$ |
+
+    Each is a functional of the waveform shape ($c_n$, through $\Gamma_{\text{rms}}^2$
+    and $c_0$) and the device-noise PSD. Leeson supplies the *shape*; the ISF
+    supplies the *coefficients*.
     """)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""
+    ### 9.6 Numerical verification (convention-free)
+
+    The factor-of-two conventions above are notoriously easy to get wrong, so
+    check them by brute force. Integrate the phase Langevin equation
+    $\dot\phi=\Gamma(\omega_0 t)\,i_n(t)/q_{\text{max}}$ directly (normalised
+    $f_0=1$, $q_{\text{max}}=1$) with a synthesised current of one-sided PSD
+    $\overline{i_n^2}/\Delta f=G\,(1+\omega_{1/f}/\Delta\omega)$, estimate the PSD
+    of $\dot\phi$ by Welch's method, then form $S_\phi=S_{\dot\phi}/\Delta\omega^2$
+    and $\mathcal{L}=\tfrac12 S_\phi$. The simulation knows only the time-domain
+    product — no spectral bookkeeping — so the recovered curves are an
+    independent test of §9.2–§9.4.
+
+    - **Left:** $S_{\dot\phi}$ is stationary and measured *directly*. Its white
+      floor sits at $\Gamma_{\text{rms}}^2 G$ (confirming the Parseval weight);
+      the flicker term lifts it as $1/\Delta\omega$, crossing the floor exactly
+      at the predicted $1/f^3$ corner.
+    - **Right:** dividing by $\Delta\omega^2$ recovers the familiar
+      $1/\Delta\omega^3\!\to\!1/\Delta\omega^2$ phase-noise shape, with the corner
+      at $\omega_{1/f}\,\Gamma_{\text{dc}}^2/\Gamma_{\text{rms}}^2$ — no fitted scale.
+    """)
+    return
+
+
+@app.cell
+def _(go, langevin_phase_psd, make_subplots, mo, np):
+    # Fixed-seed, convention-free Monte-Carlo check of §9.2–§9.4.
+    _r = langevin_phase_psd(c0=0.9, c_array=[1.0, 0.4, 0.15],
+                            flicker_corner=0.05)
+    _f, _corner = _r["f"], _r["corner"]
+    # Display offsets below the carrier only; keep the corner near mid-plot.
+    _xr = [np.log10(_f.min() * 0.8), np.log10(1.5)]
+    _fig = make_subplots(
+        rows=1, cols=2,
+        subplot_titles=("S<sub>φ̇</sub>(Δf): measured directly (stationary)",
+                        "ℒ(Δf) = ½ S<sub>φ̇</sub>/Δω²: 1/f³ → 1/f²"))
+    # Panel 1 — S_phidot: white floor + flicker lift
+    _fig.add_trace(go.Scatter(x=_f, y=10 * np.log10(_r["Sdd_sim"]),
+                              mode="markers",
+                              marker=dict(color="#00CC96", size=4),
+                              name="Langevin sim"), row=1, col=1)
+    _fig.add_trace(go.Scatter(x=_f, y=10 * np.log10(_r["Sdd_an"]),
+                              mode="lines",
+                              line=dict(color="#FFD700", width=2),
+                              name="analytic Γ²ᵣₘₛ·G·(1+f_c/f)"), row=1, col=1)
+    _fig.update_xaxes(title_text="Δf / f₀", type="log", range=_xr,
+                      row=1, col=1)
+    _fig.update_yaxes(title_text="S_φ̇ (dB, arb.)", row=1, col=1)
+    # Panel 2 — L(Δf): the recognisable phase-noise skirt
+    _fig.add_trace(go.Scatter(x=_f, y=10 * np.log10(_r["L_sim"]),
+                              mode="markers",
+                              marker=dict(color="#636EFA", size=4),
+                              name="ℒ sim", showlegend=False), row=1, col=2)
+    _fig.add_trace(go.Scatter(x=_f, y=10 * np.log10(_r["L_an"]),
+                              mode="lines",
+                              line=dict(color="#EF553B", width=2),
+                              name="ℒ analytic", showlegend=False), row=1, col=2)
+    _fig.update_xaxes(title_text="Δf / f₀", type="log", range=_xr,
+                      row=1, col=2)
+    _fig.update_yaxes(title_text="ℒ (dB, arb.)", row=1, col=2)
+    for _col in (1, 2):
+        _fig.add_vline(x=_corner, line=dict(color="#AB63FA", dash="dot"),
+                       annotation_text="predicted 1/f³ corner",
+                       row=1, col=_col)
+    _fig.update_layout(
+        template="plotly_dark", height=380,
+        title=(f"Phase Langevin Monte-Carlo:  Γ²ᵣₘₛ={_r['gamma2']:.3f},  "
+               f"Γ_dc²={_r['gamma_dc2']:.3f},  "
+               f"corner = f₁f·Γ_dc²/Γ²ᵣₘₛ = {_corner:.4f}·f₀"),
+        legend=dict(orientation="h", y=-0.25))
+    mo.ui.plotly(_fig)
     return
 
 
