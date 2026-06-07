@@ -2843,10 +2843,10 @@ def _(mo):
 
     Back into the first equation:
 
-    $$V_1 = j\omega L_1\,I_1
-            + j\omega M \cdot \!\left(-\frac{j\omega M}{Z_L + j\omega L_2}\right) I_1
-        = \left[\,j\omega L_1
-              + \frac{(\omega M)^2}{Z_L + j\omega L_2}\,\right] I_1$$
+    $$\begin{aligned}
+      V_1 &= j\omega L_1\,I_1 + j\omega M \cdot \!\left(-\frac{j\omega M}{Z_L + j\omega L_2}\right) I_1 \\
+          &= \left[\,j\omega L_1 + \frac{(\omega M)^2}{Z_L + j\omega L_2}\,\right] I_1
+    \end{aligned}$$
 
     $$\boxed{\;Z_{\text{in}}(\omega)
               = j\omega L_1 + \frac{(\omega M)^2}{Z_L + j\omega L_2}\;}
