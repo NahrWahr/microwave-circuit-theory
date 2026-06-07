@@ -3015,13 +3015,14 @@ def _(cir_L1_s, cir_L2_s, cir_ZLim_s, cir_ZLre_s, cir_f0_s, cir_k_s,
         line=dict(color="rgba(255,255,255,0.4)", dash="dot"),
         annotation_text=f"n² Re(Z_L) = {float(_Z_ideal[0].real):.1f} Ω",
         annotation_position="top left")
-    _fig_zin.add_vline(x=_f0/1e9,
+    _fig_zin.add_vline(x=np.log10(_f0/1e9),
         line=dict(color="rgba(255,255,255,0.4)", dash="dot"),
         annotation_text="f₀")
     _fig_zin.update_layout(template="plotly_dark", height=440,
         title=(f"Z_in vs f:  L_1={_L1*1e12:.0f}pH, L_2={_L2*1e12:.0f}pH, "
                f"k={_k_c:.2f}, n²=L_1/L_2={_n2:.2g}"),
-        xaxis=dict(title="f (GHz)", type="log"),
+        xaxis=dict(title="f (GHz)", type="log",
+                   range=[np.log10(_f[0]/1e9), np.log10(_f[-1]/1e9)]),
         yaxis=dict(title="Z_in (Ω)"))
 
     _w0 = 2 * np.pi * _f0
